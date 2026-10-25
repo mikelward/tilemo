@@ -1153,8 +1153,9 @@ Each one names a workaround, or says there is none.
     against a fake Accessibility layer, with no sleeps;
   - in CI on a macOS runner, a smoke test in a real Hammerspoon
     (`ci/hs-smoke.sh`): every `hs.*` name timo uses exists, and timo starts
-    and opens its dashboard. Hosted runners can't grant Accessibility, so
-    nothing that needs it runs there.
+    and opens its dashboard, then tiles three TextEdit windows and checks
+    each lands where the layout puts it. GitHub's macOS runners come with
+    Accessibility granted, which is what lets that run.
 - **On a real Mac:** the focus follows mouse checklist (§5.2), the dialog
   checklist (§5.1), and each *(unverified)* claim in this spec. A claim
   checked comes out of italics, with the macOS version.

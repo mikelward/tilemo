@@ -50,6 +50,7 @@ with a note without it.
 
 CI also runs `ci/hs-smoke.sh` on a macOS runner. It installs Hammerspoon from
 Homebrew, checks that every `hs.*` name timo uses exists in it, then starts
-timo and opens and closes the dashboard. Hosted runners can't grant
-Accessibility, so nothing tiles there. The tiling hasn't run on a Mac yet;
-the checklists in SPEC.md §5.1 and §5.2 are what to try first.
+timo, opens and closes the dashboard, and opens three TextEdit windows to
+check timo tiles them where its layout says. That's one layout on one
+display; the checklists in SPEC.md §5.1 and §5.2 are what to try on a real
+Mac.
