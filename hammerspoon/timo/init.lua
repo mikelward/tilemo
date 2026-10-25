@@ -17,12 +17,15 @@ local adapter_mod = require("timo.hs_adapter")
 local ffm_mod = require("timo.ffm")
 local launcher_hs = require("timo.launcher_hs")
 local tap_mod = require("timo.tap")
+local bar = require("timo.bar")
 
 local M = {}
 
 -- How often to look for Karabiner starting or stopping, so the keys move
 -- with it without a restart (SPEC.md §7.1).
 M.KARABINER_CHECK = 30
+-- How often to read Dock badges and window titles for attention.
+M.ATTENTION_POLL = 2
 
 local function bind_all(self)
     for _, h in ipairs(self.hotkeys or {}) do
@@ -152,8 +155,40 @@ function M.start(config)
     self.tap_watch = adapter_mod.taps(function(flags)
         local none = not (flags.cmd or flags.alt or flags.ctrl or flags.shift or flags.fn)
         self.tap:flags(not none and keys.super_alone(self.super, flags), none, hs.timer.secondsSinceEpoch())
+        -- Letting Super go ends a round of Super+Tab.
+        if not keys.is_super(self.super, flags) then
+            self.wm:end_round()
+        end
     end, function()
         self.tap:other()
+    end)
+    -- The workspaces in the menu bar, and the number shown on each switch
+    -- (SPEC.md §8).
+    self.menubar = hs.menubar.new()
+    self.wm.on_change = function()
+        if self.menubar then
+            self.menubar:setTitle(bar.title(self.wm:bar_state()))
+        end
+    end
+    self.menubar:setMenu(function()
+        local items = {}
+        for n = 1, wm_mod.WORKSPACES do
+            items[#items + 1] = {
+                title = "Workspace " .. n,
+                fn = function()
+                    self.wm:act("show", n)
+                end,
+            }
+        end
+        return items
+    end)
+    self.wm.on_show = function(n, uuid)
+        hs.alert.closeAll(0)
+        hs.alert.show(tostring(n), { textSize = 96, radius = 24 }, hs.screen.find(uuid) or hs.screen.mainScreen(), 0.5)
+    end
+    self.wm:changed()
+    self.attention_timer = hs.timer.doEvery(M.ATTENTION_POLL, function()
+        self.wm:poll_attention()
     end)
     choose_super(self, true)
     self.karabiner_timer = hs.timer.doEvery(M.KARABINER_CHECK, function()

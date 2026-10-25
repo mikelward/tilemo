@@ -211,6 +211,33 @@ function M.new()
         end
     end
 
+    function a.title(id)
+        local w = win(id)
+        return w and try(w.title, w)
+    end
+
+    -- Each Dock item's badge, as { app = bundle ID, label }. Read through
+    -- Accessibility's AXStatusLabel, which some apps don't set
+    -- (SPEC.md §2.5).
+    function a.dock_badges()
+        local out = {}
+        local dock = hs.application.get("com.apple.dock")
+        local el = dock and hs.axuielement.applicationElement(dock)
+        local list = el and try(function()
+            return el:attributeValue("AXChildren")[1]
+        end)
+        for _, item in ipairs(list and try(list.attributeValue, list, "AXChildren") or {}) do
+            local name = try(item.attributeValue, item, "AXTitle")
+            local label = try(item.attributeValue, item, "AXStatusLabel")
+            local app = name and hs.application.get(name)
+            local bundle = app and app:bundleID()
+            if bundle then
+                out[#out + 1] = { app = bundle, label = label }
+            end
+        end
+        return out
+    end
+
     function a.screens()
         local out = {}
         for _, s in ipairs(hs.screen.allScreens()) do

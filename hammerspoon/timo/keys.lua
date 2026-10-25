@@ -67,6 +67,8 @@ for _, a in ipairs(M.APPS) do
 end
 
 M.map[#M.map + 1] = { key = "space", action = "launcher" }
+M.map[#M.map + 1] = { key = "tab", action = "attention" }
+M.map[#M.map + 1] = { key = "home", action = "attention" }
 
 -- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.
 for n = 1, 9 do
