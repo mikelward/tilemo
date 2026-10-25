@@ -81,6 +81,14 @@ t.test("every binding names an action the window manager has", function()
     end
 end)
 
+t.test("super_held counts Super held as part of a bigger chord", function()
+    t.eq(keys.super_held({ "alt" }, { alt = true, cmd = true }), true)
+    t.eq(keys.super_held({ "alt" }, { alt = true, ctrl = true }), true)
+    t.eq(keys.super_held({ "alt" }, { cmd = true }), false)
+    t.eq(keys.super_held(keys.KARABINER, { ctrl = true, alt = true }), false)
+    t.eq(keys.super_held(keys.KARABINER, { ctrl = true, alt = true, cmd = true, shift = true }), true)
+end)
+
 t.test("is_super wants exactly Super's modifiers, Shift aside", function()
     t.eq(keys.is_super({ "alt" }, { alt = true }), true)
     t.eq(keys.is_super({ "alt" }, { alt = true, shift = true }), true)

@@ -94,6 +94,20 @@ function M.is_super(super, flags)
     return true
 end
 
+-- Whether every one of Super's modifiers is held, whatever else is: holding
+-- a chord that includes Super pauses focus follows mouse.
+function M.super_held(super, flags)
+    if not super or #super == 0 then
+        return false
+    end
+    for _, m in ipairs(super) do
+        if not flags[m] then
+            return false
+        end
+    end
+    return true
+end
+
 -- Whether Karabiner is running with timo's rule loaded. `read` returns a
 -- file's text or nil, `decode` turns JSON into a table or nil, and
 -- `running` says whether a process name is live; all come from the adapter,

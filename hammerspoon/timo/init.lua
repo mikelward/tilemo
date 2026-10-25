@@ -3,14 +3,18 @@
 --   timo = require("timo")
 --   timo.start({})
 --
--- start() takes { layout = ..., rules = {...} }: `layout` overrides
--- timo/layout.lua's defaults whole, and `rules` are float rules that come
--- before the built-in ones (timo/rules.lua).
+-- start() takes { layout = ..., rules = {...}, focus_follows_mouse = true,
+-- keep_focus = {...} }: `layout` overrides timo/layout.lua's defaults whole,
+-- `rules` are float rules that come before the built-in ones
+-- (timo/rules.lua), and `keep_focus` names more apps, by bundle ID, that
+-- keep focus while they're in front. timo.toggle_focus_follows_mouse()
+-- turns it off and on.
 
 local keys = require("timo.keys")
 local mouse = require("timo.mouse")
 local wm_mod = require("timo.wm")
 local adapter_mod = require("timo.hs_adapter")
+local ffm_mod = require("timo.ffm")
 
 local M = {}
 
@@ -39,6 +43,13 @@ end
 
 local function resize_mode(self)
     local modal = hs.hotkey.modal.new()
+    -- The float being resized keeps focus while the mode is on.
+    function modal.entered()
+        self.wm.holding_keyboard = true
+    end
+    function modal.exited()
+        self.wm.holding_keyboard = false
+    end
     for _, b in ipairs(keys.resize) do
         local fn = function()
             self.wm:act("resize_by", b.d)
@@ -71,7 +82,15 @@ function M.start(config)
     local self = M
     hs.window.animationDuration = 0
     self.adapter = adapter_mod.new()
+    config = config or {}
     self.wm = wm_mod.new(self.adapter, config)
+    self.wm.ffm = ffm_mod.new(self.wm, self.adapter, {
+        enabled = config.focus_follows_mouse ~= false,
+        keep_focus = config.keep_focus,
+        super_held = function()
+            return keys.super_held(self.super, hs.eventtap.checkKeyboardModifiers())
+        end,
+    })
     self.wm:sync()
     self.wm:retile()
     self.watchers = adapter_mod.watch(function()
@@ -102,11 +121,20 @@ function M.start(config)
             self.wm:maximize_at(x, y)
         end,
     })
+    self.pointer = adapter_mod.pointer_moves(function(x, y, flags)
+        self.wm.ffm:move(x, y, keys.super_held(self.super, flags))
+    end)
     choose_super(self, true)
     self.karabiner_timer = hs.timer.doEvery(M.KARABINER_CHECK, function()
         choose_super(self, false)
     end)
     return self
+end
+
+function M.toggle_focus_follows_mouse()
+    local on = M.wm.ffm:toggle()
+    M.adapter.notify("Focus follows mouse " .. (on and "on" or "off"))
+    return on
 end
 
 return M

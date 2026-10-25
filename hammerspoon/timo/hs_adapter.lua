@@ -8,9 +8,28 @@ local function box(r)
     return { x = math.floor(r.x + 0.5), y = math.floor(r.y + 0.5), w = math.floor(r.w + 0.5), h = math.floor(r.h + 0.5) }
 end
 
+-- Roles Accessibility's hit test may land on that mean "not a window":
+-- focus follows mouse stops on them (SPEC.md §5.2).
+local NOT_A_WINDOW = {
+    AXMenu = true,
+    AXMenuItem = true,
+    AXMenuBar = true,
+    AXMenuBarItem = true,
+    AXPopover = true,
+    AXDockItem = true,
+    AXHelpTag = true,
+}
+
+-- Every Accessibility call gives up after this long, so a hung app can't
+-- freeze timo (Amethyst#342).
+M.AX_TIMEOUT = 0.25
+
 function M.new()
     local a = {}
     local cache = {}
+    local system = hs.axuielement.systemWideElement()
+    -- On the system-wide element this sets the timeout for every call.
+    system:setTimeout(M.AX_TIMEOUT)
 
     local function win(id)
         local w = cache[id]
@@ -103,6 +122,53 @@ function M.new()
             end
         end
         return ids
+    end
+
+    -- The window Accessibility finds at x, y, or nil when what's there is a
+    -- menu, a popover, the Dock or anything else that isn't a window.
+    function a.window_at(x, y)
+        return try(function()
+            local el = hs.axuielement.systemElementAtPosition(x, y)
+            if not el then
+                return nil
+            end
+            local seen = 0
+            while el and seen < 50 do
+                local role = el:attributeValue("AXRole")
+                if NOT_A_WINDOW[role] then
+                    return nil
+                end
+                if role == "AXWindow" then
+                    local w = el:asHSWindow()
+                    return w and w:id()
+                end
+                el = el:attributeValue("AXParent")
+                seen = seen + 1
+            end
+        end)
+    end
+
+    -- Whether any app has a menu open: an on-screen window at the pop-up
+    -- menu level (101, kCGPopUpMenuWindowLevel) *(unverified for every
+    -- kind of menu)*. `true` lists every level: by default the list stops
+    -- below the Dock, and menus sit above it.
+    function a.menu_open()
+        for _, info in ipairs(hs.window.list(true) or {}) do
+            if info.kCGWindowLayer == 101 then
+                return true
+            end
+        end
+        return false
+    end
+
+    function a.frontmost_app()
+        local app = hs.application.frontmostApplication()
+        return app and app:bundleID()
+    end
+
+    function a.pointer()
+        local p = hs.mouse.absolutePosition()
+        return p.x, p.y
     end
 
     function a.buttons_down()
@@ -271,6 +337,18 @@ function M.watch(on_change, on_focus, on_moved)
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
+end
+
+-- Pointer moves, for focus follows mouse. Drags are separate events, so a
+-- drag never reaches it. Passes every event through.
+function M.pointer_moves(fn)
+    local tap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(e)
+        local p = e:location()
+        fn(p.x, p.y, e:getFlags())
+        return false
+    end)
+    tap:start()
+    return tap
 end
 
 -- Super+drag, Super+right-drag and Super+middle-click (SPEC.md §5.3).
