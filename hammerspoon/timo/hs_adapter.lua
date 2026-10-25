@@ -311,7 +311,7 @@ function M.new()
         for id, v in pairs(snap.windows) do
             windows[tostring(id)] = v
         end
-        hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens })
+        hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens, gone = snap.gone })
     end
 
     -- Start an app key's app: by bundle ID, or one of tide's helpers
@@ -423,6 +423,10 @@ function M.new()
 
     function a.now()
         return hs.timer.secondsSinceEpoch()
+    end
+
+    function a.pid_running(pid)
+        return pid ~= nil and hs.application.applicationForPID(pid) ~= nil
     end
 
     local log = hs.logger.new("timo", "info")
