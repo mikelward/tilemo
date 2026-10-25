@@ -18,11 +18,10 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    with the workspaces, the title, tico's clocks and its own status items.
    The menu bar item stays as the fallback (`bar = false`), and a large
    number shows briefly on each switch.
-8. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
-   (description starting `timo:`). scripts: `setup-macos` installs
-   Hammerspoon and timo, frees the keys in SPEC.md §7.3, and hides the menu
-   bar for timo's bar (`defaults write NSGlobalDomain _HIHideMenuBar -bool
-   true`).
+8. **Done:** conf's Karabiner rule turns Win+key into
+   Ctrl+Option+Command+key (description starting `timo:`), and
+   `setup-macos --wm timo` in scripts installs Hammerspoon and timo, frees
+   the keys in SPEC.md §7.3, and hides the menu bar for timo's bar.
 
 ## Decisions needing review
 

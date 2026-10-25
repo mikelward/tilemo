@@ -23,6 +23,13 @@ It brings tide's desktop to macOS:
   attention and Super+Shift+M to mute the microphone (§7.2, §8, §14.2);
 - tico's dashboard on Super+Shift+Space.
 
+With [mikelward/scripts](https://github.com/mikelward/scripts),
+`setup-macos --wm timo` does all of this: it installs Hammerspoon and timo,
+writes the `init.lua` below if there isn't one, frees the keys timo needs
+(SPEC.md §7.3), and hides the menu bar. Grant Hammerspoon Accessibility,
+and add conf's `timo:` Karabiner rule for a Super key that leaves Option
+alone (§7.1). By hand:
+
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it
    Accessibility.
 2. `make install`, then add to `~/.hammerspoon/init.lua`:
