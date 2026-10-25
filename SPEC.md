@@ -754,6 +754,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 |---|---|---|
 | tap `Super` | launcher (§9) | event tap, or a Karabiner tap rule (below) |
 | `Super+Space` | launcher | hotkey |
+| `Super+Shift+Space` | dashboard (§8) | hotkey |
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
 | `Super+T` / `W` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
@@ -867,8 +868,20 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   bar, since macOS has no system-wide mute of its own.
 - **Clocks:** tico's `src/clocks.js` and `calendar.js` hold the zone,
   daytime-strip, DST and calendar logic, all tested. A native timo would port
-  them, and a Hammerspoon one could run the dashboard as an `hs.webview` of
-  tico's own page *(unverified)*.
+  them.
+- **The dashboard, on Hammerspoon,** is a borderless `hs.webview` over the
+  display you're on, from `Super+Shift+Space`:
+  - It shows tico's bar (the workspace chips, the focused window's title,
+    the clocks) over tico's clock panel: each zone's day strip, the next
+    DST change, and a month calendar.
+  - tico's `clocks.js`, `calendar.js`, `clockview.js` and `launcher.css` are
+    copied unchanged, and CI checks they still match tico's.
+  - A webview can't load ES modules from files, so timo joins them into one
+    script, each module in its own scope.
+  - A workspace number or a click on its chip shows it. Esc, the key again,
+    or clicking away closes it.
+  - The launcher stays `hs.chooser` (§9), so the dashboard has no search.
+  - Focus follows mouse pauses while it's open (§5.2).
 
 ## 9. Launcher
 

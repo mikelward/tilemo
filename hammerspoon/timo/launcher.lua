@@ -155,6 +155,7 @@ M.COMMANDS = {
     { title = "Layout: tile", action = "layout", arg = "tile" },
     { title = "Layout: three columns", action = "layout", arg = "threecol" },
     { title = "Layout: two columns", action = "layout", arg = "twocol" },
+    { title = "Dashboard: workspaces, clocks and calendar", action = "dashboard" },
     { title = "Monocle", action = "monocle" },
     { title = "Float or tile the window", action = "toggle_float" },
     { title = "Maximize the window", action = "maximize" },

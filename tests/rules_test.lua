@@ -65,4 +65,14 @@ t.test("a window with no known subrole is left alone", function()
     t.eq(rules.decide(f), "ignore")
 end)
 
+t.test("Hammerspoon's console floats, and timo's own windows are left alone", function()
+    local hs = { role = "AXWindow", subrole = "AXStandardWindow", app = "org.hammerspoon.Hammerspoon" }
+    hs.title = "Hammerspoon Console"
+    t.eq(rules.decide(hs), "float")
+    hs.title = "timo dashboard"
+    t.eq(rules.decide(hs), "ignore")
+    hs.title = ""
+    t.eq(rules.decide(hs), "ignore")
+end)
+
 t.done("rules")

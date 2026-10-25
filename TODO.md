@@ -11,9 +11,9 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
 5. The launcher, app keys and the Super tap (SPEC.md §7.2, §9).
 6. The menu bar workspaces, the sign on switching, attention and Super+Tab
-   (SPEC.md §8, §14.2). **This PR.**
-7. The dashboard: tico's dashboard page in an `hs.webview`, on a key
-   (SPEC.md §8).
+   (SPEC.md §8, §14.2).
+7. The dashboard: tico's bar and clock panel in an `hs.webview`, on
+   Super+Shift+Space (SPEC.md §8). **This PR.**
    **Decided for v1:** no top bar. A menu bar item shows the workspaces as
    chips (current, occupied, wanting attention; a click switches), a large
    number shows briefly on each switch, and Clocker shows the time zones.
@@ -99,5 +99,16 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **The menu bar chips are text:** `[3]` here, `(5)` on another display,
   `2` occupied, `4!` wanting attention. Reversible: draw them with
   `hs.canvas` into the status item's icon.
-- **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
-  the rule.
+- **Hammerspoon's console and preferences float, and its other windows are
+  left alone** by built-in rules, matched by title, so timo doesn't place
+  its own launcher and dashboard. Reversible: the rules in `rules.lua`.
+- **The dashboard is on Super+Shift+Space,** next to the launcher on
+  Super+Space; tide has no dashboard key to match. Reversible: one line in
+  `keys.lua`.
+- **The dashboard shows tico's default clocks** (San Francisco, New York,
+  London), not SPEC.md's Sydney, Los Angeles, New York and London, since it
+  uses tico's modules unchanged and has no settings of its own yet.
+  Reversible: timo's `dashboard/settings.js`.
+- **The dashboard has no search;** the launcher stays `hs.chooser`. The
+  alternative is tico's whole launcher page in the webview, which needs a
+  stand-in for the Chrome APIs it calls. Reversible: add the page later.

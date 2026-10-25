@@ -554,4 +554,16 @@ t.test("a layout command switches the workspace's layout", function()
     t.eq(wm.workspaces[1].mode, "twocol")
 end)
 
+
+t.test("one overlay letting go of the keyboard doesn't release another's hold", function()
+    local a = fake.new()
+    local wm = wm_mod.new(a, {})
+    wm:hold("dashboard", true)
+    wm:hold("launcher", true) -- the launcher opens over the dashboard
+    wm:hold("dashboard", false) -- which closes as it loses focus
+    t.eq(wm.holding_keyboard, true)
+    wm:hold("launcher", false)
+    t.eq(wm.holding_keyboard, false)
+end)
+
 t.done("wm")

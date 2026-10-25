@@ -1,0 +1,122 @@
+-- The dashboard on Hammerspoon: dashboard.lua's page in a borderless
+-- hs.webview over the display you're on (SPEC.md §8). Pressing its key
+-- again, Esc, or clicking another window closes it; a workspace number
+-- shows that workspace. Not runnable outside Hammerspoon.
+
+local dashboard = require("timo.dashboard")
+
+local M = {}
+
+local DIR = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
+
+local function read(name)
+    local f, err = io.open(DIR .. name)
+    if not f then
+        error("timo: can't read the dashboard's " .. name .. ": " .. tostring(err))
+    end
+    local text = f:read("a")
+    f:close()
+    return text
+end
+
+-- Built once at start, so a missing or unreadable file is an error then,
+-- not on the first press of the key.
+local function build()
+    local sources = {}
+    for _, name in ipairs(dashboard.MODULES) do
+        sources[name] = read(name)
+    end
+    return dashboard.page(read("dashboard.html"), read("launcher.css"), sources)
+end
+
+-- `timo` is the started timo module: its wm and adapter.
+function M.new(timo)
+    local self = {}
+    local page = build()
+    local view, before, uuid
+
+    local function close(refocus)
+        if not view then
+            return
+        end
+        local v = view
+        view = nil
+        timo.wm:hold("dashboard", false)
+        v:delete()
+        if refocus and before then
+            timo.wm:focus_window(before)
+        end
+    end
+
+    local content = hs.webview.usercontent.new("timo")
+    content:setCallback(function(msg)
+        local body = msg.body or {}
+        -- Out of the page's own callback before deleting the page.
+        timo.adapter.after(0, function()
+            local n = tonumber(body.show)
+            if n and timo.wm.screen_ws[uuid] ~= n then
+                -- Showing a workspace focuses its own window, not the one before.
+                -- On the display it opened on, whatever focus does as it
+                -- closes.
+                close(false)
+                timo.wm:show(n, uuid)
+            elseif n then
+                -- The one already here: show() has nothing to do, so focus
+                -- goes back to the window you were in.
+                close(true)
+            elseif body.close then
+                close(true)
+            end
+        end)
+    end)
+
+    function self.show()
+        if view then
+            close(true)
+            return
+        end
+        before = timo.adapter.focused()
+        uuid = timo.wm:current_screen()
+        local s = timo.wm:screen_by_uuid(uuid)
+        if not s then
+            timo.adapter.log("dashboard: no display to show it on")
+            return
+        end
+        local state = hs.json.encode(dashboard.state(timo.wm, timo.adapter))
+        view = hs.webview.new(s.full, { developerExtrasEnabled = false }, content)
+        view:windowStyle({ "borderless" })
+        -- A title for the rules to see: timo leaves its own windows alone.
+        view:windowTitle("timo dashboard")
+        view:level(hs.drawing.windowLevels.modalPanel)
+        view:allowTextEntry(true)
+        view:navigationCallback(function(action, v)
+            if action == "didFinishNavigation" then
+                v:evaluateJavaScript("timo.update(" .. state .. ")", function(_, err)
+                    if err and next(err) then
+                        timo.adapter.log("dashboard: " .. hs.inspect(err))
+                    end
+                end)
+            end
+        end)
+        view:windowCallback(function(action, _, focused)
+            -- Clicking away closes it, as tico's does.
+            if action == "focusChange" and focused == false then
+                close(false)
+            elseif action == "closing" then
+                view = nil
+                timo.wm:hold("dashboard", false)
+            end
+        end)
+        view:html(page)
+        view:show()
+        timo.wm:hold("dashboard", true)
+        local w = view:hswindow()
+        if w then
+            w:focus()
+        end
+    end
+
+    return self
+end
+
+return M

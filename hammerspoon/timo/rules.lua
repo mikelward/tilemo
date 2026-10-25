@@ -10,7 +10,12 @@ M.defaults = {
     -- Picture-in-picture stays on every workspace, untiled (SPEC.md §5.5).
     { title = "^Picture in Picture$", action = "ignore" },
     { title = "^Picture%-in%-Picture$", action = "ignore" },
-    { app = "org.hammerspoon.Hammerspoon", action = "float" },
+    -- Hammerspoon's console and preferences float; the rest of its windows
+    -- are timo's own (the launcher, the dashboard), placed by timo, so
+    -- they're left alone.
+    { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Console$", action = "float" },
+    { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Preferences$", action = "float" },
+    { app = "org.hammerspoon.Hammerspoon", action = "ignore" },
 }
 
 M.actions = { tile = true, float = true, ignore = true }
