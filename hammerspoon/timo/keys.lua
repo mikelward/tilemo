@@ -42,6 +42,32 @@ M.map = {
     { key = "right", shift = true, action = "carry", arg = 1 },
 }
 
+-- App keys (tide's, conf hyprland.lua). Each brings the app's window, and
+-- its workspace, forward; with none, it launches the app. `bundle` finds
+-- the app's windows and launches it by bundle ID; `run` is one of tide's
+-- helpers, run through runenv for the login environment (SPEC.md §7.2).
+M.APPS = {
+    { key = "t", spec = { bundle = "net.kovidgoyal.kitty" } },
+    { key = "w", spec = { run = "terminal_on_workstation" } },
+    { key = "g", spec = { run = "browser1" } },
+    { key = "g", shift = true, spec = { run = "browser3" } },
+    { key = "f", spec = { run = "browser2" } },
+    { key = "c", spec = { run = "google-calendar" } },
+    { key = "c", shift = true, spec = { run = "google-chat" } },
+    { key = "h", spec = { run = "home" } },
+    { key = "i", spec = { run = "irc" } },
+    { key = "m", spec = { run = "google-meet" } },
+    { key = "n", spec = { run = "notepad" } },
+    { key = "r", spec = { run = "remote-desktop" } },
+    { key = "y", spec = { run = "youtube-music" } },
+    { key = "e", spec = { run = "kitty -e yazi" } },
+}
+for _, a in ipairs(M.APPS) do
+    M.map[#M.map + 1] = { key = a.key, shift = a.shift, action = "app", arg = a.spec }
+end
+
+M.map[#M.map + 1] = { key = "space", action = "launcher" }
+
 -- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.
 for n = 1, 9 do
     M.map[#M.map + 1] = { key = tostring(n), action = "show", arg = n }
@@ -104,6 +130,12 @@ function M.is_super(super, flags)
         end
     end
     return true
+end
+
+-- Whether Super is held with nothing else, not even Shift or Fn: the start
+-- of a lone Super tap.
+function M.super_alone(super, flags)
+    return M.is_super(super, flags) and not flags.shift and not flags.fn
 end
 
 -- Whether every one of Super's modifiers is held, whatever else is: holding

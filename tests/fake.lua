@@ -173,6 +173,12 @@ function M.new()
         a.saved = snap
     end
 
+    a.launched, a.fresh = {}, {}
+    function a.launch(spec, fresh)
+        a.launched[#a.launched + 1] = spec
+        a.fresh[#a.launched] = fresh or false
+    end
+
     function a.close(id)
         a.calls[#a.calls + 1] = "close " .. id
     end

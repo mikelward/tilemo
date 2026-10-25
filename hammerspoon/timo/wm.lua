@@ -56,6 +56,7 @@ function M.new(adapter, config)
         -- quickly can leave several of either kind outstanding.
         expect = {},
         tokens = 0,
+        history = {},   -- ids, most recently focused first, across workspaces
     }, M)
     -- What the last run saved (snapshot()). Window ids may come back as
     -- strings from the settings store.
@@ -285,6 +286,7 @@ function M:forget(id)
     end
     remove_value(self.floats, id)
     self.placed[id] = nil
+    remove_value(self.history, id)
 end
 
 -- Match what timo knows to the windows that exist now: add new ones, forget
@@ -906,6 +908,8 @@ function M:focused(id)
     if not w or not w.ws then
         return
     end
+    remove_value(self.history, id)
+    table.insert(self.history, 1, id)
     -- However the tile got focus, its floats go back over it. A focused
     -- float comes to the front, so it moves to the top of wm.floats, which
     -- raise_floats replays bottom to top, and what's under the pointer is
@@ -1162,6 +1166,87 @@ function A.carry(self, d)
         self:send(id, n)
         self:show(n, uuid)
         self:focus_window(id)
+    end
+end
+
+-- Apps and the launcher ----------------------------------------------------
+
+-- An app's managed windows, most recently used first: by focus across
+-- workspaces, then by each workspace's own order for windows not focused
+-- since timo started.
+function M:app_windows(bundle)
+    local out, seen = {}, {}
+    for _, id in ipairs(self.history) do
+        local w = self.windows[id]
+        if w and w.app == bundle and w.ws then
+            seen[id] = true
+            out[#out + 1] = id
+        end
+    end
+    for n = 1, M.WORKSPACES do
+        for _, id in ipairs(self.mru[n] or {}) do
+            local w = self.windows[id]
+            if w and w.app == bundle and w.ws and not seen[id] then
+                seen[id] = true
+                out[#out + 1] = id
+            end
+        end
+    end
+    for id, w in pairs(self.windows) do
+        if w.app == bundle and w.ws and not seen[id] then
+            out[#out + 1] = id
+        end
+    end
+    return out
+end
+
+-- The lowest-numbered workspace with no windows.
+function M:first_empty()
+    local used = {}
+    for _, w in pairs(self.windows) do
+        if w.ws then
+            used[w.ws] = true
+        end
+    end
+    for n = 1, M.WORKSPACES do
+        if not used[n] then
+            return n
+        end
+    end
+end
+
+-- An app key: bring the app's window forward, with its workspace, or
+-- launch it. `fresh` opens a new window on the first empty workspace
+-- instead (Cmd+Return in the launcher), even if the app is running.
+function A.app(self, spec, fresh)
+    if fresh then
+        local n = self:first_empty()
+        if n then
+            self:show(n)
+        end
+        self.a.launch(spec, true)
+        return
+    end
+    local ids = spec.bundle and self:app_windows(spec.bundle) or {}
+    if ids[1] then
+        self:activate(ids[1])
+    else
+        self.a.launch(spec)
+    end
+end
+
+function A.launcher(self)
+    if self.open_launcher then
+        self.open_launcher()
+    end
+end
+
+function A.layout(self, mode)
+    local ws = self.workspaces[self:current_ws()]
+    if ws then
+        ws.prev_mode = nil
+        ws.mode = mode
+        self:retile()
     end
 end
 

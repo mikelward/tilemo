@@ -1,0 +1,256 @@
+-- The launcher on Hammerspoon: an hs.chooser over launcher.lua's ranking
+-- (SPEC.md §9). Apps come from the Applications folders, tabs from Chrome
+-- and Safari through AppleScript (Automation, asked for the first time),
+-- and commands from launcher.COMMANDS. Not runnable outside Hammerspoon.
+
+local launcher = require("timo.launcher")
+
+local M = {}
+
+M.RECENCY_KEY = "timo.launcher.recency"
+
+local APP_DIRS = { "/Applications", "/System/Applications", "/System/Applications/Utilities" }
+
+local function scan_apps()
+    local apps = {}
+    local dirs = { table.unpack(APP_DIRS) }
+    dirs[#dirs + 1] = (os.getenv("HOME") or "") .. "/Applications"
+    for _, dir in ipairs(dirs) do
+        local ok, iter, obj = pcall(hs.fs.dir, dir)
+        if ok and iter then
+            for name in iter, obj do
+                local base = name:match("^(.*)%.app$")
+                if base then
+                    apps[#apps + 1] = { name = base, path = dir .. "/" .. name }
+                end
+            end
+        end
+    end
+    return apps
+end
+
+-- Each browser's tabs, as { title, url, browser, window, tab }. A browser
+-- that isn't running, or that Automation hasn't been granted for, gives
+-- none.
+local TAB_SCRIPTS = {
+    ["Google Chrome"] = [[
+        set out to ""
+        tell application "Google Chrome"
+            repeat with w from 1 to count windows
+                repeat with t from 1 to count tabs of window w
+                    set out to out & w & tab & t & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
+                end repeat
+            end repeat
+        end tell
+        return out]],
+    Safari = [[
+        set out to ""
+        tell application "Safari"
+            repeat with w from 1 to count windows
+                repeat with t from 1 to count tabs of window w
+                    set out to out & w & tab & t & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
+                end repeat
+            end repeat
+        end tell
+        return out]],
+}
+
+local function tabs()
+    local out = {}
+    for browser, script in pairs(TAB_SCRIPTS) do
+        if hs.application.get(browser) then
+            local ok, text = hs.osascript.applescript(script)
+            if ok and type(text) == "string" then
+                for line in text:gmatch("[^\n]+") do
+                    local w, t, url, title = line:match("^(%d+)\t(%d+)\t([^\t]*)\t(.*)$")
+                    if w then
+                        out[#out + 1] = { browser = browser, window = tonumber(w), tab = tonumber(t), url = url, title = title }
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- The tab's window may be minimized, on a workspace timo has hidden, so it's
+-- restored too: timo sees a window you restored and brings its workspace
+-- along with it.
+local function open_tab(timo, item)
+    local set, restore
+    if item.browser == "Safari" then
+        set = ("set current tab of window %d to tab %d of window %d"):format(item.window, item.tab, item.window)
+        restore = ("set miniaturized of window %d to false"):format(item.window)
+    else
+        set = ("set active tab index of window %d to %d"):format(item.window, item.tab)
+        restore = ("set minimized of window %d to false"):format(item.window)
+    end
+    local ok, _, err = hs.osascript.applescript(([[
+        tell application "%s"
+            %s
+            %s
+            set index of window %d to 1
+            activate
+        end tell]]):format(item.browser, set, restore, item.window))
+    if not ok then
+        timo.adapter.notify("Couldn't open that " .. item.browser .. " tab: " .. hs.inspect(err))
+    end
+end
+
+local QUICK = {}
+
+function QUICK.screenshot_window()
+    hs.task.new("/usr/sbin/screencapture", nil, { "-W", "-c" }):start()
+end
+function QUICK.screenshot_screen()
+    hs.task.new("/usr/sbin/screencapture", nil, { "-c" }):start()
+end
+function QUICK.screenshot_region()
+    hs.task.new("/usr/sbin/screencapture", nil, { "-i", "-c" }):start()
+end
+function QUICK.lock()
+    hs.caffeinate.lockScreen()
+end
+function QUICK.sleep()
+    hs.caffeinate.systemSleep()
+end
+function QUICK.logout()
+    hs.osascript.applescript('tell application "System Events" to log out')
+end
+function QUICK.restart()
+    hs.osascript.applescript('tell application "System Events" to restart')
+end
+function QUICK.shutdown()
+    hs.osascript.applescript('tell application "System Events" to shut down')
+end
+function QUICK.dark()
+    hs.osascript.applescript(
+        'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode')
+end
+function QUICK.keep_awake()
+    local on = not hs.caffeinate.get("displayIdle")
+    hs.caffeinate.set("displayIdle", on, true)
+    hs.alert.show(on and "Keeping awake" or "Not keeping awake")
+end
+function QUICK.dnd()
+    -- macOS has no public switch for Focus; a Shortcuts shortcut named
+    -- "Toggle Do Not Disturb" is the usual stand-in (unverified on macOS 26).
+    hs.task.new("/usr/bin/shortcuts", nil, { "run", "Toggle Do Not Disturb" }):start()
+end
+function QUICK.reload()
+    hs.reload()
+end
+
+-- `timo` is the started timo module: its wm and adapter.
+function M.new(timo)
+    local self = { timo = timo, recency = hs.settings.get(M.RECENCY_KEY) or {} }
+    local items = {}
+    local before
+    local chooser
+
+    local function choices(query)
+        local found = launcher.rank(query or "", items, { recency = self.recency })
+        local out = {}
+        for _, item in ipairs(found) do
+            out[#out + 1] = {
+                text = item.title,
+                subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or "")) or item.kind,
+                id = item.id,
+            }
+        end
+        return out
+    end
+
+    local by_id = {}
+
+    local function run(item, fresh)
+        self.recency[item.key] = os.time()
+        hs.settings.set(M.RECENCY_KEY, self.recency)
+        if item.kind == "app" then
+            -- By bundle ID where it has one, so an app already open comes
+            -- forward with its workspace, as its app key would.
+            local info = hs.application.infoForBundlePath(item.path)
+            local bundle = info and info.CFBundleIdentifier
+            if bundle then
+                timo.wm.actions.app(timo.wm, { bundle = bundle }, fresh)
+            else
+                if fresh then
+                    local n = timo.wm:first_empty()
+                    if n then
+                        timo.wm:show(n)
+                    end
+                end
+                hs.application.launchOrFocus(item.path)
+            end
+        elseif item.kind == "tab" then
+            open_tab(timo, item)
+        elseif item.quick then
+            if item.quick == "toggle_ffm" then
+                timo.toggle_focus_follows_mouse()
+            elseif QUICK[item.quick] then
+                QUICK[item.quick]()
+            end
+        elseif item.action then
+            timo.wm:act(item.action, item.arg)
+        end
+    end
+
+    -- Cmd+Return, and only that: the chooser's own Cmd+1…9 picks a row with
+    -- Command held too, so the modifiers alone can't tell them apart.
+    local fresh = false
+    local fresh_key
+
+    chooser = hs.chooser.new(function(choice)
+        timo.wm.holding_keyboard = false
+        if fresh_key then
+            fresh_key:delete()
+            fresh_key = nil
+        end
+        if not choice then
+            -- Dismissed: back to the window you were in.
+            if before then
+                timo.wm:focus_window(before)
+            end
+            return
+        end
+        local item = by_id[choice.id]
+        if item then
+            -- Cmd+Return runs it on the first empty workspace.
+            run(item, fresh)
+        end
+    end)
+    chooser:queryChangedCallback(function(query)
+        chooser:choices(choices(query))
+    end)
+
+    function self.show()
+        -- Already open: pressing the key again doesn't bind Cmd+Return twice.
+        if chooser:isVisible() then
+            return
+        end
+        before = timo.adapter.focused()
+        items = launcher.items(scan_apps(), tabs(), launcher.COMMANDS)
+        by_id = {}
+        for _, item in ipairs(items) do
+            by_id[item.id] = item
+        end
+        timo.wm.holding_keyboard = true
+        fresh = false
+        -- Taken only while the launcher is open, and given back when it closes.
+        fresh_key = hs.hotkey.bind({ "cmd" }, "return", function()
+            -- With no row to pick, select() leaves the launcher open, and
+            -- the next plain Return mustn't count as fresh.
+            if chooser:selectedRowContents() and next(chooser:selectedRowContents()) then
+                fresh = true
+                chooser:select()
+            end
+        end)
+        chooser:query("")
+        chooser:choices(choices(""))
+        chooser:show()
+    end
+
+    return self
+end
+
+return M

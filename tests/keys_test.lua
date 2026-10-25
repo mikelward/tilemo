@@ -81,6 +81,13 @@ t.test("every binding names an action the window manager has", function()
     end
 end)
 
+t.test("super_alone wants Super and nothing else, Shift and Fn included", function()
+    t.eq(keys.super_alone({ "alt" }, { alt = true }), true)
+    t.eq(keys.super_alone({ "alt" }, { alt = true, shift = true }), false)
+    t.eq(keys.super_alone({ "alt" }, { alt = true, fn = true }), false)
+    t.eq(keys.super_alone({ "alt" }, { alt = true, cmd = true }), false)
+end)
+
 t.test("super_held counts Super held as part of a bigger chord", function()
     t.eq(keys.super_held({ "alt" }, { alt = true, cmd = true }), true)
     t.eq(keys.super_held({ "alt" }, { alt = true, ctrl = true }), true)

@@ -287,6 +287,42 @@ function M.new()
         hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens })
     end
 
+    -- Start an app key's app: by bundle ID, or one of tide's helpers
+    -- through runenv, which gives it the login environment (tide §17,
+    -- "PATH missing in keybinds"). `fresh` asks a running app for a new
+    -- window with Cmd+N, the near-universal shortcut, since opening it
+    -- again would only bring its old windows forward.
+    function a.launch(spec, fresh)
+        local running = spec.bundle and hs.application.get(spec.bundle)
+        if fresh and running then
+            if running:activate() then
+                hs.eventtap.keyStroke({ "cmd" }, "n", 0, running)
+            else
+                a.notify("Couldn't open a new window of " .. spec.bundle)
+            end
+            return
+        end
+        if spec.bundle then
+            if not hs.application.launchOrFocusByBundleID(spec.bundle) then
+                a.notify("Couldn't open " .. spec.bundle)
+            end
+            return
+        end
+        local args = {}
+        for word in spec.run:gmatch("%S+") do
+            args[#args + 1] = word
+        end
+        local runenv = (os.getenv("HOME") or "") .. "/scripts/runenv"
+        local task = hs.task.new(runenv, function(code, _, err)
+            if code ~= 0 then
+                a.log(spec.run .. " exited " .. code .. ": " .. (err or ""))
+            end
+        end, args)
+        if not task or not task:start() then
+            a.notify("Couldn't run " .. spec.run)
+        end
+    end
+
     function a.close(id)
         local w = win(id)
         if w then
@@ -368,6 +404,24 @@ function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
+end
+
+-- Modifier changes, and anything that spoils a Super tap: a key, a mouse
+-- button or a scroll. Passes every event through.
+function M.taps(on_flags, on_other)
+    local t = hs.eventtap.event.types
+    local tap = hs.eventtap.new({
+        t.flagsChanged, t.keyDown, t.leftMouseDown, t.rightMouseDown, t.otherMouseDown, t.scrollWheel,
+    }, function(e)
+        if e:getType() == t.flagsChanged then
+            on_flags(e:getFlags())
+        else
+            on_other()
+        end
+        return false
+    end)
+    tap:start()
+    return tap
 end
 
 -- Pointer moves, for focus follows mouse. Drags are separate events, so a
