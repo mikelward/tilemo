@@ -58,8 +58,3 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   `keys.map`.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.
-- **Dragging a lone window's edge sets its width,** kept centered, for that
-  workspace until timo reloads; it isn't saved across restarts. With several
-  windows and no stack, a drag sets nothing. Alternatives: let the drag set
-  the width without centering, or save it. Reversible: `ws.single_width` in
-  `layout.lua` and `wm.lua`.
