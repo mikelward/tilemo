@@ -133,6 +133,14 @@ function M.new()
         return a.focus_
     end
 
+    a.badges = {} -- { app, label }, as the Dock shows them
+    function a.dock_badges()
+        return a.badges
+    end
+    function a.title(id)
+        return a.wins[id] and a.wins[id].title
+    end
+
     function a.app_focused(pid)
         if a.focus_ and a.wins[a.focus_] and a.wins[a.focus_].pid == pid then
             return a.focus_

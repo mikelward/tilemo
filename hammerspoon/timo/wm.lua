@@ -11,6 +11,7 @@
 -- shows and which workspace each window is on; then reconcile() makes the
 -- screen match, restoring first so the screen never goes empty.
 
+local attention = require("timo.attention")
 local layout = require("timo.layout")
 local mouse = require("timo.mouse")
 local rules = require("timo.rules")
@@ -56,6 +57,7 @@ function M.new(adapter, config)
         -- quickly can leave several of either kind outstanding.
         expect = {},
         tokens = 0,
+        attention = attention.new(),
         history = {},   -- ids, most recently focused first, across workspaces
     }, M)
     -- What the last run saved (snapshot()). Window ids may come back as
@@ -287,6 +289,7 @@ function M:forget(id)
     remove_value(self.floats, id)
     self.placed[id] = nil
     remove_value(self.history, id)
+    self.attention:gone(id)
 end
 
 -- Match what timo knows to the windows that exist now: add new ones, forget
@@ -525,8 +528,9 @@ function M:show(n, uuid)
     if not self:refocus_ws(n) then
         self:keep_keys_on(uuid)
     end
+    -- The display it was shown on: focus may have stayed on the other one.
     if self.on_show then
-        self.on_show(n)
+        self.on_show(n, uuid)
     end
 end
 
@@ -654,6 +658,37 @@ function M:retile()
     if self.ffm then
         self.ffm:resync()
     end
+    self:changed()
+end
+
+-- Something the menu bar shows may have changed.
+function M:changed()
+    if self.on_change then
+        self.on_change()
+    end
+end
+
+-- What the menu bar shows (bar.lua): for each workspace, whether it's on
+-- this display or another, has windows, or wants attention.
+function M:bar_state()
+    local here = self.screen_ws[self:current_screen()]
+    local out = {}
+    for n = 1, M.WORKSPACES do
+        out[n] = { here = n == here, elsewhere = n ~= here and self:shown(n) ~= nil }
+    end
+    for _, w in pairs(self.windows) do
+        if w.ws and out[w.ws] then
+            out[w.ws].occupied = true
+        end
+    end
+    for _, m in ipairs(self.attention:list()) do
+        local ids = m.id and { m.id } or self:app_windows(m.app)
+        local w = ids[1] and self.windows[ids[1]]
+        if w and w.ws and out[w.ws] then
+            out[w.ws].urgent = true
+        end
+    end
+    return out
 end
 
 -- Coalesce a burst of events into one sync and retile.
@@ -910,6 +945,8 @@ function M:focused(id)
     end
     remove_value(self.history, id)
     table.insert(self.history, 1, id)
+    self.attention:focused(id, w.app)
+    self:changed()
     -- However the tile got focus, its floats go back over it. A focused
     -- float comes to the front, so it moves to the top of wm.floats, which
     -- raise_floats replays bottom to top, and what's under the pointer is
@@ -1233,6 +1270,68 @@ function A.app(self, spec, fresh)
     else
         self.a.launch(spec)
     end
+end
+
+-- Super+Tab and Super+Home (SPEC.md §14.2): the window wanting attention,
+-- most recent first; pressed again with Super held, the next one. Letting
+-- Super go ends the round. With nothing waiting, the window you were last
+-- in.
+function A.attention(self)
+    if not self.round_list then
+        -- Only marks with a window to go to: a badged app may have quit.
+        -- An app's badge and its window's title can name the same window;
+        -- it comes once, where its newest mark puts it.
+        local list, seen = {}, {}
+        for _, m in ipairs(self.attention:list()) do
+            local target = m.id or self:app_windows(m.app)[1]
+            if target and self.windows[target] and not seen[target] then
+                seen[target] = true
+                list[#list + 1] = target
+            end
+        end
+        self.round_list, self.round = list, 0
+    end
+    local list = self.round_list
+    if #list == 0 then
+        -- The most recent window other than the one you're in, which may be
+        -- none, as on an empty workspace.
+        local now = self.a.focused()
+        for _, prev in ipairs(self.history) do
+            if prev ~= now and self.windows[prev] then
+                self:activate(prev)
+                break
+            end
+        end
+        return
+    end
+    self.round = self.round % #list + 1
+    local target = list[self.round]
+    if self.windows[target] then
+        self:activate(target)
+    end
+end
+
+-- Read Dock badges and window titles for new marks. What's focused now
+-- can't want attention: a count can rise while you're looking at it, and
+-- focus events alone wouldn't clear that.
+function M:poll_attention()
+    local att = self.attention
+    att:dock(self.a.dock_badges())
+    for id, w in pairs(self.windows) do
+        if w.ws then
+            att:title(id, w.app, self.a.title(id))
+        end
+    end
+    local f = self.a.focused()
+    local w = f and self.windows[f]
+    if w then
+        att:focused(f, w.app)
+    end
+    self:changed()
+end
+
+function M:end_round()
+    self.round_list, self.round = nil, nil
 end
 
 function A.launcher(self)

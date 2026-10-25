@@ -9,13 +9,15 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    Super+middle-click maximizes, resize mode (SPEC.md §5.3).
 3. Focus follows mouse (SPEC.md §5.2).
 4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
-5. The launcher, app keys and the Super tap (SPEC.md §7.2, §9). **This PR.**
-6. The menu bar workspaces, the sign on switching, attention and Super+Tab,
-   and the dashboard (SPEC.md §8, §14).
+5. The launcher, app keys and the Super tap (SPEC.md §7.2, §9).
+6. The menu bar workspaces, the sign on switching, attention and Super+Tab
+   (SPEC.md §8, §14.2). **This PR.**
+7. The dashboard: tico's dashboard page in an `hs.webview`, on a key
+   (SPEC.md §8).
    **Decided for v1:** no top bar. A menu bar item shows the workspaces as
    chips (current, occupied, wanting attention; a click switches), a large
    number shows briefly on each switch, and Clocker shows the time zones.
-7. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
+8. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
    (description starting `timo:`). scripts: `setup-macos` installs
    Hammerspoon and timo, and frees the keys in SPEC.md §7.3.
 
@@ -89,5 +91,13 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **The launcher isn't kept out of screen shares** (SPEC.md §9): hs.chooser
   doesn't expose its window's sharing type. Reversible once the launcher is
   its own window.
+- **Attention polls every 2 s** for Dock badges and window titles, rather
+  than watching Accessibility notifications. A count can take up to 2 s to
+  show. Reversible: `AXTitleChanged` observers in the adapter.
+- **No focus guard yet** (SPEC.md §14.1): an app that activates itself
+  isn't handed focus back or marked. Reversible: add it to `wm.focused`.
+- **The menu bar chips are text:** `[3]` here, `(5)` on another display,
+  `2` occupied, `4!` wanting attention. Reversible: draw them with
+  `hs.canvas` into the status item's icon.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.

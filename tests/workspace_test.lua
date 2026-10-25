@@ -162,6 +162,22 @@ t.test("a Send that empties this display keeps the keys here", function()
     t.eq(wm.screen_ws, { A = 3, B = 2 })
 end)
 
+t.test("a switch says which display it showed the workspace on", function()
+    local a = fake.new()
+    two_displays(a)
+    a.add(1, {})
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:reconcile()
+    local shown
+    wm.on_show = function(n, uuid)
+        shown = { n, uuid }
+    end
+    a.focus_ = 1
+    wm:act("show", 2) -- window 1, still focused, goes to B
+    t.eq(shown, { 2, "A" })
+end)
+
 t.test("a window you minimize stays minimized when its workspace comes back", function()
     local a, wm = setup(2)
     a.wins[2].minimized = true
@@ -605,6 +621,123 @@ t.test("Cmd+Return launches on the first empty workspace", function()
     wm.actions.app(wm, { run = "browser2" }, true)
     t.eq(wm.screen_ws.A, 2)
     t.eq(a.launched[1].run, "browser2")
+end)
+
+t.test("Super+Tab goes to the window wanting attention, with its workspace", function()
+    local a, wm = setup(2)
+    a.focus_ = 2
+    wm:act("send", 3)
+    wm.attention:title(2, "com.example.app", "Chat (1)")
+    a.focus_ = 1
+    wm:act("attention")
+    t.eq(wm.screen_ws.A, 3)
+    t.eq(a.focus_, 2)
+end)
+
+t.test("Super+Tab again with Super held goes to the next; letting go starts over", function()
+    local a, wm = setup(3)
+    wm.attention:title(2, "x", "b (1)")
+    wm.attention:title(3, "y", "c (1)")
+    a.focus_ = 1
+    wm:act("attention")
+    t.eq(a.focus_, 3)
+    wm:focused(3)
+    wm:act("attention")
+    t.eq(a.focus_, 2)
+    wm:focused(2)
+    wm:end_round()
+    wm:act("attention")
+    t.eq(a.focus_, 3, "nothing waiting: the window you were last in")
+end)
+
+t.test("with nothing waiting, Super+Tab goes back to the window you were last in", function()
+    local a, wm = setup(2)
+    wm:focused(1)
+    wm:focused(2)
+    a.focus_ = 2
+    wm:act("attention")
+    t.eq(a.focus_, 1)
+end)
+
+t.test("a badged app that quit doesn't stop Super+Tab going back", function()
+    local a, wm = setup(2)
+    wm:focused(1)
+    wm:focused(2)
+    a.focus_ = 2
+    wm.attention:badge("com.example.gone", "3")
+    wm:act("attention")
+    t.eq(a.focus_, 1)
+end)
+
+t.test("a window marked by both its badge and its title comes once in a round", function()
+    local a, wm = setup(3)
+    a.wins[2].app = "com.example.chat"
+    wm.windows[2].app = "com.example.chat"
+    wm.attention:title(3, "x", "Mail (1)")
+    wm.attention:title(2, "com.example.chat", "Chat (1)")
+    wm.attention:badge("com.example.chat", "1")
+    a.focus_ = 1
+    wm:act("attention")
+    t.eq(a.focus_, 2)
+    wm:act("attention")
+    t.eq(a.focus_, 3)
+end)
+
+t.test("a count rising in the window you're in doesn't want attention", function()
+    local a, wm = setup(2)
+    a.focus_ = 2
+    wm:focused(2)
+    a.wins[2].title = "Chat (1)"
+    wm:poll_attention()
+    t.eq(#wm.attention:list(), 0)
+    a.wins[1].title = "Mail (2)"
+    wm:poll_attention()
+    t.eq(#wm.attention:list(), 1)
+end)
+
+t.test("a badged app's mark goes to its last used window, whichever workspace it's on", function()
+    local a, wm = setup(3)
+    for _, id in ipairs({ 1, 2 }) do
+        a.wins[id].app = "com.example.chat"
+        wm.windows[id].app = "com.example.chat"
+    end
+    a.focus_ = 2
+    wm:act("send", 4)
+    wm:act("show", 4)
+    a.tick()
+    a.focus_ = 2
+    wm:focused(2)
+    wm:act("show", 1)
+    a.tick()
+    a.focus_ = 3
+    wm:focused(3)
+    wm.attention:badge("com.example.chat", "1")
+    wm:act("attention")
+    t.eq(a.focus_, 2)
+    t.eq(wm.screen_ws.A, 4)
+end)
+
+t.test("on an empty workspace, Super+Tab goes back to the last window you were in", function()
+    local a, wm = setup(2)
+    wm:focused(1)
+    wm:focused(2)
+    wm:act("show", 5)
+    a.tick()
+    a.focus_ = nil
+    wm:act("attention")
+    t.eq(a.focus_, 2)
+end)
+
+t.test("the menu bar state marks here, occupied and wanting attention", function()
+    local a, wm = setup(2)
+    a.focus_ = 2
+    wm:act("send", 3)
+    wm.attention:title(2, "x", "c (1)")
+    local st = wm:bar_state()
+    t.eq(st[1].here, true)
+    t.eq(st[3].occupied, true)
+    t.eq(st[3].urgent, true)
+    t.eq(st[2].occupied or false, false)
 end)
 
 t.done("workspaces")
