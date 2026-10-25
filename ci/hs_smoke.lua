@@ -161,6 +161,9 @@ local function check_bar()
                 fail("bar: at %d,%d %dx%d, want %d,%d %dx%d", got.x, got.y, got.w, got.h,
                     want.x, want.y, want.w, want.h)
             end
+            if got.hidden then
+                fail("bar: hidden on display %s with nothing full screen", s.uuid)
+            end
             if not (v and v.ready) then
                 fail("bar: its page on display %s didn't load (got as far as %s)", s.uuid, v and v.nav or "nothing")
             end
@@ -179,6 +182,11 @@ local function check_bar()
     table.sort(items)
     if not timo.bar.icons.network then
         fail("bar: no network status item")
+    end
+    -- A chip's app icon, from a bundle every Mac has.
+    local finder = timo.bar.icon_of("com.apple.finder")
+    if type(finder) ~= "string" or not finder:find("^data:image/png;base64,") then
+        fail("bar: no icon for Finder (got %s)", tostring(finder))
     end
     -- Anything a page reported: a script error or a failed load.
     for _, e in ipairs(timo.bar.errors) do

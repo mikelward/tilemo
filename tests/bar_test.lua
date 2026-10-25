@@ -69,7 +69,15 @@ t.test("each display's bar marks its own workspace, and the title shows on the f
     a.focus_ = 1
     local sa = bar.state(wm, "A", "Notes", {})
     local sb = bar.state(wm, "B", "Notes", {})
-    t.eq(sa.workspaces[1], { n = 1, current = true, elsewhere = false, occupied = true, urgent = false })
+    t.eq(sa.workspaces[1], {
+        n = 1,
+        current = true,
+        elsewhere = false,
+        occupied = true,
+        urgent = false,
+        apps = { "com.example.app" },
+        more = 0,
+    })
     t.eq(sa.workspaces[2].elsewhere, true)
     t.eq(sb.workspaces[2].current, true)
     t.eq(sb.workspaces[1].elsewhere, true)
@@ -128,6 +136,91 @@ t.test("a bar's toggles and volume steps go to Hammerspoon", function()
     bar.handle(wm, { uuid = "B", toggle = "mic" }, act)
     bar.handle(wm, { uuid = "B", volume = -1 }, act)
     t.eq(got, { "toggle mic", "volume -1" })
+end)
+
+t.test("a chip names its windows' apps in layout order, up to five, then how many more", function()
+    local a, wm = two_displays()
+    for id = 2, 7 do
+        a.add(id, { app = "app" .. id })
+    end
+    a.add(8, { app = "float", frame = { x = 300, y = 300, w = 200, h = 200 } })
+    wm:sync()
+    wm.windows[8].floating = true
+    wm:retile()
+    local seen = {}
+    local s = bar.state(wm, "A", "", {}, function(app)
+        seen[#seen + 1] = app
+        return app ~= "app3" and ("data:" .. app) or nil
+    end)
+    local order = {}
+    for i, id in ipairs(wm.workspaces[1].order) do
+        if i <= bar.CHIP_APPS then
+            order[i] = wm.windows[id].app
+        end
+    end
+    t.eq(s.workspaces[1].apps, order)
+    t.eq(#s.workspaces[1].apps, 5)
+    t.eq(s.workspaces[1].more, 3)
+    t.eq(s.workspaces[2].apps, {})
+    t.eq(s.workspaces[2].more, 0)
+    -- Icons only for the apps shown, each asked for once.
+    t.eq(#seen, 5)
+    for _, app in ipairs(order) do
+        t.eq(s.app_icons[app], app ~= "app3" and ("data:" .. app) or false)
+    end
+    t.eq(s.app_icons.float, nil)
+end)
+
+t.test("floats follow a workspace's tiles in its chip", function()
+    local a, wm = two_displays()
+    a.add(2, { app = "float" })
+    wm:sync()
+    wm.windows[2].floating = true
+    t.eq(bar.state(wm, "A", "", {}).workspaces[1].apps, { "com.example.app", "float" })
+end)
+
+t.test("the bar hides on a display while a window there is in timo's full screen", function()
+    local a, wm = two_displays()
+    a.focus_ = 1
+    t.eq(bar.hidden(wm, "A"), false)
+    wm:act("fullscreen")
+    t.eq(bar.hidden(wm, "A"), true)
+    t.eq(bar.hidden(wm, "B"), false)
+    -- Maximized stops at the bar, so the bar stays.
+    wm:act("maximize")
+    t.eq(bar.hidden(wm, "A"), false)
+    wm:act("fullscreen")
+    a.wins[1].minimized = true
+    t.eq(bar.hidden(wm, "A"), false, "a minimized window covers nothing")
+    a.wins[1].minimized = false
+    wm:act("restore")
+    t.eq(bar.hidden(wm, "A"), false, "and it comes back after")
+end)
+
+t.test("the bar hides on a display while the focused window is in macOS's full screen there", function()
+    local a, wm = two_displays()
+    a.focus_ = 1
+    a.wins[1].fullscreen = true
+    a.wins[1].frame = { x = 0, y = 0, w = 1920, h = 1080 }
+    t.eq(bar.hidden(wm, "A"), true)
+    t.eq(bar.hidden(wm, "B"), false)
+    a.wins[1].frame = { x = 1920, y = 0, w = 1920, h = 1080 }
+    t.eq(bar.hidden(wm, "A"), false)
+    t.eq(bar.hidden(wm, "B"), true)
+    a.wins[1].fullscreen = false
+    t.eq(bar.hidden(wm, "B"), false)
+end)
+
+t.test("double-clicking a bar's title maximizes the focused window on that display only", function()
+    local a, wm = two_displays()
+    a.focus_ = 1
+    bar.handle(wm, { uuid = "B", maximize = true }, {})
+    t.eq(wm.windows[1].big, nil, "the title isn't on B")
+    bar.handle(wm, { uuid = "A", maximize = true }, {})
+    t.eq(wm.windows[1].big, "max")
+    t.eq(a.wins[1].frame, { x = 0, y = 61, w = 1920, h = 1019 })
+    bar.handle(wm, { uuid = "A", maximize = true }, {})
+    t.eq(wm.windows[1].big, nil, "again puts it back")
 end)
 
 t.test("scrolling steps from that display's workspace, stopping at 1 and 9", function()

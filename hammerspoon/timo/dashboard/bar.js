@@ -41,13 +41,29 @@ function el(tag, className, text) {
   return e;
 }
 
-function renderWorkspaces(nav, workspaces) {
+// Each chip is its number, then one icon per window (timo sends at most
+// five, and how many more as `more`), as tide's are. An app with no icon
+// shows as a blank square of the same size, so the count still reads.
+function renderWorkspaces(nav, workspaces, appIcons = {}) {
   nav.replaceChildren();
   for (const w of workspaces) {
     // As tide's bar: an empty workspace that isn't showing is left out.
     if (!w.current && !w.elsewhere && !w.occupied) continue;
-    const b = el("button", null, String(w.n));
+    const b = el("button");
     b.type = "button";
+    b.append(el("span", "n", String(w.n)));
+    for (const app of w.apps || []) {
+      const url = appIcons[app];
+      if (url) {
+        const img = el("img", "app");
+        img.src = url;
+        img.alt = "";
+        b.append(img);
+      } else {
+        b.append(el("span", "app none"));
+      }
+    }
+    if (w.more > 0) b.append(el("span", "more", `+${w.more}`));
     // A field timo left out is false: toggle(name, undefined) would flip it.
     for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, !!w[k]);
     b.addEventListener("click", () => send({ show: w.n }));
@@ -190,7 +206,7 @@ function tick() {
 window.timo = {
   update(state) {
     uuid = state.uuid;
-    renderWorkspaces(document.getElementById("workspaces"), state.workspaces);
+    renderWorkspaces(document.getElementById("workspaces"), state.workspaces, state.app_icons || {});
     document.getElementById("title").textContent = state.title;
     renderIcons(document.getElementById("icons"), state.icons);
     tick();
@@ -204,6 +220,10 @@ document.getElementById("workspaces").addEventListener("wheel", (e) => {
   send({ step: scrolled > 0 ? 1 : -1 });
   scrolled = 0;
 });
+
+// Double-clicking the title maximizes the focused window, as on a Mac's
+// title bar; timo acts only if that window is on this bar's display.
+document.getElementById("title").addEventListener("dblclick", () => send({ maximize: true }));
 
 // The clocks open the dashboard, with its clock panel.
 document.getElementById("clocks").addEventListener("click", () => send({ dashboard: true }));

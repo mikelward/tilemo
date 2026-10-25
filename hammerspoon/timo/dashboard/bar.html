@@ -20,6 +20,26 @@ body {
   background: var(--bar);
   overflow: hidden;
 }
+/* A chip's window icons follow its number. */
+nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 6px;
+}
+nav button .app {
+  width: 16px;
+  height: 16px;
+}
+nav button .app.none {
+  border-radius: 4px;
+  background: var(--muted);
+  opacity: 0.4;
+}
+nav button .more {
+  font-size: 0.85em;
+}
 /* Held to the room between the two sides by bar.js, one line. */
 #title {
   white-space: nowrap;

@@ -252,11 +252,28 @@ function M.new(timo)
         end)
     end
 
+    -- Each app's icon as a small PNG data URL, made once per bundle id:
+    -- 32 px is the chip's 16 at 2x, a few kilobytes a time. An app with no
+    -- icon is cached as false, so it isn't asked again every update.
+    self.app_icons = {}
+    local function icon_of(bundle)
+        local url = self.app_icons[bundle]
+        if url == nil then
+            url = try("the icon of " .. bundle, function()
+                local img = hs.image.imageFromAppBundle(bundle)
+                return img and img:setSize({ w = 32, h = 32 }):encodeAsURLString(false, "PNG")
+            end) or false
+            self.app_icons[bundle] = url
+        end
+        return url or nil
+    end
+    self.icon_of = icon_of
+
     local function push(v, title)
         if not v.ready then
             return
         end
-        local json = hs.json.encode(bar.state(timo.wm, v.uuid, title, self.icons))
+        local json = hs.json.encode(bar.state(timo.wm, v.uuid, title, self.icons, icon_of))
         if json == v.sent then
             return
         end
@@ -330,6 +347,16 @@ function M.new(timo)
         local f = timo.adapter.focused()
         local title = f and timo.wm.windows[f] and timo.adapter.title(f) or ""
         for _, v in pairs(self.views) do
+            -- Out of a full-screen window's way, and back after.
+            local hide = bar.hidden(timo.wm, v.uuid)
+            if hide ~= (v.hidden or false) then
+                v.hidden = hide
+                if hide then
+                    v.view:hide()
+                else
+                    v.view:show()
+                end
+            end
             push(v, title)
         end
     end
@@ -339,7 +366,7 @@ function M.new(timo)
         local out = {}
         for uuid, v in pairs(self.views) do
             local f = v.view:frame()
-            out[uuid] = { x = f.x, y = f.y, w = f.w, h = f.h }
+            out[uuid] = { x = f.x, y = f.y, w = f.w, h = f.h, hidden = v.hidden or false }
         end
         return out
     end

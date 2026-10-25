@@ -48,18 +48,65 @@ function M.below(area, h)
     return { x = area.x, y = area.y + h, w = area.w, h = math.max(0, area.h - h) }
 end
 
--- What display `uuid`'s bar shows: the workspaces as seen from there, the
--- focused window's title on the display that window is on, and the status
--- icons (icons()). `title` is the focused window's title.
-function M.state(wm, uuid, title, icons)
+-- tide's chips show one app icon per window, up to this many, then "+n"
+-- (tide §7.1).
+M.CHIP_APPS = 5
+
+-- Workspace `n`'s windows' apps, one per window: its tiles in layout order,
+-- then its other windows (floats) by id, so the icons don't shuffle.
+local function apps_of(wm, n)
+    local ids, seen = {}, {}
+    local ws = wm.workspaces[n]
+    for _, id in ipairs(ws and ws.order or {}) do
+        if wm.windows[id] and wm.windows[id].ws == n then
+            ids[#ids + 1] = id
+            seen[id] = true
+        end
+    end
+    local rest = {}
+    for id, w in pairs(wm.windows) do
+        if w.ws == n and not seen[id] then
+            rest[#rest + 1] = id
+        end
+    end
+    table.sort(rest, function(x, y)
+        return tostring(x) < tostring(y)
+    end)
+    for _, id in ipairs(rest) do
+        ids[#ids + 1] = id
+    end
+    local apps = {}
+    for _, id in ipairs(ids) do
+        apps[#apps + 1] = wm.windows[id].app or ""
+    end
+    return apps
+end
+
+-- What display `uuid`'s bar shows: the workspaces as seen from there, each
+-- with its windows' apps, the focused window's title on the display that
+-- window is on, and the status icons (icons()). `title` is the focused
+-- window's title. `icon_of(app)`, if given, gives an app's icon as a data
+-- URL, sent once per app in `app_icons` rather than once per window.
+function M.state(wm, uuid, title, icons, icon_of)
     local ws = {}
+    local app_icons = {}
     for n, s in ipairs(wm:bar_state(uuid)) do
+        local all = apps_of(wm, n)
+        local apps = {}
+        for i = 1, math.min(#all, M.CHIP_APPS) do
+            apps[i] = all[i]
+            if icon_of and all[i] ~= "" and app_icons[all[i]] == nil then
+                app_icons[all[i]] = icon_of(all[i]) or false
+            end
+        end
         ws[n] = {
             n = n,
             current = s.here or false,
             elsewhere = s.elsewhere or false,
             occupied = s.occupied or false,
             urgent = s.urgent or false,
+            apps = apps,
+            more = math.max(0, #all - M.CHIP_APPS),
         }
     end
     -- The keys can act on another display than the focused window's, after
@@ -68,7 +115,45 @@ function M.state(wm, uuid, title, icons)
     local f = wm.a.focused()
     local w = f and wm.windows[f]
     local on = w and w.ws and wm:shown(w.ws) or wm:current_screen()
-    return { uuid = uuid, workspaces = ws, title = on == uuid and title or "", icons = icons or {} }
+    return {
+        uuid = uuid,
+        workspaces = ws,
+        title = on == uuid and title or "",
+        icons = icons or {},
+        app_icons = app_icons,
+    }
+end
+
+local function holds(box, frame)
+    local x, y = frame.x + frame.w / 2, frame.y + frame.h / 2
+    return x >= box.x and x < box.x + box.w and y >= box.y and y < box.y + box.h
+end
+
+-- Whether display `uuid`'s bar hides, as tide's does under a full-screen
+-- window (tide §7.1): its workspace has a window in timo's full screen, or
+-- the focused window is in macOS's own full screen there. macOS's is only
+-- known for the focused window: one left in its own Space may be swiped
+-- away from without timo hearing *(unverified)*.
+function M.hidden(wm, uuid)
+    local n = wm.screen_ws[uuid]
+    for id, w in pairs(wm.windows) do
+        if n and w.ws == n and w.big == "full" then
+            local st = wm.a.state(id)
+            if st and not st.minimized and not st.hidden then
+                return true
+            end
+        end
+    end
+    local f = wm.a.focused()
+    local st = f and wm.a.state(f)
+    if st and st.fullscreen and st.frame then
+        for _, s in ipairs(wm.a.screens()) do
+            if s.uuid == uuid and holds(s.full or s.area, st.frame) then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- Wi-Fi signal in bars, 0 to 3, from the RSSI in dBm.
@@ -252,8 +337,9 @@ M.PANES = {
 
 -- What a message from a bar's page does. Every message names its bar's
 -- display, and acts there, not wherever the keys happen to be: a chip or a
--- scroll on display B's bar shows a workspace on B, and its clocks open the
--- dashboard on B. `act` holds what needs Hammerspoon: open(url),
+-- scroll on display B's bar shows a workspace on B, its clocks open the
+-- dashboard on B, and a double-click on its title maximizes the focused
+-- window only if that window is on B, where the title shows. `act` holds what needs Hammerspoon: open(url),
 -- dashboard(uuid), toggle(what) and volume(step).
 function M.handle(wm, body, act)
     local uuid = body.uuid
@@ -265,6 +351,11 @@ function M.handle(wm, body, act)
         local url = M.PANES[body.open]
         if url then
             act.open(url)
+        end
+    elseif body.maximize then
+        local _, w = wm:focused_tile()
+        if w and uuid and wm:shown(w.ws) == uuid then
+            wm:act("maximize")
         end
     elseif body.dashboard then
         act.dashboard(uuid)
