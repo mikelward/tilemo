@@ -6,8 +6,8 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 
 1. Tiling and keys: layouts, floats, the window keys.
 2. The mouse: edge drags set the split, Super+drag moves and resizes,
-   Super+middle-click maximizes, resize mode (SPEC.md §5.3). **This PR.**
-3. Focus follows mouse (SPEC.md §5.2).
+   Super+middle-click maximizes, resize mode (SPEC.md §5.3).
+3. Focus follows mouse (SPEC.md §5.2). **This PR.**
 4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
 5. The launcher, app keys, the dashboard, attention (SPEC.md §7–§9, §14).
    **Decided for v1:** no top bar. A menu bar item shows the workspaces as
@@ -47,6 +47,15 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **Super+drag shows an outline and moves the window on release,** rather
   than moving it live, since each move is a round trip to the app.
   Reversible: call `set_frame` from the drag's `update` instead.
+- **Focus follows mouse tells a menu is open from the window list:** any
+  on-screen window at the pop-up menu level (101) pauses it *(unverified
+  for every kind of menu)*. Mission Control isn't watched for; the hit test
+  landing on something unmanaged stands in *(unverified)*. Reversible:
+  `AXMenuOpened` observers in the adapter.
+- **No key turns focus follows mouse off** (SPEC.md open question 8):
+  `timo.toggle_focus_follows_mouse()` from Hammerspoon's console, or
+  `focus_follows_mouse = false` in `start()`. Reversible: bind it in
+  `keys.map`.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.
 - **Dragging a lone window's edge sets its width,** kept centered, for that

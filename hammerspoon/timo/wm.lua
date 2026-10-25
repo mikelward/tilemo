@@ -304,6 +304,10 @@ function M:retile()
             end
         end
     end
+    -- Windows may have moved under a still pointer; that isn't a crossing.
+    if self.ffm then
+        self.ffm:resync()
+    end
 end
 
 -- Coalesce a burst of events into one sync and retile.
@@ -395,6 +399,10 @@ end
 -- treat the rest as a request, once the button is up.
 function M:moved(id)
     local w = self.windows[id]
+    if w and w.floating and self.ffm then
+        -- A float that moved changes what's under the pointer.
+        self.ffm:resync()
+    end
     if not w or not w.ws or w.floating then
         return
     end
@@ -441,6 +449,9 @@ function M:drop(d, x, y)
             w.ws = n
             table.insert(self.mru[n], 1, d.id)
         end
+        if self.ffm then
+            self.ffm:resync()
+        end
     else
         self:request(d.id, box)
     end
@@ -473,6 +484,10 @@ function M:raise_floats(n, pid)
     for _, id in ipairs(mine) do
         self.a.raise(id)
     end
+    -- The stacking changed under a still pointer.
+    if self.ffm then
+        self.ffm:resync()
+    end
 end
 
 function M:focus_window(id)
@@ -483,6 +498,19 @@ function M:focus_window(id)
     self.a.focus(id)
     if not w.floating then
         self:raise_floats(w.ws, w.pid)
+    elseif w.kind ~= "float" then
+        -- A window you floated keeps its app's dialogs over it.
+        local raised = false
+        for _, fid in ipairs(self.floats) do
+            local f = self.windows[fid]
+            if fid ~= id and f and f.kind == "float" and f.pid == w.pid and f.ws == w.ws then
+                self.a.raise(fid)
+                raised = true
+            end
+        end
+        if raised and self.ffm then
+            self.ffm:resync()
+        end
     end
 end
 
@@ -494,16 +522,23 @@ function M:focused(id)
         self:map_screens()
         self:add(id)
     end
+    if self.ffm then
+        self.ffm:settled(id)
+    end
     local w = self.windows[id]
     if not w or not w.ws then
         return
     end
     -- However the tile got focus, its floats go back over it. A focused
     -- float comes to the front, so it moves to the top of wm.floats, which
-    -- raise_floats replays bottom to top.
+    -- raise_floats replays bottom to top, and what's under the pointer is
+    -- re-read.
     if w.floating then
         remove_value(self.floats, id)
         self.floats[#self.floats + 1] = id
+        if self.ffm then
+            self.ffm:resync()
+        end
     else
         self:raise_floats(w.ws, w.pid)
     end
@@ -524,13 +559,22 @@ function M:focused(id)
     end
 end
 
--- After a close, something keeps focus: the last used window left on that
--- workspace, else any tile you can see there. The fallback means a window
--- that reached the workspace without a focus event, such as one moved off
--- a display that went away, still counts.
+-- After a close, something keeps focus: the window under the pointer, as
+-- tide's focus_on_close, else the last used window left on that workspace,
+-- else any tile you can see there. The fallback means a window that reached
+-- the workspace without a focus event, such as one moved off a display that
+-- went away, still counts.
 function M:refocus(n)
     if self.a.focused() then
         return
+    end
+    if self.ffm and self.ffm.enabled then
+        local x, y = self.a.pointer()
+        local id = x and self.ffm:hit(x, y)
+        if id and self.windows[id].ws == n then
+            self:focus_window(id)
+            return
+        end
     end
     for _, id in ipairs(self.mru[n] or {}) do
         -- Only a window you can see: focusing a minimized one doesn't

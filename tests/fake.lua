@@ -10,13 +10,26 @@ function M.new()
             { uuid = "A", area = { x = 0, y = 25, w = 1920, h = 1055 }, full = { x = 0, y = 0, w = 1920, h = 1080 } },
         },
         focus_ = nil,
-        pointer = "A",
+        pointer_uuid = "A",
         timers = {},
         calls = {},    -- "focus 3", "raise 4", ...
         files = {},
         procs = {},
         notes = {},
     }
+
+    -- Front to back. A new window opens in front, and focusing or raising
+    -- one brings it to the front, as on macOS.
+    a.z = {}
+    local function to_front(id)
+        for i, v in ipairs(a.z) do
+            if v == id then
+                table.remove(a.z, i)
+                break
+            end
+        end
+        table.insert(a.z, 1, id)
+    end
 
     function a.add(id, f)
         f.role = f.role or "AXWindow"
@@ -26,6 +39,7 @@ function M.new()
         f.frame = f.frame or { x = 100, y = 100, w = 800, h = 600 }
         a.wins[id] = f
         a.order[#a.order + 1] = id
+        to_front(id)
         return id
     end
 
@@ -62,19 +76,48 @@ function M.new()
         return a.wins[id]
     end
 
-    -- Front to back: the last focused first, then creation order.
     function a.ordered()
         local out = {}
-        if a.focus_ and a.wins[a.focus_] then
-            out[1] = a.focus_
-        end
-        for i = #a.order, 1, -1 do
-            local id = a.order[i]
-            if id ~= a.focus_ then
+        for _, id in ipairs(a.z) do
+            if a.wins[id] then
                 out[#out + 1] = id
             end
         end
         return out
+    end
+
+    -- What Accessibility's hit test finds: the front window whose frame
+    -- holds the point, unless something unmanaged (a menu, say) is listed
+    -- in `a.covers` over it.
+    a.covers = {}
+    function a.window_at(x, y)
+        for _, b in ipairs(a.covers) do
+            if x >= b.x and x < b.x + b.w and y >= b.y and y < b.y + b.h then
+                return nil
+            end
+        end
+        for _, id in ipairs(a.ordered()) do
+            local f = a.wins[id]
+            local b = f.frame
+            if not f.minimized and x >= b.x and x < b.x + b.w and y >= b.y and y < b.y + b.h then
+                return id
+            end
+        end
+    end
+
+    a.menu = false
+    function a.menu_open()
+        return a.menu
+    end
+
+    a.front_app = "com.example.app"
+    function a.frontmost_app()
+        return a.front_app
+    end
+
+    a.px, a.py = 0, 0
+    function a.pointer()
+        return a.px, a.py
     end
 
     a.buttons = false
@@ -97,7 +140,7 @@ function M.new()
     end
 
     function a.pointer_screen()
-        return a.pointer
+        return a.pointer_uuid
     end
 
     function a.set_frame(id, b)
@@ -108,10 +151,12 @@ function M.new()
     function a.focus(id)
         a.calls[#a.calls + 1] = "focus " .. id
         a.focus_ = id
+        to_front(id)
     end
 
     function a.raise(id)
         a.calls[#a.calls + 1] = "raise " .. id
+        to_front(id)
     end
 
     function a.close(id)
