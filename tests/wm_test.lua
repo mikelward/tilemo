@@ -263,28 +263,13 @@ t.test("maximizing a tile puts its floats back over it", function()
     t.eq(a.calls[#a.calls], "raise 3")
 end)
 
-t.test("a display going away leaves its windows tiled on the one that remains", function()
-    local a = fake.new()
-    a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
-    a.add(1, {})
-    a.add(2, { frame = { x = 2000, y = 100, w = 800, h = 600 } })
-    local wm = wm_mod.new(a, {})
-    wm:sync()
-    wm:retile()
-    a.screens_[2] = nil
-    wm:schedule()
-    a.tick()
-    t.eq(wm.windows[2].ws, 1)
-    t.eq(wm.workspaces[1].order, { 1, 2 })
-    t.eq(a.wins[2].frame.x, 1056)
-end)
-
 t.test("after a close, a minimized window is passed over for a visible one", function()
     local a, wm = setup(3)
     wm:focused(1)
     wm:focused(2)
     wm:focused(3)
     a.wins[2].minimized = true
+    wm:minimized(2) -- you minimized it
     a.focus_ = 3
     a.drop(3)
     wm:schedule()

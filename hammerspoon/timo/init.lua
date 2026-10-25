@@ -83,6 +83,7 @@ function M.start(config)
     hs.window.animationDuration = 0
     self.adapter = adapter_mod.new()
     config = config or {}
+    config.saved = adapter_mod.load()
     self.wm = wm_mod.new(self.adapter, config)
     self.wm.ffm = ffm_mod.new(self.wm, self.adapter, {
         enabled = config.focus_follows_mouse ~= false,
@@ -92,6 +93,7 @@ function M.start(config)
         end,
     })
     self.wm:sync()
+    self.wm:reconcile()
     self.wm:retile()
     self.watchers = adapter_mod.watch(function()
         self.wm:schedule()
@@ -99,7 +101,15 @@ function M.start(config)
         self.wm:focused(id)
     end, function(id)
         self.wm:moved(id)
+    end, function(id)
+        self.wm:minimized(id)
+    end, function(id)
+        self.wm:unminimized(id)
     end)
+    -- Quitting or reloading Hammerspoon brings back every hidden window.
+    hs.shutdownCallback = function()
+        self.wm:restore_all()
+    end
     self.resize = resize_mode(self)
     self.wm.enter_resize_mode = function()
         self.resize:enter()
@@ -119,6 +129,9 @@ function M.start(config)
         end,
         middle = function(x, y)
             self.wm:maximize_at(x, y)
+        end,
+        clicked = function()
+            self.wm:clicked()
         end,
     })
     self.pointer = adapter_mod.pointer_moves(function(x, y, flags)

@@ -5,8 +5,11 @@
 -- is the full, slower read used to decide a new window; `state` is the
 -- quick one used on every retile.
 --
--- Until workspaces land (SPEC.md §6), each display shows one workspace of
--- its own, numbered in display order.
+-- Workspaces (SPEC.md §6.1) are tico's: nine, shared by every display,
+-- each display showing one. A window on a workspace that isn't showing is
+-- minimized. Every operation changes only which workspace each display
+-- shows and which workspace each window is on; then reconcile() makes the
+-- screen match, restoring first so the screen never goes empty.
 
 local layout = require("timo.layout")
 local mouse = require("timo.mouse")
@@ -24,6 +27,10 @@ local function remove_value(list, v)
 end
 
 local set_big_on
+
+M.WORKSPACES = 9
+-- How long timo waits for macOS to report a minimize or restore it asked for.
+M.EXPECT = 2
 
 -- How long to wait after the last window event before retiling, since one
 -- window opening sends several (tico SPEC.md §5.3).
@@ -43,7 +50,21 @@ function M.new(adapter, config)
         floats = {},    -- float ids, bottom to top
         mru = {},       -- workspace number -> ids, most recent first
         placed = {},    -- id -> the frame timo last gave it, as it landed
+        -- id -> the minimizes and restores timo asked for that macOS hasn't
+        -- reported yet, oldest first, each { kind = "min" or "unmin",
+        -- token = n }. One entry per request: switching back and forth
+        -- quickly can leave several of either kind outstanding.
+        expect = {},
+        tokens = 0,
     }, M)
+    -- What the last run saved (snapshot()). Window ids may come back as
+    -- strings from the settings store.
+    local saved = config.saved or {}
+    self.saved = {}
+    for k, v in pairs(saved.windows or {}) do
+        self.saved[tonumber(k) or k] = v
+    end
+    self.saved_screens = saved.screens or {}
     return self
 end
 
@@ -86,13 +107,21 @@ function M:map_screens()
     for _, s in ipairs(screens) do
         present[s.uuid] = true
     end
-    local lost = {}
+    -- A display that went away leaves its workspace hidden; Super+N
+    -- shows it on a display that's left.
     for uuid, n in pairs(self.screen_ws) do
         if present[uuid] then
             used[n] = true
         else
             self.screen_ws[uuid] = nil
-            lost[n] = true
+        end
+    end
+    -- A display timo saw last run shows what it showed then.
+    for _, s in ipairs(screens) do
+        local n = self.saved_screens[s.uuid]
+        if not self.screen_ws[s.uuid] and n and not used[n] then
+            used[n] = true
+            self.screen_ws[s.uuid] = n
         end
     end
     for _, s in ipairs(screens) do
@@ -104,31 +133,24 @@ function M:map_screens()
             used[n] = true
             self.screen_ws[s.uuid] = n
         end
-        local n = self.screen_ws[s.uuid]
-        if not self.workspaces[n] then
-            self.workspaces[n] = layout.new(n, s.area, self.layout)
-            self.mru[n] = {}
-        end
+        self:ensure_ws(self.screen_ws[s.uuid], s.area)
     end
-    -- A display that went away leaves its windows on the first display that
-    -- remains, where macOS puts them.
-    local first = screens[1] and self.screen_ws[screens[1].uuid]
-    if first and next(lost) then
-        local ids = {}
-        for id, w in pairs(self.windows) do
-            if w.ws and lost[w.ws] then
-                ids[#ids + 1] = id
-            end
-        end
-        table.sort(ids)
-        for _, id in ipairs(ids) do
-            local w = self.windows[id]
-            layout.remove(self.workspaces[w.ws], id)
-            remove_value(self.mru[w.ws], id)
-            w.ws = first
-            if not w.floating then
-                layout.insert(self.workspaces[first], id, nil, self.layout)
-            end
+end
+
+-- Workspace `n`, made in the default layout for `area` if it's new.
+function M:ensure_ws(n, area)
+    if not self.workspaces[n] then
+        self.workspaces[n] = layout.new(n, area, self.layout)
+        self.mru[n] = {}
+    end
+    return self.workspaces[n]
+end
+
+-- The display showing workspace `n`, if one is.
+function M:shown(n)
+    for uuid, m in pairs(self.screen_ws) do
+        if m == n then
+            return uuid
         end
     end
 end
@@ -140,6 +162,10 @@ end
 -- The workspace keys act on: the focused window's, else the one on the
 -- display under the pointer.
 function M:current_ws()
+    local kbd = self:kbd_screen()
+    if kbd then
+        return self.screen_ws[kbd] or 1
+    end
     local w = self.windows[self.a.focused() or false]
     -- An ignored window, such as picture-in-picture, has no workspace.
     if w and w.ws then
@@ -212,7 +238,17 @@ function M:add(id)
     if kind == "ignore" then
         return kind
     end
-    w.ws = self:ws_on_screen(self:screen_for(f.frame)) or 1
+    local saved = self.saved[id]
+    if saved and saved.ws then
+        -- timo restarted: the window goes back where it was.
+        w.ws = saved.ws
+        w.mine = saved.mine
+        self:ensure_ws(w.ws, self:screen_for(f.frame).area)
+    else
+        w.ws = self:ws_on_screen(self:screen_for(f.frame)) or 1
+        -- Minimized before timo knew it: you did that.
+        w.mine = f.minimized or false
+    end
     if kind == "float" then
         w.floating = true
         self.floats[#self.floats + 1] = id
@@ -274,9 +310,317 @@ function M:sync()
     return lost
 end
 
+-- Make the screen match the state (SPEC.md §6.1): a window shows if its
+-- workspace is showing on some display and you haven't minimized it.
+-- Restores go first, in tile order, then the rest are minimized.
+function M:reconcile()
+    local restore, hide = {}, {}
+    for id, w in pairs(self.windows) do
+        if w.ws then
+            local st = self.a.state(id)
+            if st then
+                local want = self:shown(w.ws) ~= nil and not w.mine
+                if want and st.minimized and self:last_asked(id) ~= "unmin" then
+                    restore[#restore + 1] = id
+                elseif not want and not st.minimized and self:last_asked(id) ~= "min" then
+                    hide[#hide + 1] = id
+                end
+            end
+        end
+    end
+    local function rank(id)
+        local w = self.windows[id]
+        return layout.index_of(self.workspaces[w.ws].order, id) or 1000
+    end
+    table.sort(restore, function(p, q)
+        return rank(p) < rank(q)
+    end)
+    -- An expectation lapses if macOS never reports the change, so a later
+    -- minimize of yours isn't mistaken for timo's.
+    local function expect(id, kind)
+        -- Each request gets its own token, so an older request's timeout
+        -- can't clear a newer one's expectation.
+        self.tokens = self.tokens + 1
+        local token = self.tokens
+        self.expect[id] = self.expect[id] or {}
+        table.insert(self.expect[id], { kind = kind, token = token })
+        -- A request that lapsed may have held back a later one in reconcile,
+        -- so look again rather than leave the screen out of step.
+        self.a.after(M.EXPECT, function()
+            if self:settle_request(id, function(r)
+                return r.token == token
+            end) and not self.timer then
+                self:schedule()
+            end
+        end)
+    end
+    for _, id in ipairs(restore) do
+        expect(id, "unmin")
+        self.a.unminimize(id)
+    end
+    table.sort(hide)
+    for _, id in ipairs(hide) do
+        expect(id, "min")
+        self.a.minimize(id)
+    end
+    self:save()
+end
+
+-- What a restart needs to put every window back.
+function M:snapshot()
+    local out = { windows = {}, screens = {} }
+    for id, w in pairs(self.windows) do
+        if w.ws then
+            out.windows[id] = { ws = w.ws, mine = w.mine or false }
+        end
+    end
+    for uuid, n in pairs(self.screen_ws) do
+        out.screens[uuid] = n
+    end
+    return out
+end
+
+function M:save()
+    if self.a.save then
+        self.a.save(self:snapshot())
+    end
+end
+
+-- The newest of timo's outstanding requests for `id`, if any: a restore
+-- asked after a hide supersedes it, though both reports are still due.
+function M:last_asked(id)
+    local e = self.expect[id]
+    return e and e[#e].kind
+end
+
+-- Drop the oldest outstanding request for `id` that `match` picks, and say
+-- whether there was one.
+function M:settle_request(id, match)
+    local e = self.expect[id]
+    for i, r in ipairs(e or {}) do
+        if match(r) then
+            table.remove(e, i)
+            if #e == 0 then
+                self.expect[id] = nil
+            end
+            return true
+        end
+    end
+    return false
+end
+
+-- Take macOS's report of `kind` as the answer to timo's oldest request of
+-- that kind, if there is one, and say whether there was.
+function M:acknowledge(id, kind)
+    return self:settle_request(id, function(r)
+        return r.kind == kind
+    end)
+end
+
+-- macOS says a window was minimized. If timo didn't ask, you did.
+function M:minimized(id)
+    if self:acknowledge(id, "min") then
+        -- Its workspace may have come back meanwhile.
+        self:schedule()
+        return
+    end
+    local w = self.windows[id]
+    if w and w.ws then
+        w.mine = true
+        self:save()
+    end
+    self:schedule()
+end
+
+-- macOS says a window came back. If timo didn't ask, you restored it from
+-- the Dock or Cmd+Tab: clear the flag, and bring its workspace along.
+function M:unminimized(id)
+    if self:acknowledge(id, "unmin") then
+        -- A restore can finish after show() laid out and focused without it.
+        if self.focus_after == id then
+            self.focus_after = nil
+            self:focus_window(id)
+        end
+        self:schedule()
+        return
+    end
+    local w = self.windows[id]
+    if w and w.ws then
+        w.mine = false
+        if not self:shown(w.ws) then
+            self:activate(id)
+            return
+        end
+    end
+    self:schedule()
+end
+
+-- When timo quits, nothing stays stranded in the Dock (SPEC.md §6.3).
+function M:restore_all()
+    for id, w in pairs(self.windows) do
+        local st = w.ws and not w.mine and self.a.state(id)
+        if st and st.minimized then
+            self.a.unminimize(id)
+        end
+    end
+end
+
+-- The display a switch left keys on, while focus hasn't moved since: a
+-- switch to an empty workspace, or a Send that empties this one, leaves
+-- focus on a window on the other display.
+function M:kbd_screen()
+    local k = self.kbd
+    if k and k.focused == self.a.focused() and self:screen_by_uuid(k.uuid) then
+        return k.uuid
+    end
+    self.kbd = nil
+end
+
+-- Keep keys on display `uuid` until focus moves.
+function M:keep_keys_on(uuid)
+    self.kbd = { uuid = uuid, focused = self.a.focused() }
+end
+
+-- The display keys act on: the focused window's, else the pointer's. After
+-- showing an empty workspace, it's that display until focus moves.
+function M:current_screen()
+    local kbd = self:kbd_screen()
+    if kbd then
+        return kbd
+    end
+    local w = self.windows[self.a.focused() or false]
+    if w and w.ws then
+        local uuid = self:shown(w.ws)
+        if uuid then
+            return uuid
+        end
+    end
+    return self.a.pointer_screen() or (self.a.screens()[1] or {}).uuid
+end
+
+-- Show workspace `n` on display `uuid`. If another display shows it, the
+-- two swap, as on tide.
+function M:show(n, uuid)
+    uuid = uuid or self:current_screen()
+    local s = self:screen_by_uuid(uuid)
+    if not s or n < 1 or n > M.WORKSPACES then
+        return
+    end
+    local cur = self.screen_ws[uuid]
+    if cur == n then
+        return
+    end
+    local other = self:shown(n)
+    if other then
+        self.screen_ws[other] = cur
+    end
+    self.screen_ws[uuid] = n
+    self:ensure_ws(n, s.area)
+    self:reconcile()
+    self:retile()
+    -- With nothing there to focus, focus stays put, perhaps on a window the
+    -- swap carried to the other display: keys still mean this one.
+    if not self:refocus_ws(n) then
+        self:keep_keys_on(uuid)
+    end
+    if self.on_show then
+        self.on_show(n)
+    end
+end
+
+-- Focus workspace n's last used window, if it has one, and say whether it
+-- did. If that window is still being restored, it's focused when the
+-- restore lands; a later switch replaces the wait.
+function M:refocus_ws(n)
+    self.focus_after = nil
+    self.kbd = nil
+    for _, id in ipairs(self.mru[n] or {}) do
+        local w = self.windows[id]
+        local st = w and w.ws == n and not w.mine and self.a.state(id)
+        -- An app you hid with Cmd+H stays hidden: pass over its windows.
+        if st and not st.hidden then
+            if st.minimized then
+                self.focus_after = id
+            else
+                self:focus_window(id)
+            end
+            return true
+        end
+    end
+    return false
+end
+
+-- Move window `id` to the end of workspace n's stack.
+function M:send(id, n)
+    local w = self.windows[id or false]
+    if not w or not w.ws or w.ws == n or n < 1 or n > M.WORKSPACES then
+        return
+    end
+    local from = w.ws
+    layout.remove(self.workspaces[from], id)
+    remove_value(self.mru[from], id)
+    local s = self:screen_by_uuid(self:current_screen())
+    self:ensure_ws(n, s and s.area)
+    w.ws = n
+    w.big = nil
+    if not w.floating then
+        -- A window you send joins the end of the stack there, whatever
+        -- new_window says: that's for windows that open.
+        layout.insert(self.workspaces[n], id, nil, { new_window = "end" })
+    end
+    table.insert(self.mru[n], 1, id)
+    self:reconcile()
+    self:retile()
+end
+
+-- Bring a window forward, with its workspace if that isn't showing: app
+-- keys, Super+Tab, Cmd+Tab, a Dock click, a notification.
+function M:activate(id)
+    local w = self.windows[id]
+    if not w or not w.ws then
+        return
+    end
+    w.mine = false
+    if not self:shown(w.ws) then
+        local list = self.mru[w.ws]
+        remove_value(list, id)
+        table.insert(list, 1, id)
+        self:show(w.ws)
+    else
+        self:reconcile()
+        self:retile()
+    end
+    self:focus_window(id)
+end
+
+-- A workspace's floats go to the display showing it, keeping their place
+-- relative to the display they were on, so a dialog stays with its parent
+-- when workspaces swap displays.
+function M:follow_floats()
+    for _, id in ipairs(self.floats) do
+        local w = self.windows[id]
+        local uuid = w and w.ws and self:shown(w.ws)
+        local st = uuid and self.a.state(id)
+        if st and not st.minimized then
+            local to = self:screen_by_uuid(uuid)
+            local from = self:screen_for(st.frame)
+            if to and from and from.uuid ~= to.uuid then
+                local f = st.frame
+                local a = to.area
+                local x = a.x + (f.x - from.area.x)
+                local y = a.y + (f.y - from.area.y)
+                x = math.max(a.x, math.min(x, a.x + a.w - f.w))
+                y = math.max(a.y, math.min(y, a.y + a.h - f.h))
+                self.a.set_frame(id, { x = x, y = y, w = f.w, h = f.h })
+            end
+        end
+    end
+end
+
 -- Lay out every display, moving only windows that aren't already where
 -- they belong.
 function M:retile()
+    self:follow_floats()
     for uuid, n in pairs(self.screen_ws) do
         local s = self:screen_by_uuid(uuid)
         local ws = self.workspaces[n]
@@ -318,6 +662,7 @@ function M:schedule()
     self.timer = self.a.after(M.DEBOUNCE, function()
         self.timer = nil
         local lost = self:sync()
+        self:reconcile()
         self:retile()
         for n in pairs(lost) do
             self:refocus(n)
@@ -367,6 +712,9 @@ function M:request(id, box)
         remove_value(self.mru[w.ws], id)
         w.ws = n
         layout.insert(self.workspaces[n], id, nil, self.layout)
+        -- Focused already, so no focus event will put it in n's history.
+        table.insert(self.mru[n], 1, id)
+        self:save()
     elseif old and (old.w ~= box.w or old.h ~= box.h) then
         local ws = self.workspaces[w.ws]
         local ids = self:tiled(w.ws)
@@ -397,11 +745,33 @@ end
 
 -- macOS says a window moved or changed size. Ignore the moves timo made;
 -- treat the rest as a request, once the button is up.
+-- A float you moved to another display joins the workspace showing there,
+-- so following workspaces between displays doesn't pull it back.
+function M:float_landed(id)
+    local w = self.windows[id]
+    local st = w and w.floating and self.a.state(id)
+    if not st then
+        return
+    end
+    local n = self:ws_on_screen(self:screen_for(st.frame))
+    if n and n ~= w.ws then
+        remove_value(self.mru[w.ws], id)
+        w.ws = n
+        table.insert(self.mru[n], 1, id)
+        self:save()
+    end
+end
+
 function M:moved(id)
     local w = self.windows[id]
-    if w and w.floating and self.ffm then
+    if w and w.floating then
+        if not self.a.buttons_down() then
+            self:float_landed(id)
+        end
         -- A float that moved changes what's under the pointer.
-        self.ffm:resync()
+        if self.ffm then
+            self.ffm:resync()
+        end
     end
     if not w or not w.ws or w.floating then
         return
@@ -441,14 +811,8 @@ function M:drop(d, x, y)
     end
     if w.floating then
         self.a.set_frame(d.id, box)
-        -- Dropped on another display, it joins the workspace there, so
-        -- tiling it again later tiles it where it is.
-        local n = self:ws_on_screen(self:screen_for(box))
-        if n and n ~= w.ws then
-            remove_value(self.mru[w.ws], d.id)
-            w.ws = n
-            table.insert(self.mru[n], 1, d.id)
-        end
+        -- Dropped on another display, it joins the workspace there.
+        self:float_landed(d.id)
         if self.ffm then
             self.ffm:resync()
         end
@@ -495,6 +859,10 @@ function M:focus_window(id)
     if not w then
         return
     end
+    -- Focusing something else is a newer choice than a slow restore.
+    if self.focus_after ~= id then
+        self.focus_after = nil
+    end
     self.a.focus(id)
     if not w.floating then
         self:raise_floats(w.ws, w.pid)
@@ -512,6 +880,15 @@ function M:focus_window(id)
             self.ffm:resync()
         end
     end
+end
+
+-- A click: whatever it picks is newer than a restore still on its way,
+-- and than a switch that kept keys on its display. (A focus report alone
+-- can't say this: macOS moves focus itself as timo minimizes, and a click
+-- on the window that already has focus reports nothing.)
+function M:clicked()
+    self.focus_after = nil
+    self.kbd = nil
 end
 
 -- Called when macOS reports a window gained focus, by timo or by a click
@@ -742,6 +1119,49 @@ end
 function A.resize_mode(self)
     if self.enter_resize_mode then
         self.enter_resize_mode()
+    end
+end
+
+-- Workspaces ----------------------------------------------------------------
+
+function A.show(self, n)
+    self:show(n)
+end
+
+function A.send(self, n)
+    local id = self.a.focused()
+    local w = self.windows[id or false]
+    local from = w and w.ws
+    local uuid = from and self:shown(from)
+    self:send(id, n)
+    -- Focus stays on the workspace you're on, as on tide; with nothing left
+    -- there, so do the keys.
+    if from and self.windows[id] and self.windows[id].ws ~= from then
+        if not self:refocus_ws(from) and uuid then
+            self:keep_keys_on(uuid)
+        end
+    end
+end
+
+-- Super+Left/Right and PgUp/PgDn: the previous or next workspace, stopping
+-- at 1 and 9.
+function A.step(self, d)
+    local cur = self.screen_ws[self:current_screen()] or 1
+    local n = math.max(1, math.min(M.WORKSPACES, cur + d))
+    self:show(n)
+end
+
+-- Super+Shift+Left/Right: carry the focused window there, and follow it.
+function A.carry(self, d)
+    local id = self.a.focused()
+    -- The display it's carried from, noted before the window moves.
+    local uuid = self:current_screen()
+    local cur = self.screen_ws[uuid] or 1
+    local n = math.max(1, math.min(M.WORKSPACES, cur + d))
+    if id and n ~= cur then
+        self:send(id, n)
+        self:show(n, uuid)
+        self:focus_window(id)
     end
 end
 
