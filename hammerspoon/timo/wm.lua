@@ -1371,6 +1371,11 @@ function A.mic_mute(self)
     end
 end
 
+-- The Print keys and the launcher's screenshot actions (SPEC.md §10).
+function A.screenshot(self, kind)
+    self.a.screenshot(kind)
+end
+
 -- Super+Shift+Space: the dashboard, or closes it (SPEC.md §8).
 function A.dashboard(self)
     if self.open_dashboard then

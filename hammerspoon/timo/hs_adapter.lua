@@ -375,6 +375,22 @@ function M.new()
         }
     end
 
+    -- Press macOS's own screenshot keys (keys.SCREENSHOT). The picker takes
+    -- a moment to come up before it will hear Space.
+    function a.screenshot(kind)
+        local k = require("timo.keys").SCREENSHOT[kind]
+        if not k then
+            a.log("no screenshot kind " .. tostring(kind))
+            return
+        end
+        hs.eventtap.keyStroke(k.mods, k.key, 0)
+        if k["then"] then
+            a.after(0.3, function()
+                hs.eventtap.keyStroke({}, k["then"], 0)
+            end)
+        end
+    end
+
     function a.read(path)
         local f = io.open(path, "r")
         if not f then

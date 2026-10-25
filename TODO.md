@@ -87,9 +87,11 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   through `runenv`, as tide does, but those are Linux scripts today, so on
   a Mac most app keys need either macOS support in scripts or a `bundle`
   override. Super+T opens kitty by bundle ID. Reversible: `keys.APPS`.
-- **Screenshots go to the clipboard only.** tide also saves each to
-  `~/Pictures/Screenshots` (SPEC.md §10). Reversible: add a file path to
-  the `screencapture` calls in `launcher_hs.lua`.
+- **Screenshots go to the clipboard only.** They press macOS's own
+  screenshot keys, so timo needs no Screen Recording permission; tide also
+  saves each to `~/Pictures/Screenshots` (SPEC.md §10), and macOS does one
+  or the other. Reversible: drop Ctrl from `keys.SCREENSHOT` to save to
+  Screenshot's folder instead.
 - **Do Not Disturb runs a Shortcuts shortcut** named "Toggle Do Not
   Disturb", which you make once; macOS has no public switch for Focus.
   Reversible: `launcher_hs.lua`'s `QUICK.dnd`.

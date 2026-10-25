@@ -225,6 +225,11 @@ function M.new()
 
     function a.log() end
 
+    a.shots = {}
+    function a.screenshot(kind)
+        a.shots[#a.shots + 1] = kind
+    end
+
     return a
 end
 

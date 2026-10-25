@@ -99,14 +99,15 @@ end
 
 local QUICK = {}
 
-function QUICK.screenshot_window()
-    hs.task.new("/usr/sbin/screencapture", nil, { "-W", "-c" }):start()
+-- macOS's own screenshot keys, as the Print keys use (SPEC.md §10).
+function QUICK.screenshot_window(timo)
+    timo.wm:act("screenshot", "window")
 end
-function QUICK.screenshot_screen()
-    hs.task.new("/usr/sbin/screencapture", nil, { "-c" }):start()
+function QUICK.screenshot_screen(timo)
+    timo.wm:act("screenshot", "screen")
 end
-function QUICK.screenshot_region()
-    hs.task.new("/usr/sbin/screencapture", nil, { "-i", "-c" }):start()
+function QUICK.screenshot_region(timo)
+    timo.wm:act("screenshot", "region")
 end
 function QUICK.lock()
     hs.caffeinate.lockScreen()
@@ -188,7 +189,7 @@ function M.new(timo)
             if item.quick == "toggle_ffm" then
                 timo.toggle_focus_follows_mouse()
             elseif QUICK[item.quick] then
-                QUICK[item.quick]()
+                QUICK[item.quick](timo)
             end
         elseif item.action then
             timo.wm:act(item.action, item.arg)

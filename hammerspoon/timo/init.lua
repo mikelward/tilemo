@@ -35,17 +35,24 @@ local function bind_all(self)
         h:delete()
     end
     self.hotkeys = {}
-    for _, b in ipairs(keys.map) do
+    local function bind(mods, b)
         local fn = function()
             self.wm:act(b.action, b.arg)
         end
         -- One bad or taken key mustn't stop the rest binding.
-        local ok, h = pcall(hs.hotkey.bind, keys.mods(self.super, b), b.key, fn, nil, b.repeating and fn or nil)
+        local ok, h = pcall(hs.hotkey.bind, mods, b.key, fn, nil, b.repeating and fn or nil)
         if ok and h then
             self.hotkeys[#self.hotkeys + 1] = h
         else
-            self.adapter.log("couldn't bind " .. table.concat(keys.mods(self.super, b), "+") .. "+" .. b.key)
+            self.adapter.log("couldn't bind " .. table.concat(mods, "+") .. "+" .. b.key)
         end
+    end
+    local list, skipped = keys.bindings(self.super)
+    for _, b in ipairs(list) do
+        bind(b.mods, b)
+    end
+    for _, chord in ipairs(skipped) do
+        self.adapter.log("left out " .. chord .. ": another key has it")
     end
 end
 
