@@ -357,8 +357,22 @@ function M.new()
         end
     end
 
+    -- Hammerspoon stops a timer that's garbage collected, so each one is
+    -- held here until it fires or is stopped.
+    local pending = {}
     function a.after(seconds, fn)
-        return hs.timer.doAfter(seconds, fn)
+        local t
+        t = hs.timer.doAfter(seconds, function()
+            pending[t] = nil
+            fn()
+        end)
+        pending[t] = true
+        return {
+            stop = function()
+                pending[t] = nil
+                t:stop()
+            end,
+        }
     end
 
     function a.read(path)
