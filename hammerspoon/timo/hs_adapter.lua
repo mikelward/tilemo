@@ -421,6 +421,10 @@ function M.new()
         hs.notify.new({ title = "timo", informativeText = text }):send()
     end
 
+    function a.now()
+        return hs.timer.secondsSinceEpoch()
+    end
+
     local log = hs.logger.new("timo", "info")
     function a.log(text)
         log.i(text)
@@ -464,16 +468,20 @@ function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
 end
 
 -- Modifier changes, and anything that spoils a Super tap: a key, a mouse
--- button or a scroll. Passes every event through.
+-- button or a scroll. `on_other` gets "key" with the key's name and the
+-- modifiers for a key, else "mouse". Passes every event through.
 function M.taps(on_flags, on_other)
     local t = hs.eventtap.event.types
     local tap = hs.eventtap.new({
         t.flagsChanged, t.keyDown, t.leftMouseDown, t.rightMouseDown, t.otherMouseDown, t.scrollWheel,
     }, function(e)
-        if e:getType() == t.flagsChanged then
+        local kind = e:getType()
+        if kind == t.flagsChanged then
             on_flags(e:getFlags())
+        elseif kind == t.keyDown then
+            on_other("key", hs.keycodes.map[e:getKeyCode()], e:getFlags())
         else
-            on_other()
+            on_other("mouse")
         end
         return false
     end)

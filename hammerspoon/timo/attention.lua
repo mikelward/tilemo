@@ -1,7 +1,8 @@
 -- What wants attention (SPEC.md §14.2), for Super+Tab and the menu bar.
 -- A Dock badge appearing or rising marks the app; a window title gaining
--- an unread count, such as "Chat (3)", marks the window. A mark clears when
--- you focus that window or app. Pure Lua.
+-- an unread count, such as "Chat (3)", or a window taking focus unasked
+-- (SPEC.md §14.1), marks the window. A mark clears when you focus that
+-- window or app. Pure Lua.
 
 local M = {}
 M.__index = M
@@ -73,6 +74,11 @@ function M:title(id, app, title)
         self:mark({ kind = "window", id = id, app = app })
     end
     self.counts[id] = n
+end
+
+-- Window `id` of `app` activated itself without a grant (SPEC.md §14.1).
+function M:activated(id, app)
+    self:mark({ kind = "window", id = id, app = app })
 end
 
 -- You focused window `id` of `app`: its marks, and its app's, clear.

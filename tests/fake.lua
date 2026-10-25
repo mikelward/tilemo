@@ -225,6 +225,12 @@ function M.new()
 
     function a.log() end
 
+    -- The clock the focus guard reads, moved on by hand.
+    a.clock = 0
+    function a.now()
+        return a.clock
+    end
+
     a.shots = {}
     function a.screenshot(kind)
         a.shots[#a.shots + 1] = kind

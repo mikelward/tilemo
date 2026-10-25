@@ -171,12 +171,17 @@ function M.start(config)
     self.tap_watch = adapter_mod.taps(function(flags)
         local none = not (flags.cmd or flags.alt or flags.ctrl or flags.shift or flags.fn)
         self.tap:flags(not none and keys.super_alone(self.super, flags), none, hs.timer.secondsSinceEpoch())
+        -- Cmd+Tab switches apps when Command goes up (SPEC.md §14.1).
+        self.wm:modifiers(flags.cmd or false)
         -- Letting Super go ends a round of Super+Tab.
         if not keys.is_super(self.super, flags) then
             self.wm:end_round()
         end
-    end, function()
+    end, function(kind, key, flags)
         self.tap:other()
+        if kind == "key" then
+            self.wm:key_down(key, flags.cmd or false)
+        end
     end)
     -- The workspaces, in the bar or else in the menu bar, and the number
     -- shown on each switch (SPEC.md §8).
