@@ -46,5 +46,10 @@ falls back to Option, and says so once (SPEC.md §7.1).
 
 `make test lint` runs everything in plain Lua 5.4, against a fake of macOS
 (`tests/fake.lua`). The dashboard page's test also needs Node, and skips
-with a note without it. Nothing here has run on a Mac yet; the checklists in
-SPEC.md §5.1 and §5.2 are what to try first.
+with a note without it.
+
+CI also runs `ci/hs-smoke.sh` on a macOS runner. It installs Hammerspoon from
+Homebrew, checks that every `hs.*` name timo uses exists in it, then starts
+timo and opens and closes the dashboard. Hosted runners can't grant
+Accessibility, so nothing tiles there. The tiling hasn't run on a Mac yet;
+the checklists in SPEC.md §5.1 and §5.2 are what to try first.

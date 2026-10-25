@@ -1151,7 +1151,10 @@ Each one names a workaround, or says there is none.
   - the geometry against tide's own fixtures;
   - the workspace model (§6.1) and focus follows mouse's decisions (§5.2)
     against a fake Accessibility layer, with no sleeps;
-  - nothing that needs a real Mac in CI.
+  - in CI on a macOS runner, a smoke test in a real Hammerspoon
+    (`ci/hs-smoke.sh`): every `hs.*` name timo uses exists, and timo starts
+    and opens its dashboard. Hosted runners can't grant Accessibility, so
+    nothing that needs it runs there.
 - **On a real Mac:** the focus follows mouse checklist (§5.2), the dialog
   checklist (§5.1), and each *(unverified)* claim in this spec. A claim
   checked comes out of italics, with the macOS version.

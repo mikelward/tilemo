@@ -28,3 +28,12 @@ jobs:
           TIMO_NEED_NODE: "1"
       - run: make check-geometry TIDE=tide
       - run: make check-tico TICO=tico
+  # A smoke test in a real Hammerspoon: every hs.* name timo uses exists,
+  # and timo starts and opens its dashboard. Hosted runners can't grant
+  # Accessibility, so nothing tiles here; tests/ covers the behavior.
+  hammerspoon:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install --cask hammerspoon
+      - run: ci/hs-smoke.sh
