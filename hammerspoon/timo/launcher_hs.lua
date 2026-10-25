@@ -76,7 +76,11 @@ end
 -- The tab's window may be minimized, on a workspace timo has hidden, so it's
 -- restored too: timo sees a window you restored and brings its workspace
 -- along with it.
+local BROWSER_BUNDLES = { ["Google Chrome"] = "com.google.Chrome", Safari = "com.apple.Safari" }
+
 local function open_tab(timo, item)
+    -- The browser activating is the launch you made (SPEC.md §14.1).
+    timo.wm:grant(BROWSER_BUNDLES[item.browser])
     local set, restore
     if item.browser == "Safari" then
         set = ("set current tab of window %d to tab %d of window %d"):format(item.window, item.tab, item.window)
@@ -181,6 +185,8 @@ function M.new(timo)
                         timo.wm:show(n)
                     end
                 end
+                -- No bundle ID to say which app's window is the launch's.
+                timo.wm:grant(nil)
                 hs.application.launchOrFocus(item.path)
             end
         elseif item.kind == "tab" then

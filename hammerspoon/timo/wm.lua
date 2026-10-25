@@ -39,6 +39,11 @@ M.EXPECT = 2
 M.DEBOUNCE = 0.05
 -- A float's size is capped at this share of its display (tide SPEC.md §6.4).
 M.FLOAT_CAP = 0.8
+-- The focus guard (SPEC.md §14.1): how long a launch you made may give its
+-- window focus, and how soon after something you did (a click, a key with
+-- Command, a focus timo asked for) an activation still counts as yours.
+M.GRANT = 10
+M.GRACE = 1
 
 function M.new(adapter, config)
     config = config or {}
@@ -63,6 +68,16 @@ function M.new(adapter, config)
         tokens = 0,
         attention = attention.new(),
         history = {},   -- ids, most recently focused first, across workspaces
+        -- The focus guard's inputs: when you last typed or clicked, when you
+        -- last did something that switches apps, whether Command is down,
+        -- the launch grant, the focus timo last asked for, and the last
+        -- window refused.
+        last_input = -math.huge,
+        last_switch = -math.huge,
+        cmd_down = false,
+        granted = nil,  -- { app (nil: any), at, first_only }
+        asked = nil,    -- { id, app, at }
+        last_steal = nil, -- { id, at }
     }, M)
     -- What the last run saved (snapshot()). Window ids may come back as
     -- strings from the settings store.
@@ -249,7 +264,9 @@ function M:add(id)
         return nil
     end
     local kind = rules.decide(f, self.rules)
-    local w = { id = id, app = f.app, pid = f.pid, kind = kind }
+    -- `seen`: when timo found it, so the focus guard can tell a window a
+    -- launch opened from one that was already there.
+    local w = { id = id, app = f.app, pid = f.pid, kind = kind, seen = self.a.now() }
     self.windows[id] = w
     if kind == "ignore" then
         return kind
@@ -924,6 +941,10 @@ function M:focus_window(id)
     if self.focus_after ~= id then
         self.focus_after = nil
     end
+    -- The focus report this causes is timo's, not an app helping itself,
+    -- and moving focus ends a launch's grant.
+    self.asked = { id = id, app = w.app, at = self.a.now() }
+    self.granted = nil
     self.a.focus(id)
     if not w.floating then
         self:raise_floats(w.ws, w.pid)
@@ -950,6 +971,118 @@ end
 function M:clicked()
     self.focus_after = nil
     self.kbd = nil
+    -- A click is yours, and so is what it starts: a Dock icon, a link, a
+    -- notification.
+    local now = self.a.now()
+    self.last_input = now
+    self.last_switch = now
+    self:grant(nil, true)
+end
+
+-- The focus guard (SPEC.md §14.1) -------------------------------------------
+
+-- A launch you made: a window of `app` (of any app, when timo can't tell
+-- which, as for a helper script) may take focus within M.GRANT, once, if
+-- you haven't typed, clicked or moved focus since. `first_only` limits it
+-- to an app with no window open before the grant, for a launch guessed
+-- from the click or Return that may have started it outside timo (the
+-- Dock, Spotlight, Finder); every window that launch opens counts.
+function M:grant(app, first_only)
+    self.granted = { app = app, at = self.a.now(), first_only = first_only or false }
+end
+
+-- A key went down. Typing ends a launch's grant. A key with Command held
+-- (Cmd+Tab, timo's own keys) or Return (Spotlight, a file in Finder) is a
+-- choice, so what it activates is yours.
+function M:key_down(key, cmd)
+    local now = self.a.now()
+    self.last_input = now
+    if cmd or key == "return" or key == "padenter" then
+        self.last_switch = now
+        self:grant(nil, true)
+    end
+end
+
+-- Command went down or up. Cmd+Tab activates the app when you let go.
+function M:modifiers(cmd)
+    if cmd or self.cmd_down then
+        self.last_switch = self.a.now()
+    end
+    self.cmd_down = cmd or false
+end
+
+-- Whether `app` had a window open before time `t`: if so, a window of
+-- its now isn't from a launch at `t`, however many the launch opened.
+function M:open_before(app, t)
+    for _, o in pairs(self.windows) do
+        if o.app == app and o.seen < t then
+            return true
+        end
+    end
+    return false
+end
+
+-- Whether window `id` may keep the focus macOS just gave it: yes for
+-- anything you asked for, no for an app activating itself.
+function M:may_focus(id, w)
+    local prev = self.history[1]
+    local p = prev and self.windows[prev]
+    -- The window you were in, or another of its app's: a dialog, a second
+    -- window.
+    if not p or prev == id or p.app == w.app then
+        return true
+    end
+    -- The window you were in went away (closed, minimized, hidden, its
+    -- workspace switched away), so macOS moving focus on isn't theft.
+    local st = self.a.state(prev)
+    if not st or st.minimized or st.hidden or p.mine or not (p.ws and self:shown(p.ws)) then
+        return true
+    end
+    local now = self.a.now()
+    local asked = self.asked
+    if asked and now - asked.at <= M.GRACE and (asked.id == id or asked.app == w.app) then
+        return true
+    end
+    if self.cmd_down or now - self.last_switch <= M.GRACE then
+        return true
+    end
+    local g = self.granted
+    if g and now - g.at <= M.GRANT and self.last_input <= g.at
+        and (g.app == nil or g.app == w.app)
+        and not (g.first_only and self:open_before(w.app, g.at)) then
+        -- Used once.
+        self.granted = nil
+        return true
+    end
+    return false
+end
+
+-- Window `id` took focus unasked: mark it, and hand focus back to the
+-- window you were in. While the launcher, dashboard or resize mode holds
+-- the keyboard, it's only marked: those overlays keep their own focus.
+function M:refuse(id, w)
+    self.attention:activated(id, w.app)
+    self:changed()
+    local now = self.a.now()
+    local last = self.last_steal
+    self.last_steal = { id = id, at = now }
+    -- One that takes focus straight back is left with it, marked, rather
+    -- than fought over.
+    if last and last.id == id and now - last.at <= M.GRACE then
+        self.a.log("letting " .. tostring(w.app) .. " keep the focus it took back")
+        -- It's the window you're in now, so its own dialogs may follow.
+        remove_value(self.history, id)
+        table.insert(self.history, 1, id)
+        return
+    end
+    if self.holding_keyboard then
+        return
+    end
+    self.a.log("handing focus back from " .. tostring(w.app))
+    -- Not a focus you moved, so it doesn't end a launch's grant.
+    local g = self.granted
+    self:focus_window(self.history[1])
+    self.granted = g
 end
 
 -- Called when macOS reports a window gained focus, by timo or by a click
@@ -966,6 +1099,13 @@ function M:focused(id)
     local w = self.windows[id]
     if not w or not w.ws then
         return
+    end
+    if not self:may_focus(id, w) then
+        self:refuse(id, w)
+        return
+    end
+    if self.last_steal and self.last_steal.id == id then
+        self.last_steal = nil
     end
     remove_value(self.history, id)
     table.insert(self.history, 1, id)
@@ -1285,6 +1425,7 @@ function A.app(self, spec, fresh)
         if n then
             self:show(n)
         end
+        self:grant(spec.bundle)
         self.a.launch(spec, true)
         return
     end
@@ -1292,6 +1433,7 @@ function A.app(self, spec, fresh)
     if ids[1] then
         self:activate(ids[1])
     else
+        self:grant(spec.bundle)
         self.a.launch(spec)
     end
 end
@@ -1348,7 +1490,8 @@ function M:poll_attention()
     end
     local f = self.a.focused()
     local w = f and self.windows[f]
-    if w then
+    -- A window left with the focus it took keeps its mark until you pick it.
+    if w and not (self.last_steal and self.last_steal.id == f) then
         att:focused(f, w.app)
     end
     self:changed()

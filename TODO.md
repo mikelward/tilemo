@@ -111,8 +111,25 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **Attention polls every 2 s** for Dock badges and window titles, rather
   than watching Accessibility notifications. A count can take up to 2 s to
   show. Reversible: `AXTitleChanged` observers in the adapter.
-- **No focus guard yet** (SPEC.md §14.1): an app that activates itself
-  isn't handed focus back or marked. Reversible: add it to `wm.focused`.
+- **The focus guard guesses what you asked for from your input**
+  (SPEC.md §14.1). A focus is yours if it's another window of the app you
+  were in, one timo asked for, one that follows a click, Return or a key
+  with Command within 1 s (or Command is still down, for Cmd+Tab), or one
+  that moves on because the window you were in went away. An app key or
+  the launcher grants its app's window 10 s, once. A click or Return also
+  grants 10 s, once, to a window of an app that had none open before it,
+  standing in for launches from the Dock, Spotlight or Finder. Anything
+  else is marked and focus goes back *(unverified that it lands before a
+  keystroke)*. Alternative: watch `hs.application.watcher` launches rather
+  than guess from input. Reversible: `wm.may_focus`.
+- **An app that takes focus straight back keeps it,** marked, rather than
+  being fought over; and while the launcher, dashboard or resize mode is
+  open a thief is only marked, not handed back. Reversible: `wm.refuse`.
+- **The guard watches window focus, not app activation:** an app that
+  activates itself with no window isn't caught. A launch with no bundle ID
+  (a helper script, an app found by path) grants any app's window, and
+  `open .` from a terminal is covered only by the Return grant, so a Finder
+  that already has windows is refused. Reversible: `wm.grant`.
 - **The menu bar chips are text:** `[3]` here, `(5)` on another display,
   `2` occupied, `4!` wanting attention. Reversible: draw them with
   `hs.canvas` into the status item's icon.
