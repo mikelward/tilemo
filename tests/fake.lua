@@ -231,6 +231,21 @@ function M.new()
         return a.clock
     end
 
+    -- Whether a process is running: any of its windows is open, unless
+    -- `a.pids[pid]` says otherwise.
+    a.pids = {}
+    function a.pid_running(pid)
+        if a.pids[pid] ~= nil then
+            return a.pids[pid]
+        end
+        for _, f in pairs(a.wins) do
+            if f.pid == pid then
+                return true
+            end
+        end
+        return false
+    end
+
     a.shots = {}
     function a.screenshot(kind)
         a.shots[#a.shots + 1] = kind

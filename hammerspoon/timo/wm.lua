@@ -44,6 +44,11 @@ M.FLOAT_CAP = 0.8
 -- Command, a focus timo asked for) an activation still counts as yours.
 M.GRANT = 10
 M.GRACE = 1
+-- How long the place of a window whose app quit, or that the last run saved
+-- and hasn't come back, is kept for a window of that app to take
+-- (SPEC.md §6.3), and how many such places are kept at most.
+M.KEEP = 600
+M.KEEP_MAX = 50
 
 function M.new(adapter, config)
     config = config or {}
@@ -80,13 +85,23 @@ function M.new(adapter, config)
         last_steal = nil, -- { id, at }
     }, M)
     -- What the last run saved (snapshot()). Window ids may come back as
-    -- strings from the settings store.
+    -- strings from the settings store. A saved window that doesn't come back
+    -- by id is matched by app and title until M.KEEP after this start.
     local saved = config.saved or {}
+    self.started = adapter.now()
     self.saved = {}
     for k, v in pairs(saved.windows or {}) do
         self.saved[tonumber(k) or k] = v
     end
     self.saved_screens = saved.screens or {}
+    -- Places of windows whose app quit, each { app, title, ws, mine, pos,
+    -- at }, oldest first, for the app's windows to take when it relaunches.
+    self.gone = {}
+    for _, g in ipairs(saved.gone or {}) do
+        self.gone[#self.gone + 1] = g
+    end
+    -- id -> the place sync() paired a new window with.
+    self.paired = {}
     return self
 end
 
@@ -266,16 +281,24 @@ function M:add(id)
     local kind = rules.decide(f, self.rules)
     -- `seen`: when timo found it, so the focus guard can tell a window a
     -- launch opened from one that was already there.
-    local w = { id = id, app = f.app, pid = f.pid, kind = kind, seen = self.a.now() }
+    local w = { id = id, app = f.app, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title }
     self.windows[id] = w
     if kind == "ignore" then
         return kind
     end
-    local saved = self.saved[id]
+    local saved = self.paired[id] or self:match(id, f, function(sid)
+        return self.a.state(sid) ~= nil
+    end)
+    self.paired[id] = nil
     if saved and saved.ws then
-        -- timo restarted: the window goes back where it was.
+        -- timo restarted, or the app relaunched: the window goes back where
+        -- it was.
         w.ws = saved.ws
         w.mine = saved.mine
+        -- Its old index, and which save it's from: only indexes from the
+        -- same save say which window went before which.
+        w.saved_pos = saved.pos
+        w.saved_at = saved.at or self.started
         self:ensure_ws(w.ws, self:screen_for(f.frame).area)
     else
         w.ws = self:ws_on_screen(self:screen_for(f.frame)) or 1
@@ -286,6 +309,8 @@ function M:add(id)
         w.floating = true
         self.floats[#self.floats + 1] = id
         self:place_float(id, f)
+    elseif saved and saved.ws and saved.pos then
+        self:insert_back(id, w)
     else
         -- "next" goes after the window you were in. macOS may already have
         -- given the new window focus, so that's the workspace's last used.
@@ -306,10 +331,168 @@ function M:add(id)
     return kind
 end
 
-function M:forget(id)
+-- How alike two titles are: the same title most, then by how much they
+-- start and end alike.
+local SAME_TITLE = 1e9
+local function likeness(a, b)
+    a, b = a or "", b or ""
+    if a == b then
+        return SAME_TITLE
+    end
+    local n = math.min(#a, #b)
+    local p = 0
+    while p < n and a:byte(p + 1) == b:byte(p + 1) do
+        p = p + 1
+    end
+    local s = 0
+    while s < n - p and a:byte(#a - s) == b:byte(#b - s) do
+        s = s + 1
+    end
+    return p + s
+end
+
+-- The places a new window of `app` might take: saved ones whose window
+-- hasn't come back (`live(id)` says whether one is still there), and those
+-- of windows whose app quit, while they last.
+function M:places(app, live)
+    local now = self.a.now()
+    local out = {}
+    if now - self.started <= M.KEEP then
+        for sid, s in pairs(self.saved) do
+            if s.app == app and s.ws and not self.windows[sid] and not live(sid) then
+                out[#out + 1] = { place = s, sid = sid }
+            end
+        end
+    end
+    for _, g in ipairs(self.gone) do
+        if g.app == app and g.ws and now - (g.at or 0) <= M.KEEP then
+            out[#out + 1] = { place = g }
+        end
+    end
+    return out
+end
+
+-- Take a place, so no other window gets it.
+function M:claim(c)
+    if c.sid ~= nil then
+        self.saved[c.sid] = nil
+    else
+        remove_value(self.gone, c.place)
+    end
+    return c.place
+end
+
+-- Where window `id` was (SPEC.md §6.3): its own saved place, if it's the
+-- same app's, else the closest by title of its app's places.
+-- The place saved under window `id`, if it's its app's. If the id is
+-- another app's now, the window saved under it is gone, and its place
+-- stays for that app.
+function M:own_place(id, f)
+    local s = self.saved[id]
+    if not s then
+        return nil
+    end
+    self.saved[id] = nil
+    if s.app == nil or s.app == f.app then
+        return s
+    end
+    s.at = self.started
+    table.insert(self.gone, s)
+end
+
+function M:match(id, f, live)
+    local s = self:own_place(id, f)
+    if s then
+        return s
+    end
+    local best, score
+    for _, c in ipairs(self:places(f.app, live)) do
+        local l = likeness(f.title, c.place.title)
+        if not best or l > score then
+            best, score = c, l
+        end
+    end
+    return best and self:claim(best)
+end
+
+-- Pair the windows a sync found new with their places, closest titles
+-- first, so the first window found can't take a place another fits
+-- better.
+function M:pair(ids, live)
+    local pairs_ = {}
+    local facts = {}
+    for _, id in ipairs(ids) do
+        local f = self.a.facts(id)
+        if f and rules.decide(f, self.rules) ~= "ignore" then
+            local s = self:own_place(id, f)
+            if s then
+                self.paired[id] = s
+            else
+                facts[id] = f
+            end
+        end
+    end
+    -- After every reused id has given up its place, so those count too.
+    for id, f in pairs(facts) do
+        for _, c in ipairs(self:places(f.app, live)) do
+            pairs_[#pairs_ + 1] = { id = id, c = c, score = likeness(f.title, c.place.title) }
+        end
+    end
+    table.sort(pairs_, function(p, q)
+        return p.score > q.score
+    end)
+    local taken = {}
+    for _, p in ipairs(pairs_) do
+        if not self.paired[p.id] and not taken[p.c.place] then
+            taken[p.c.place] = true
+            self.paired[p.id] = self:claim(p.c)
+        end
+    end
+end
+
+-- Put a window coming back at its old index, or the end if the stack is
+-- shorter now, but always after the windows from the same save that were
+-- before it and before those that were after it, however they arrived.
+-- Windows not from that save stay where they are.
+function M:insert_back(id, w)
+    local order = self.workspaces[w.ws].order
+    local lo, hi = 1, #order + 1
+    for i, other in ipairs(order) do
+        local o = self.windows[other]
+        if o and o.saved_pos and o.saved_at == w.saved_at then
+            if o.saved_pos < w.saved_pos then
+                lo = math.max(lo, i + 1)
+            elseif o.saved_pos > w.saved_pos then
+                hi = math.min(hi, i)
+            end
+        end
+    end
+    local at = math.min(w.saved_pos, #order + 1)
+    at = math.max(lo, math.min(at, hi))
+    table.insert(order, at, id)
+end
+
+-- Stop managing window `id`. `pos` is its place in its stack, if read
+-- already, and `at` the time to save its place under.
+function M:forget(id, pos, at)
     local w = self.windows[id]
     if not w then
         return
+    end
+    -- Its process quit: keep its place for when the app comes back, which
+    -- may be running again already.
+    if w.ws and w.app and not self.a.pid_running(w.pid) then
+        table.insert(self.gone, {
+            app = w.app,
+            title = w.title,
+            ws = w.ws,
+            mine = w.mine or false,
+            pos = pos or (self.workspaces[w.ws] and layout.index_of(self.workspaces[w.ws].order, id)),
+            at = at or self.a.now(),
+        })
+        while #self.gone > M.KEEP_MAX do
+            table.remove(self.gone, 1)
+        end
     end
     self.windows[id] = nil
     if w.ws and self.workspaces[w.ws] then
@@ -326,20 +509,72 @@ end
 -- gone ones. Window events call this rather than trusting each event's
 -- window, since a destroyed window can no longer say who it was.
 -- Returns the workspaces that lost a window.
+-- Forget the windows not in `live`, keeping the places of those whose
+-- process quit. Every gone window's place in its stack is read before any
+-- leaves it, and they share one time, so their indexes order them.
+-- Returns the workspaces that lost a window.
+function M:collect_gone(live)
+    local lost = {}
+    local gone, pos = {}, {}
+    for id, w in pairs(self.windows) do
+        if not live[id] then
+            gone[#gone + 1] = id
+            pos[id] = w.ws and self.workspaces[w.ws] and layout.index_of(self.workspaces[w.ws].order, id)
+        end
+    end
+    local now = self.a.now()
+    for _, id in ipairs(gone) do
+        local w = self.windows[id]
+        if w.ws then
+            lost[w.ws] = true
+        end
+        self:forget(id, pos[id], now)
+    end
+    return lost
+end
+
 function M:sync()
     self:map_screens()
     local live = {}
-    for _, id in ipairs(self.a.windows()) do
+    local ids = self.a.windows()
+    local new = {}
+    for _, id in ipairs(ids) do
         live[id] = true
-        self:add(id)
+        if not self.windows[id] then
+            new[#new + 1] = id
+        end
     end
-    local lost = {}
-    for id, w in pairs(self.windows) do
-        if not live[id] then
-            if w.ws then
-                lost[w.ws] = true
-            end
-            self:forget(id)
+    -- Windows that went go first, so their places are there for windows
+    -- coming back in the same sync, such as a relaunched app's.
+    local lost = self:collect_gone(live)
+    self:pair(new, function(sid)
+        return live[sid] == true
+    end)
+    -- Windows coming back go first, lowest old index first, so each lands
+    -- at its index; the rest follow in the order macOS lists them.
+    local first, rest = {}, {}
+    for _, id in ipairs(ids) do
+        local p = self.paired[id]
+        if p and p.pos then
+            first[#first + 1] = id
+        else
+            rest[#rest + 1] = id
+        end
+    end
+    local seq = {}
+    for i, id in ipairs(first) do
+        seq[id] = i
+    end
+    table.sort(first, function(p, q)
+        local a, b = self.paired[p].pos, self.paired[q].pos
+        if a ~= b then
+            return a < b
+        end
+        return seq[p] < seq[q]
+    end)
+    for _, list in ipairs({ first, rest }) do
+        for _, id in ipairs(list) do
+            self:add(id)
         end
     end
     return lost
@@ -401,12 +636,39 @@ function M:reconcile()
     self:save()
 end
 
--- What a restart needs to put every window back.
+-- What a restart needs to put every window back: each window's workspace,
+-- flag and place in its stack, with its app and title to match it by if
+-- it comes back with a new id, and the places still kept for windows that
+-- haven't come back.
 function M:snapshot()
-    local out = { windows = {}, screens = {} }
+    local out = { windows = {}, screens = {}, gone = {} }
+    local now = self.a.now()
+    -- A window's index is where it is now, so a stack you rearranged stays
+    -- that way. (Windows still to come back after a restart partway through
+    -- may land out of order: see TODO.md.)
     for id, w in pairs(self.windows) do
         if w.ws then
-            out.windows[id] = { ws = w.ws, mine = w.mine or false }
+            out.windows[id] = {
+                ws = w.ws,
+                mine = w.mine or false,
+                app = w.app,
+                title = w.title,
+                pos = not w.floating and layout.index_of(self.workspaces[w.ws].order, id) or nil,
+            }
+        end
+    end
+    if now - self.started <= M.KEEP then
+        for sid, s in pairs(self.saved) do
+            if s.ws and s.app and not self.windows[sid] then
+                out.gone[#out.gone + 1] = {
+                    app = s.app, title = s.title, ws = s.ws, mine = s.mine, pos = s.pos, at = s.at or self.started,
+                }
+            end
+        end
+    end
+    for _, g in ipairs(self.gone) do
+        if now - (g.at or 0) <= M.KEEP then
+            out.gone[#out.gone + 1] = g
         end
     end
     for uuid, n in pairs(self.screen_ws) do
@@ -1091,6 +1353,15 @@ end
 function M:focused(id)
     if not self.windows[id] then
         self:map_screens()
+        -- A relaunched app focuses its first window before the next sync:
+        -- the old process's places must be there for it to take.
+        local live = {}
+        for _, lid in ipairs(self.a.windows()) do
+            live[lid] = true
+        end
+        if next(self:collect_gone(live)) then
+            self:schedule()
+        end
         self:add(id)
     end
     if self.ffm then
@@ -1485,7 +1756,10 @@ function M:poll_attention()
     att:dock(self.a.dock_badges())
     for id, w in pairs(self.windows) do
         if w.ws then
-            att:title(id, w.app, self.a.title(id))
+            local title = self.a.title(id)
+            -- Kept for matching the window after a restart.
+            w.title = title or w.title
+            att:title(id, w.app, title)
         end
     end
     local f = self.a.focused()

@@ -83,10 +83,22 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   `keys.map`.
 - **A window minimized before timo first starts counts as yours,** so timo
   never restores something you put away. Reversible: `wm.add`.
-- **Restarts match windows by id only.** An app that quits and relaunches
-  gets new window ids, and its windows join the workspace showing; SPEC.md
-  §6.3's matching by app and title is still to do. Reversible: add it to
-  `wm.add`.
+- **Restarts match windows by app and title, closest first** (SPEC.md
+  §6.3). A window keeps its saved place by id only if the app matches. If
+  not, it takes the place of its app's window whose title is most alike:
+  the same title first, then the most in common at the start and end. With
+  no title alike at all, any of its app's places still counts. Places are
+  kept for 10 minutes, at most 50: a saved window that hasn't come back
+  since timo started, or a window whose process quit, even if the app is
+  running again already. A window you close while its process runs leaves
+  no place, so its next window opens where you are. An app that quits when
+  its last window closes leaves one, though. *Unverified:* that
+  `hs.application.applicationForPID` no longer finds a process by the
+  time its windows are reported gone. A window saves its current index,
+  so if timo restarts while an app is still bringing windows back, the
+  rest may land out of order around the ones already back. That's the
+  price of a stack you've rearranged since staying put. Reversible:
+  `wm.match`, `wm.KEEP` and `wm.snapshot`.
 - **A display that goes away hides its workspace;** Super+N brings it back
   on the display that's left. Reversible: `wm.map_screens`.
 - **App keys run tide's helpers** (`browser1`, `google-calendar`, …)
@@ -105,9 +117,16 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   empty workspace; an app without that shortcut just comes forward.
   Alternative: `open -n`, which starts a second copy of the app. Reversible:
   `hs_adapter.lua`'s `launch`.
-- **The launcher isn't kept out of screen shares** (SPEC.md §9): hs.chooser
-  doesn't expose its window's sharing type. Reversible once the launcher is
-  its own window.
+- **The launcher isn't kept out of screen shares** (SPEC.md §9): no part
+  of Hammerspoon sets a window's `NSWindow.sharingType`. Checked in its
+  source at release tag 1.4.27 and at `main` on 2026-07-08 (23e387e):
+  - nothing in any extension names `sharingType`;
+  - `hs.chooser` gives no handle to its window;
+  - `hs.webview:hswindow()`, `hs.canvas` and `hs.drawing` give an
+    `hs.window` or a drawing, and neither has a sharing setting.
+
+  Doing it would take a compiled Objective-C bridge or a private call, so
+  it waits for Hammerspoon to add one. Reversible once it does.
 - **Attention polls every 2 s** for Dock badges and window titles, rather
   than watching Accessibility notifications. A count can take up to 2 s to
   show. Reversible: `AXTitleChanged` observers in the adapter.
