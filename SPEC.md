@@ -835,6 +835,19 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - **Option 2:** no bar. The workspaces and clocks go in the menu bar's
     right side as status items, plus a full-screen dashboard on a key, as
     tico's is (tico §8.1).
+  - **Decided for v1: option 2.** A timo menu bar item draws the workspaces
+    as chips: current, occupied, and wanting attention. A click switches.
+    A large number shows briefly in the middle of the screen on each
+    switch. Clocker, a free menu bar app, shows the time zones
+    *(unverified that it's maintained)*. Status items may repeat on every
+    display's menu bar, so one item shows every display's workspaces
+    *(unverified)*.
+  - **Not on the left:** the menu bar's left side is the Apple menu and the
+    focused app's menus, and status items only go on the right. Drawing
+    over the left would cover those menus. Instead, timo's item sits at
+    the left end of the right-hand group. Cmd-drag reorders status items,
+    and macOS seems to place a newly added item to the left of the others
+    *(unverified on macOS 26)*.
 - **If it's a bar, it's tide's** (tide §7.1–§7.4):
   - a flush 36 px strip, one per display, with the tiling area starting
     below it;
@@ -1144,8 +1157,9 @@ Each one names a workaround, or says there is none.
 1. **Workspaces:** decided, minimize (§6), with native Spaces next if it
    doesn't work out.
 2. **Build route:** Hammerspoon first (§3 B), or straight to a native app?
-3. **Bar:** a timo bar over an auto-hidden menu bar, or status items plus a
-   dashboard (§8)?
+3. **Bar:** decided for v1, no top bar (§8). A menu bar item shows the
+   workspaces, a large number shows briefly on each switch, and
+   [Clocker](https://github.com/n0shake/Clocker) shows the time zones.
 4. **Amethyst:** keep it alongside while timo grows, or replace it outright?
    Running both would fight over the same windows.
 5. **Does HazeOver's one-layer dim** carry over to a canvas or panel, and
