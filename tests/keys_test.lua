@@ -81,4 +81,13 @@ t.test("every binding names an action the window manager has", function()
     end
 end)
 
+t.test("is_super wants exactly Super's modifiers, Shift aside", function()
+    t.eq(keys.is_super({ "alt" }, { alt = true }), true)
+    t.eq(keys.is_super({ "alt" }, { alt = true, shift = true }), true)
+    t.eq(keys.is_super({ "alt" }, { alt = true, cmd = true }), false)
+    t.eq(keys.is_super({ "alt" }, {}), false)
+    t.eq(keys.is_super(keys.KARABINER, { ctrl = true, alt = true, cmd = true }), true)
+    t.eq(keys.is_super(keys.KARABINER, { alt = true }), false)
+end)
+
 t.done("keys")

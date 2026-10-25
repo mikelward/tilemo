@@ -504,6 +504,10 @@ handling (tico §5.3):
   `kAXResizedNotification`, and treats it as a request:
   - **Resizing a tile** sets the workspace's split (`mfact`), and its
     neighbors follow.
+  - **Resizing a lone tile** sets that workspace's lone-window width in place
+    of the single-window rule. It stays centered, so the other edge follows,
+    and the width comes back whenever the workspace is down to one window.
+    With several windows and no stack, a drag changes nothing.
   - **Dropping a moved tile** puts it in the tile nearest its center,
     swapping with that tile's window. If the center is on another display,
     the window first joins the workspace showing there.

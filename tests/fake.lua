@@ -62,6 +62,26 @@ function M.new()
         return a.wins[id]
     end
 
+    -- Front to back: the last focused first, then creation order.
+    function a.ordered()
+        local out = {}
+        if a.focus_ and a.wins[a.focus_] then
+            out[1] = a.focus_
+        end
+        for i = #a.order, 1, -1 do
+            local id = a.order[i]
+            if id ~= a.focus_ then
+                out[#out + 1] = id
+            end
+        end
+        return out
+    end
+
+    a.buttons = false
+    function a.buttons_down()
+        return a.buttons
+    end
+
     function a.screens()
         return a.screens_
     end

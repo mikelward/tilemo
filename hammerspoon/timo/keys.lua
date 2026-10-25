@@ -33,7 +33,22 @@ M.map = {
     -- A PC keyboard's Insert arrives as the Mac's Help key.
     { key = "help", action = "toggle_float" },
     { key = "delete", action = "close" },
+    { key = "r", shift = true, action = "resize_mode" },
 }
+
+-- Resize mode (tide's): each key grows or shrinks the focused float by
+-- 40 px; Esc or Return leaves.
+M.resize = {
+    { key = "h", d = { -40, 0 } },
+    { key = "l", d = { 40, 0 } },
+    { key = "k", d = { 0, -40 } },
+    { key = "j", d = { 0, 40 } },
+    { key = "left", d = { -40, 0 } },
+    { key = "right", d = { 40, 0 } },
+    { key = "up", d = { 0, -40 } },
+    { key = "down", d = { 0, 40 } },
+}
+M.resize_exit = { "escape", "return" }
 
 -- The modifier list for one binding.
 function M.mods(super, binding)
@@ -62,6 +77,21 @@ local function profile_has_rule(config)
         end
     end
     return false
+end
+
+-- Whether exactly Super's modifiers are held, Shift aside, in Hammerspoon's
+-- flags table ({ cmd = true, alt = true, ... }).
+function M.is_super(super, flags)
+    local want = {}
+    for _, m in ipairs(super or {}) do
+        want[m] = true
+    end
+    for _, m in ipairs({ "cmd", "alt", "ctrl" }) do
+        if (flags[m] or false) ~= (want[m] or false) then
+            return false
+        end
+    end
+    return true
 end
 
 -- Whether Karabiner is running with timo's rule loaded. `read` returns a
