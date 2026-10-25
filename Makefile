@@ -17,7 +17,7 @@ TICO ?= ../tico
 TICO_FILES := clocks.js calendar.js clockview.js launcher.css
 export LUA_PATH := hammerspoon/?.lua;hammerspoon/?/init.lua;tests/?.lua;;
 
-LUA_FILES := $(wildcard hammerspoon/timo/*.lua tests/*.lua)
+LUA_FILES := $(wildcard hammerspoon/timo/*.lua tests/*.lua ci/*.lua)
 TESTS := $(wildcard tests/*_test.lua)
 
 .PHONY: test lint install check-geometry check-tico

@@ -21,14 +21,6 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    (description starting `timo:`). scripts: `setup-macos` installs
    Hammerspoon and timo, and frees the keys in SPEC.md §7.3.
 
-## Later
-
-- **CI on a macOS runner:** install Hammerspoon with Homebrew, load timo,
-  and check every `hs.*` call it makes exists in that version, which the
-  fake can't catch. Hosted runners can't grant Accessibility, so it's a
-  smoke test, not a tiling test. macOS minutes are free on public repos,
-  10× on private ones, and they can queue.
-
 ## Decisions needing review
 
 - **tide's geometry is copied, not shared.** `hammerspoon/timo/geometry.lua`
