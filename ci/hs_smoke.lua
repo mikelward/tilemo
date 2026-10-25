@@ -1,12 +1,14 @@
 -- A smoke test that runs inside a real Hammerspoon, on CI's macOS runner.
 -- The fake in tests/ can't tell whether an hs.* function timo calls exists
 -- in the Hammerspoon people install, so this checks that, then starts timo,
--- opens and closes the dashboard, and tiles a few windows. GitHub's macOS
--- runners come with Accessibility granted, so the tiling is real.
+-- checks its bar is up, opens and closes the dashboard, and tiles a few
+-- windows below the bar. GitHub's macOS runners come with Accessibility
+-- granted, so the tiling is real.
 --
 -- ci/hs-smoke.sh points ~/.hammerspoon/init.lua at this file, with
 -- TIMO_SMOKE_OUT set to where the results go.
 
+local bar = require("timo.bar")
 local layout = require("timo.layout")
 
 local out_path = TIMO_SMOKE_OUT
@@ -137,6 +139,41 @@ local function tiling_misses(wm)
     return misses
 end
 
+-- The bar: a strip along the top of each display, its page loaded, and the
+-- tiling area starting below it.
+local function check_bar()
+    if not timo.bar then
+        fail("bar: timo started without its bar")
+        return
+    end
+    local frames = timo.bar.frames()
+    local n = 0
+    for _, s in ipairs(timo.adapter.screens()) do
+        local want = bar.strip(s.area, bar.HEIGHT)
+        local got = frames[s.uuid]
+        local v = timo.bar.views[s.uuid]
+        if not got then
+            fail("bar: none on display %s", s.uuid)
+        else
+            local off = math.max(math.abs(got.x - want.x), math.abs(got.y - want.y),
+                math.abs(got.w - want.w), math.abs(got.h - want.h))
+            if off > SLACK then
+                fail("bar: at %d,%d %dx%d, want %d,%d %dx%d", got.x, got.y, got.w, got.h,
+                    want.x, want.y, want.w, want.h)
+            end
+            if not (v and v.ready) then
+                fail("bar: its page on display %s didn't load", s.uuid)
+            end
+            n = n + 1
+        end
+        local tiling = timo.wm:screen_by_uuid(s.uuid).area
+        if tiling.y ~= want.y + want.h then
+            fail("bar: tiling starts at y=%d, want %d", tiling.y, want.y + want.h)
+        end
+    end
+    say("bar up on %d display(s)", n)
+end
+
 local function check_tiling()
     if not hs.accessibilityState() then
         fail("tiling: Hammerspoon doesn't have Accessibility on this runner")
@@ -218,5 +255,6 @@ smoke_timer = hs.timer.doAfter(3, function()
         return
     end
     say("dashboard opened and closed")
+    check_bar()
     check_tiling()
 end)

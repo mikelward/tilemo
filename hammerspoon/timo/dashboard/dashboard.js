@@ -19,7 +19,8 @@ function renderWorkspaces(nav, workspaces) {
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = String(w.n);
-    for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, w[k]);
+    // A field timo left out is false: toggle(name, undefined) would flip it.
+    for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, !!w[k]);
     b.addEventListener("click", () => send({ show: w.n }));
     nav.append(b);
   }

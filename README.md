@@ -17,8 +17,9 @@ It brings tide's desktop to macOS:
 - focus follows mouse;
 - nine workspaces shared across displays (§6);
 - the launcher and app keys (§9);
-- the workspaces in the menu bar, with Super+Tab to what wants attention
-  (§8, §14.2);
+- tide's bar along the top: the workspaces, the window's title, the clocks
+  and timo's own battery, volume and Wi-Fi icons, with Super+Tab to what
+  wants attention (§8, §14.2);
 - tico's dashboard on Super+Shift+Space.
 
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it
@@ -30,7 +31,13 @@ It brings tide's desktop to macOS:
    timo.start({})
    ```
 
-3. Reload Hammerspoon's config.
+3. Set the menu bar to hide: System Settings › Control Center ›
+   "Automatically hide and show the menu bar": Always. timo's bar takes
+   its place; the menu bar still shows when the pointer reaches the top.
+4. Reload Hammerspoon's config.
+
+`timo.start({ bar = false })` leaves the bar out and shows the workspaces in
+the menu bar instead.
 
 `start()` takes float rules, checked when it starts:
 
@@ -45,12 +52,13 @@ falls back to Option, and says so once (SPEC.md §7.1).
 ## Testing
 
 `make test lint` runs everything in plain Lua 5.4, against a fake of macOS
-(`tests/fake.lua`). The dashboard page's test also needs Node, and skips
-with a note without it.
+(`tests/fake.lua`). The dashboard and bar pages' tests also need Node, and
+skip with a note without it.
 
 CI also runs `ci/hs-smoke.sh` on a macOS runner. It installs Hammerspoon from
 Homebrew, checks that every `hs.*` name timo uses exists in it, then starts
-timo, opens and closes the dashboard, and opens three TextEdit windows to
-check timo tiles them where its layout says. That's one layout on one
+timo, checks its bar is up along the top, opens and closes the dashboard,
+and opens three TextEdit windows to check timo tiles them below the bar,
+where its layout says. That's one layout on one
 display; the checklists in SPEC.md §5.1 and §5.2 are what to try on a real
 Mac.

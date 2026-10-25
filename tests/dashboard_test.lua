@@ -99,6 +99,23 @@ t.test("the state is the menu bar's, with the focused window's title", function(
     t.eq(st.title, "Chat (1)")
 end)
 
+t.test("a dashboard opened on one display marks that display's workspace current", function()
+    local a = fake.new()
+    a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
+    a.add(1, {})
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:reconcile()
+    wm:retile()
+    a.focus_ = 1
+    -- The keys are on A, showing 1; the dashboard opened from B's clocks.
+    t.eq(wm:current_screen(), "A")
+    local st = dashboard.state(wm, a, "B")
+    t.eq(st.workspaces[2].current, true)
+    t.eq(st.workspaces[1].current, false)
+    t.eq(st.workspaces[1].elsewhere, true)
+end)
+
 t.test("Super+Shift+Space asks for the dashboard", function()
     local a = fake.new()
     local wm = wm_mod.new(a, {})
