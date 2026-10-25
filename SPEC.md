@@ -215,7 +215,7 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
 | Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
 | Idle: dim, lock, off, suspend (tide §10) | Energy and Lock Screen settings; `caffeinate` or an IOPM assertion to keep awake | **partial**: system timings |
 | Lock = login, short hostname | macOS lock and login | **partial**: no hostname |
-| Screenshots, to the clipboard and a folder (tide §13) | `screencapture` on tide's Print keys (§10) | **yes** |
+| Screenshots, to the clipboard and a folder (tide §13) | macOS's own screenshot keys on tide's Print keys (§10) | **partial**: the clipboard or a folder, not both |
 | Meet: share a 16:9 slice of an ultrawide (tide §12) | ScreenCaptureKit can share a region *(unverified in Meet)* | **partial** |
 | Light and dark by time (tide §15) | Appearance › Auto follows the sun; a fixed 07:00–19:00 needs a scheduled job | **yes**, with a job |
 | US Dvorak | native input source | **yes** |
@@ -775,7 +775,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super`+drag, `Super`+right-drag, `Super`+middle-click | move, resize, maximize (§5.3) | event tap |
 | `Super+Tab`, `Super+Home` | the next window wanting attention (§14) | hotkey, and an event tap to see Super let go |
 | `Super+Shift+N` | Notification Center | no public way to open it *(unverified)*; else the clock in the menu bar |
-| `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
+| `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region, Super+Print a region too (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
 | mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | timo, through `hs.audiodevice`'s input mute on the default input device, with an on-screen sign; the bar's microphone item does the same |
 | media, brightness, volume keys | as macOS does them | native |
 
@@ -988,10 +988,17 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - macOS's dynamic wallpapers already change with the appearance, and
     kitty can follow it with its automatic themes *(unverified version)*.
 - **Screenshots** (tide §13): macOS's own, with tide's Print keys mapped to
-  them (§7.2). tide saves each shot to the clipboard *and* to
-  `~/Pictures/Screenshots`, with a timestamped name. macOS does one or the
-  other per shot, so timo runs `screencapture` to the folder, then copies
-  the file to the clipboard.
+  them (§7.2). timo presses macOS's screenshot keys rather than running
+  `screencapture`, because a capture an app starts needs Screen Recording
+  for that app, while macOS's own keys need nothing (§11.1):
+  - screen: Ctrl+Cmd+Shift+3; region: Ctrl+Cmd+Shift+4; window: the same,
+    then Space;
+  - the Ctrl variants put the shot on the clipboard, as timo's did before.
+  - tide also saves each shot to `~/Pictures/Screenshots`. macOS does one or
+    the other per shot, so timo keeps the clipboard; dropping Ctrl would
+    save to the folder set in Screenshot's options instead.
+  - Pressing the keys is a synthetic key event, which Accessibility already
+    covers *(unverified that macOS honors it for its screenshot keys)*.
 - **Mouse** (conf `hyprland.lua`, tide §16):
   - Speed at the fastest, with acceleration left on: tide found a flat
     curve felt wrong. `com.apple.mouse.scaling` goes beyond the slider
@@ -1024,7 +1031,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 |---|---|---|
 | Accessibility | first run; tiling needs it | moving windows, focus follows mouse, mouse drags (§5.3), Dock badges |
 | Input Monitoring | only for the lone Super tap, if done by an event tap (§7) *(unverified that Accessibility alone isn't enough)* | seeing Option go down and up |
-| Screen Recording | probably never: titles come through Accessibility (§2.5) | nothing timo needs, if that holds |
+| Screen Recording | never: titles come through Accessibility (§2.5), and screenshots use macOS's own keys (§10) | nothing timo needs |
 | Automation, per browser | the first tab search | tab titles and addresses |
 | none | — | global keys, the bar, clocks, the launcher's app list |
 

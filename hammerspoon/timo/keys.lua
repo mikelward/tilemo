@@ -72,6 +72,26 @@ M.map[#M.map + 1] = { key = "tab", action = "attention" }
 -- tide's mic-mute key: the microphone, everywhere (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "m", shift = true, action = "mic_mute" }
 M.map[#M.map + 1] = { key = "home", action = "attention" }
+-- Super+Print: a region, as Shift+Print is (SPEC.md §7.2).
+M.map[#M.map + 1] = { key = "f13", action = "screenshot", arg = "region" }
+
+-- tide's Print keys, without Super. A PC keyboard's Print arrives as F13
+-- (SPEC.md §7.2).
+M.plain = {
+    { mods = {}, key = "f13", action = "screenshot", arg = "screen" },
+    { mods = { "alt" }, key = "f13", action = "screenshot", arg = "window" },
+    { mods = { "shift" }, key = "f13", action = "screenshot", arg = "region" },
+}
+
+-- macOS's own screenshot keys, to the clipboard (the Ctrl variants), so
+-- timo needs no Screen Recording permission of its own (SPEC.md §10). A
+-- window is the region picker with Space pressed, as macOS has no key for
+-- it.
+M.SCREENSHOT = {
+    screen = { mods = { "cmd", "ctrl", "shift" }, key = "3" },
+    region = { mods = { "cmd", "ctrl", "shift" }, key = "4" },
+    window = { mods = { "cmd", "ctrl", "shift" }, key = "4", ["then"] = "space" },
+}
 
 -- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.
 for n = 1, 9 do
@@ -103,6 +123,35 @@ function M.mods(super, binding)
         out[#out + 1] = "shift"
     end
     return out
+end
+
+-- Every binding to register for this Super, each with its modifiers. The
+-- plain Print keys come first, and a later binding on a chord already taken
+-- is left out: with Super on Option, Super+Print is Alt+Print, which stays
+-- tide's window screenshot (Shift+Print still takes a region).
+function M.bindings(super)
+    local out, seen, skipped = {}, {}, {}
+    local function add(mods, b)
+        local sorted = {}
+        for i, m in ipairs(mods) do
+            sorted[i] = m
+        end
+        table.sort(sorted)
+        local chord = table.concat(sorted, "+") .. "+" .. b.key
+        if seen[chord] then
+            skipped[#skipped + 1] = chord
+            return
+        end
+        seen[chord] = true
+        out[#out + 1] = { mods = mods, key = b.key, action = b.action, arg = b.arg, repeating = b.repeating }
+    end
+    for _, b in ipairs(M.plain) do
+        add(b.mods, b)
+    end
+    for _, b in ipairs(M.map) do
+        add(M.mods(super, b), b)
+    end
+    return out, skipped
 end
 
 -- Whether the selected Karabiner profile has timo's rule. Each profile keeps

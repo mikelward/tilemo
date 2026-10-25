@@ -105,4 +105,58 @@ t.test("is_super wants exactly Super's modifiers, Shift aside", function()
     t.eq(keys.is_super(keys.KARABINER, { alt = true }), false)
 end)
 
+t.test("the Print keys take macOS's own screenshots, to the clipboard", function()
+    local kinds = {}
+    for _, b in ipairs(keys.plain) do
+        t.eq(b.key, "f13")
+        t.eq(b.action, "screenshot")
+        kinds[table.concat(b.mods, "+")] = b.arg
+    end
+    t.eq(kinds[""], "screen")
+    t.eq(kinds["alt"], "window")
+    t.eq(kinds["shift"], "region")
+    local super_print
+    for _, b in ipairs(keys.map) do
+        if b.key == "f13" then
+            super_print = b.arg
+        end
+    end
+    t.eq(super_print, "region")
+    for kind, k in pairs(keys.SCREENSHOT) do
+        -- Ctrl sends the shot to the clipboard rather than a file.
+        t.eq(table.concat(k.mods, "+"), "cmd+ctrl+shift", kind)
+    end
+    t.eq(keys.SCREENSHOT.screen.key, "3")
+    t.eq(keys.SCREENSHOT.region.key, "4")
+    t.eq(keys.SCREENSHOT.window.key, "4")
+    t.eq(keys.SCREENSHOT.window["then"], "space")
+end)
+
+t.test("with Super on Option, Alt+Print stays the window screenshot", function()
+    local list, skipped = keys.bindings(keys.OPTION)
+    local count = 0
+    for _, b in ipairs(list) do
+        if b.key == "f13" and #b.mods == 1 and b.mods[1] == "alt" then
+            count = count + 1
+            t.eq(b.arg, "window")
+        end
+    end
+    t.eq(count, 1, "one binding on Alt+Print")
+    t.eq(table.concat(skipped, " "), "alt+f13")
+end)
+
+t.test("with Karabiner, every binding gets its own chord", function()
+    local list, skipped = keys.bindings(keys.KARABINER)
+    t.eq(#skipped, 0)
+    t.eq(#list, #keys.map + #keys.plain)
+end)
+
+t.test("a screenshot action asks the adapter for that kind", function()
+    local a = require("fake").new()
+    local wm = require("timo.wm").new(a, {})
+    wm:act("screenshot", "window")
+    wm:act("screenshot", "screen")
+    t.eq(table.concat(a.shots, " "), "window screen")
+end)
+
 t.done("keys")
