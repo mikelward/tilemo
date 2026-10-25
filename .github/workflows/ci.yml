@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # tide's geometry is copied here unchanged; check it still matches.
+      - uses: actions/checkout@v4
+        with:
+          repository: mikelward/tide
+          path: tide
+      # Ubuntu packages Lua 5.4, which is what Hammerspoon embeds.
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - run: make lint test
+      - run: make check-geometry TIDE=tide
