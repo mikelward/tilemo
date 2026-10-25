@@ -4,11 +4,12 @@
 --   timo.start({})
 --
 -- start() takes { layout = ..., rules = {...}, focus_follows_mouse = true,
--- keep_focus = {...} }: `layout` overrides timo/layout.lua's defaults whole,
--- `rules` are float rules that come before the built-in ones
--- (timo/rules.lua), and `keep_focus` names more apps, by bundle ID, that
--- keep focus while they're in front. timo.toggle_focus_follows_mouse()
--- turns it off and on.
+-- keep_focus = {...}, bar = true }: `layout` overrides timo/layout.lua's
+-- defaults whole, `rules` are float rules that come before the built-in
+-- ones (timo/rules.lua), and `keep_focus` names more apps, by bundle ID,
+-- that keep focus while they're in front. `bar = false` leaves out the bar
+-- along the top and shows the workspaces in the menu bar instead.
+-- timo.toggle_focus_follows_mouse() turns focus follows mouse off and on.
 
 local keys = require("timo.keys")
 local mouse = require("timo.mouse")
@@ -19,6 +20,7 @@ local dashboard_hs = require("timo.dashboard_hs")
 local launcher_hs = require("timo.launcher_hs")
 local tap_mod = require("timo.tap")
 local bar = require("timo.bar")
+local bar_hs = require("timo.bar_hs")
 
 local M = {}
 
@@ -90,6 +92,8 @@ function M.start(config)
     self.adapter = adapter_mod.new()
     config = config or {}
     config.saved = adapter_mod.load()
+    -- The tiling area starts below the bar.
+    config.top = config.bar ~= false and bar.HEIGHT or 0
     self.wm = wm_mod.new(self.adapter, config)
     self.wm.ffm = ffm_mod.new(self.wm, self.adapter, {
         enabled = config.focus_follows_mouse ~= false,
@@ -167,26 +171,33 @@ function M.start(config)
     end, function()
         self.tap:other()
     end)
-    -- The workspaces in the menu bar, and the number shown on each switch
-    -- (SPEC.md §8).
-    self.menubar = hs.menubar.new()
-    self.wm.on_change = function()
-        if self.menubar then
-            self.menubar:setTitle(bar.title(self.wm:bar_state()))
+    -- The workspaces, in the bar or else in the menu bar, and the number
+    -- shown on each switch (SPEC.md §8).
+    if config.bar ~= false then
+        self.bar = bar_hs.new(self)
+        self.wm.on_change = function()
+            self.bar.update()
         end
+    else
+        self.menubar = hs.menubar.new()
+        self.wm.on_change = function()
+            if self.menubar then
+                self.menubar:setTitle(bar.title(self.wm:bar_state()))
+            end
+        end
+        self.menubar:setMenu(function()
+            local items = {}
+            for n = 1, wm_mod.WORKSPACES do
+                items[#items + 1] = {
+                    title = "Workspace " .. n,
+                    fn = function()
+                        self.wm:act("show", n)
+                    end,
+                }
+            end
+            return items
+        end)
     end
-    self.menubar:setMenu(function()
-        local items = {}
-        for n = 1, wm_mod.WORKSPACES do
-            items[#items + 1] = {
-                title = "Workspace " .. n,
-                fn = function()
-                    self.wm:act("show", n)
-                end,
-            }
-        end
-        return items
-    end)
     self.wm.on_show = function(n, uuid)
         hs.alert.closeAll(0)
         hs.alert.show(tostring(n), { textSize = 96, radius = 24 }, hs.screen.find(uuid) or hs.screen.mainScreen(), 0.5)
@@ -194,6 +205,11 @@ function M.start(config)
     self.wm:changed()
     self.attention_timer = hs.timer.doEvery(M.ATTENTION_POLL, function()
         self.wm:poll_attention()
+        -- A title can change without focus moving; the bar sends only what
+        -- changed.
+        if self.bar then
+            self.bar.update()
+        end
     end)
     choose_super(self, true)
     self.karabiner_timer = hs.timer.doEvery(M.KARABINER_CHECK, function()

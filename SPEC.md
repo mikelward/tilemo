@@ -206,7 +206,7 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
 | Focus follows mouse (KDE) | timo's own (§5.2) | **yes**, but focusing raises (§13) |
 | Nothing steals focus (tide §14) | macOS activation rules, plus timo's focus guard (§14) | **partial**: apps can still activate themselves |
 | Super+Tab to the window wanting attention (tide §14.3, tico §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
-| Full-width bar with workspaces and urgency (tide §7) | own bar over an auto-hidden menu bar, or SketchyBar | **partial**: the menu bar stays the system's |
+| Full-width bar with workspaces and urgency (tide §7) | timo's own bar over an auto-hidden menu bar, with its own battery, volume and Wi-Fi icons (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
 | SYD / LAX / NYC / LON clocks (tico `src/clocks.js`) | bar clocks, and tico's clock panel in the dashboard | **yes** |
 | Launcher on a Super tap (tide §8) | timo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
 | Tab search (tico §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
@@ -836,29 +836,58 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - **Option 2:** no bar. The workspaces and clocks go in the menu bar's
     right side as status items, plus a full-screen dashboard on a key, as
     tico's is (tico §8.1).
-  - **Decided for v1: option 2.** A timo menu bar item draws the workspaces
-    as chips: current, occupied, and wanting attention. A click switches.
-    A large number shows briefly in the middle of the screen on each
-    switch. Clocker, a free menu bar app, shows the time zones
-    *(unverified that it's maintained)*. Status items may repeat on every
-    display's menu bar, so one item shows every display's workspaces
-    *(unverified)*.
-  - **Not on the left:** the menu bar's left side is the Apple menu and the
-    focused app's menus, and status items only go on the right. Drawing
-    over the left would cover those menus. Instead, timo's item sits at
-    the left end of the right-hand group. Cmd-drag reorders status items,
-    and macOS seems to place a newly added item to the left of the others
-    *(unverified on macOS 26)*.
+  - **Decided: option 1, with timo's own status icons.** The menu bar is
+    set to hide automatically (System Settings › Control Center ›
+    "Automatically hide and show the menu bar": Always, or
+    `defaults write NSGlobalDomain _HIHideMenuBar -bool true`). timo's bar
+    takes the top 36 px of each display, and draws battery, volume and
+    Wi-Fi itself, so the common status items don't need the menu bar
+    revealed. A click on one opens its System Settings pane.
+  - **What still needs the menu bar:** the app's own menus, the Apple menu,
+    and other apps' status items (a VPN, an IT agent, Zoom). They show when
+    the pointer reaches the top edge, over the bar, which sits below the
+    menu bar's level.
+  - **Option 2 stays as the fallback,** with `bar = false` in `start()`: a
+    timo menu bar item draws the workspaces as text, current, occupied,
+    and wanting attention. A click switches. It sits on the right, since
+    the menu bar's left side is the Apple menu and the app's menus.
+  - Either way, a large number shows briefly in the middle of the screen on
+    each switch.
 - **If it's a bar, it's tide's** (tide §7.1–§7.4):
   - a flush 36 px strip, one per display, with the tiling area starting
     below it;
   - workspace chips that show current, occupied (up to five app icons, then
     `+n`), showing on another display, empty, and wanting attention;
   - a click shows that workspace, and scrolling steps through them;
-  - the title only on the focused display, where double-clicking it
-    maximizes;
+  - the title only on the display the focused window is on, where
+    double-clicking it maximizes;
   - the clocks shrink to local time alone when the title would get narrower
     than 200 px.
+- **The bar on Hammerspoon** is built like the dashboard: one borderless
+  `hs.webview` per display, from the same copies of tico's modules and
+  stylesheet, plus timo's `bar.js`. It stays open, and timo sends it new
+  state as JSON on every change, on the attention poll (for titles that
+  change without focus moving) and when the icons change. Each page only
+  redraws when what it was sent changed.
+  - Not yet: app icons in the chips, and double-clicking the title to
+    maximize.
+  - Clicking the clocks opens the dashboard, with its clock panel.
+  - It floats above every app's window but below the menu bar, joins every
+    Space, and stays put.
+  - Focus follows mouse pauses over it, as over the menu bar (§5.2).
+  - A full-screen window (§5.4) still has the bar over its top 36 px
+    *(to do: hide the bar on that display while one is full screen)*.
+- **timo's status icons** come from Hammerspoon, read every 5 s:
+  - battery: `hs.battery`, with its percentage and a charging mark, or
+    none on a Mac without one;
+  - volume: the default output device through `hs.audiodevice`, in four
+    levels with mute;
+  - Wi-Fi: `hs.wifi`, on or off and signal in three bars from the RSSI. The
+    network's name shows on hover only when macOS gives it, which needs
+    Location Services on recent macOS *(unverified for Hammerspoon)*.
+  - Bluetooth has no Hammerspoon module *(unverified)*, so it isn't drawn.
+  - The settings panes they open are named by URL
+    (`x-apple.systempreferences:…`) *(unverified on macOS 26)*.
 - **The notch,** on a MacBook's own display, sits where tide centers the
   title. There, the title moves left of it *(unverified how wide it is per
   model)*.
@@ -1152,9 +1181,10 @@ Each one names a workaround, or says there is none.
   - the workspace model (§6.1) and focus follows mouse's decisions (§5.2)
     against a fake Accessibility layer, with no sleeps;
   - in CI on a macOS runner, a smoke test in a real Hammerspoon
-    (`ci/hs-smoke.sh`): every `hs.*` name timo uses exists, and timo starts
-    and opens its dashboard, then tiles three TextEdit windows and checks
-    each lands where the layout puts it. GitHub's macOS runners come with
+    (`ci/hs-smoke.sh`): every `hs.*` name timo uses exists, timo starts
+    with its bar along the top of each display, and opens its dashboard,
+    then tiles three TextEdit windows and checks each lands below the bar
+    where the layout puts it. GitHub's macOS runners come with
     Accessibility granted, which is what lets that run.
 - **On a real Mac:** the focus follows mouse checklist (§5.2), the dialog
   checklist (§5.1), and each *(unverified)* claim in this spec. A claim
@@ -1174,9 +1204,9 @@ Each one names a workaround, or says there is none.
 1. **Workspaces:** decided, minimize (§6), with native Spaces next if it
    doesn't work out.
 2. **Build route:** Hammerspoon first (§3 B), or straight to a native app?
-3. **Bar:** decided for v1, no top bar (§8). A menu bar item shows the
-   workspaces, a large number shows briefly on each switch, and
-   [Clocker](https://github.com/n0shake/Clocker) shows the time zones.
+3. **Bar:** decided, timo's own bar over an auto-hidden menu bar, with its
+   own battery, volume and Wi-Fi icons (§8). The menu bar item stays as
+   the fallback.
 4. **Amethyst:** keep it alongside while timo grows, or replace it outright?
    Running both would fight over the same windows.
 5. **Does HazeOver's one-layer dim** carry over to a canvas or panel, and

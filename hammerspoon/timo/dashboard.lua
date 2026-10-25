@@ -8,6 +8,8 @@ local M = {}
 
 -- In the order they're needed: each module only imports ones before it.
 M.MODULES = { "clocks.js", "calendar.js", "settings.js", "clockview.js", "dashboard.js" }
+-- The bar's page (bar_hs.lua) is built the same way, from the same files.
+M.BAR_MODULES = { "clocks.js", "calendar.js", "settings.js", "clockview.js", "bar.js" }
 
 -- One module's source as a function that registers what it exports.
 local function wrap(name, src)
@@ -42,10 +44,11 @@ local function wrap(name, src)
         name, src, table.concat(exports, ", "))
 end
 
--- `sources` maps a module's file name to its text.
-function M.bundle(sources)
+-- `sources` maps a module's file name to its text; `modules` lists them in
+-- order, the dashboard's by default.
+function M.bundle(sources, modules)
     local out = { '"use strict";\nconst modules = {};\n' }
-    for _, name in ipairs(M.MODULES) do
+    for _, name in ipairs(modules or M.MODULES) do
         local src = sources[name]
         if not src then
             error("timo: dashboard/" .. name .. " is missing")
@@ -57,8 +60,8 @@ end
 
 -- The page: the template with tico's stylesheet and the bundled script in
 -- place of its two markers.
-function M.page(template, css, sources)
-    local script = M.bundle(sources)
+function M.page(template, css, sources, modules)
+    local script = M.bundle(sources, modules)
     local html = template:gsub("/%*TIMO_CSS%*/", function()
         return css
     end)
@@ -69,10 +72,11 @@ function M.page(template, css, sources)
 end
 
 -- What the page shows, as plain data for timo.update(): every workspace's
--- state, as the menu bar has it, and the focused window's title.
-function M.state(wm, adapter)
+-- state as seen from display `uuid`, the one the dashboard is on, and the
+-- focused window's title.
+function M.state(wm, adapter, uuid)
     local ws = {}
-    for n, s in ipairs(wm:bar_state()) do
+    for n, s in ipairs(wm:bar_state(uuid)) do
         ws[n] = {
             n = n,
             current = s.here or false,

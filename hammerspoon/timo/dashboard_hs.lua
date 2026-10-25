@@ -70,19 +70,21 @@ function M.new(timo)
         end)
     end)
 
-    function self.show()
+    -- On display `on`, as a bar's clocks ask, or else where the keys act,
+    -- as Super+Shift+Space asks.
+    function self.show(on)
         if view then
             close(true)
             return
         end
         before = timo.adapter.focused()
-        uuid = timo.wm:current_screen()
+        uuid = on or timo.wm:current_screen()
         local s = timo.wm:screen_by_uuid(uuid)
         if not s then
             timo.adapter.log("dashboard: no display to show it on")
             return
         end
-        local state = hs.json.encode(dashboard.state(timo.wm, timo.adapter))
+        local state = hs.json.encode(dashboard.state(timo.wm, timo.adapter, uuid))
         view = hs.webview.new(s.full, { developerExtrasEnabled = false }, content)
         view:windowStyle({ "borderless" })
         -- A title for the rules to see: timo leaves its own windows alone.

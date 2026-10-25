@@ -12,6 +12,7 @@
 -- screen match, restoring first so the screen never goes empty.
 
 local attention = require("timo.attention")
+local bar = require("timo.bar")
 local layout = require("timo.layout")
 local mouse = require("timo.mouse")
 local rules = require("timo.rules")
@@ -44,6 +45,9 @@ function M.new(adapter, config)
     local self = setmetatable({
         a = adapter,
         layout = config.layout or layout.defaults,
+        -- The height timo's bar takes from the top of each display, or 0
+        -- with the bar off (bar.lua).
+        top = config.top or 0,
         rules = rules.check(config.rules or {}, "rules"),
         windows = {},   -- id -> { id, app, ws, floating, big }
         workspaces = {}, -- number -> layout state
@@ -79,9 +83,18 @@ local function inside(box, x, y)
     return x >= box.x and x < box.x + box.w and y >= box.y and y < box.y + box.h
 end
 
+-- The displays, each one's tiling area below timo's bar when it's on.
+function M:screens()
+    local out = {}
+    for i, s in ipairs(self.a.screens()) do
+        out[i] = self.top > 0 and { uuid = s.uuid, area = bar.below(s.area, self.top), full = s.full } or s
+    end
+    return out
+end
+
 -- The display whose area holds a window's center, or the first display.
 function M:screen_for(frame)
-    local screens = self.a.screens()
+    local screens = self:screens()
     if frame then
         local x, y = center(frame)
         for _, s in ipairs(screens) do
@@ -94,7 +107,7 @@ function M:screen_for(frame)
 end
 
 function M:screen_by_uuid(uuid)
-    for _, s in ipairs(self.a.screens()) do
+    for _, s in ipairs(self:screens()) do
         if s.uuid == uuid then
             return s
         end
@@ -105,7 +118,7 @@ end
 -- given.
 function M:map_screens()
     local used = {}
-    local screens = self.a.screens()
+    local screens = self:screens()
     local present = {}
     for _, s in ipairs(screens) do
         present[s.uuid] = true
@@ -500,7 +513,7 @@ function M:current_screen()
             return uuid
         end
     end
-    return self.a.pointer_screen() or (self.a.screens()[1] or {}).uuid
+    return self.a.pointer_screen() or (self:screens()[1] or {}).uuid
 end
 
 -- Show workspace `n` on display `uuid`. If another display shows it, the
@@ -668,10 +681,12 @@ function M:changed()
     end
 end
 
--- What the menu bar shows (bar.lua): for each workspace, whether it's on
--- this display or another, has windows, or wants attention.
-function M:bar_state()
-    local here = self.screen_ws[self:current_screen()]
+-- What the bar shows (bar.lua): for each workspace, whether it's on
+-- display `uuid` or another, has windows, or wants attention. With no
+-- display named, "here" is where the keys act, as for the menu bar item
+-- and Super+Shift+Space; a bar or a dashboard on a given display names it.
+function M:bar_state(uuid)
+    local here = self.screen_ws[uuid or self:current_screen()]
     local out = {}
     for n = 1, M.WORKSPACES do
         out[n] = { here = n == here, elsewhere = n ~= here and self:shown(n) ~= nil }

@@ -74,8 +74,8 @@ function M:paused(x, y, super_held)
     if super_held or self:blocked() then
         return true
     end
-    -- Outside every work area is the menu bar or the Dock.
-    for _, s in ipairs(self.a.screens()) do
+    -- Outside every work area is the menu bar, timo's bar or the Dock.
+    for _, s in ipairs(self.wm:screens()) do
         if inside(s.area, x, y) then
             return false
         end

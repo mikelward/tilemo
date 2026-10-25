@@ -13,15 +13,31 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 6. The menu bar workspaces, the sign on switching, attention and Super+Tab
    (SPEC.md §8, §14.2).
 7. The dashboard: tico's bar and clock panel in an `hs.webview`, on
-   Super+Shift+Space (SPEC.md §8). **This PR.**
-   **Decided for v1:** no top bar. A menu bar item shows the workspaces as
-   chips (current, occupied, wanting attention; a click switches), a large
-   number shows briefly on each switch, and Clocker shows the time zones.
+   Super+Shift+Space (SPEC.md §8).
+   **Decided:** timo's own bar along the top, over an auto-hidden menu bar,
+   with the workspaces, the title, tico's clocks and its own battery,
+   volume and Wi-Fi icons. The menu bar item stays as the fallback
+   (`bar = false`), and a large number shows briefly on each switch.
 8. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
    (description starting `timo:`). scripts: `setup-macos` installs
-   Hammerspoon and timo, and frees the keys in SPEC.md §7.3.
+   Hammerspoon and timo, frees the keys in SPEC.md §7.3, and hides the menu
+   bar for timo's bar (`defaults write NSGlobalDomain _HIHideMenuBar -bool
+   true`).
+9. The bar (SPEC.md §8): hide it on a display while a window there is full
+   screen; app icons in the chips; double-click the title to maximize.
 
 ## Decisions needing review
+
+- **The bar floats at the floating window level,** above every app's
+  windows and below the menu bar, so the auto-hidden menu bar still shows
+  over it. A float dragged to the top goes under it. Reversible: the
+  `level` in `bar_hs.lua`.
+- **The status icons are read every 5 s,** not from watchers, so a volume
+  key takes up to 5 s to show. Reversible: `hs.audiodevice` and
+  `hs.battery` watchers in `bar_hs.lua`.
+- **A click on the bar may make Hammerspoon the front app** *(unverified)*,
+  emptying the title until focus moves. Reversible: hand focus back after
+  a click, as the dashboard does on closing.
 
 - **tide's geometry is copied, not shared.** `hammerspoon/timo/geometry.lua`
   is tide's file unchanged, and CI fails if they drift

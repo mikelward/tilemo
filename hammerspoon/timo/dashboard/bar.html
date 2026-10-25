@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>timo bar</title>
+<style>
+/*TIMO_CSS*/
+</style>
+<style>
+/* timo's additions to tico's bar: the right-hand group, local time alone
+   when crowded, and the status icons. */
+body {
+  background: var(--bar);
+  overflow: hidden;
+}
+/* Held to the room between the two sides by bar.js, one line. */
+#title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+#clocks.compact li:not(:last-child) {
+  display: none;
+}
+#icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#icons .icon {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+#icons .icon:hover {
+  background: var(--raised);
+}
+#icons .wifi {
+  align-items: flex-end;
+  padding-bottom: 7px;
+}
+#icons .wifi span {
+  width: 3px;
+  background: var(--muted);
+  opacity: 0.35;
+}
+#icons .wifi span:nth-child(1) { height: 4px; }
+#icons .wifi span:nth-child(2) { height: 8px; }
+#icons .wifi span:nth-child(3) { height: 12px; }
+#icons .wifi span.lit {
+  background: var(--fg);
+  opacity: 1;
+}
+#icons .wifi.off span {
+  opacity: 0.2;
+}
+#icons .volume,
+#icons .battery {
+  align-items: center;
+}
+#icons .battery .cell {
+  position: relative;
+  width: 22px;
+  height: 11px;
+  border: 1px solid var(--fg);
+  border-radius: 3px;
+}
+#icons .battery .fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  max-width: calc(100% - 2px);
+  border-radius: 1px;
+  background: var(--fg);
+}
+#icons .battery.low .fill {
+  background: var(--urgent);
+}
+#icons .battery .text {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+</style>
+</head>
+<body>
+<header class="bar" id="bar">
+<nav id="workspaces" aria-label="Workspaces"></nav>
+<span id="title"></span>
+<div id="right">
+<ol id="clocks"></ol>
+<div id="icons"></div>
+</div>
+</header>
+<script>
+/*TIMO_SCRIPT*/
+</script>
+</body>
+</html>
