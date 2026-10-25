@@ -483,4 +483,75 @@ t.test("a float Super+dragged to the other display joins its workspace", functio
     t.eq(wm.windows[3].ws, wm.windows[2].ws)
 end)
 
+t.test("an app key brings the app's last window forward instead of launching", function()
+    local a, wm = setup(2)
+    a.wins[2].app = "net.kovidgoyal.kitty"
+    wm.windows[2].app = "net.kovidgoyal.kitty"
+    a.focus_ = 1
+    wm:act("app", { bundle = "net.kovidgoyal.kitty" })
+    t.eq(a.focus_, 2)
+    t.eq(#a.launched, 0)
+end)
+
+t.test("an app key goes to the app's last used window, whichever workspace it's on", function()
+    local a, wm = setup(2)
+    for _, id in ipairs({ 1, 2 }) do
+        a.wins[id].app = "net.kovidgoyal.kitty"
+        wm.windows[id].app = "net.kovidgoyal.kitty"
+    end
+    a.focus_ = 1
+    wm:act("send", 4)
+    wm:act("show", 4)
+    a.tick()
+    a.focus_ = 1
+    wm:focused(1)
+    wm:act("show", 1)
+    a.tick()
+    a.focus_ = 2
+    wm:focused(2)
+    wm:act("app", { bundle = "net.kovidgoyal.kitty" })
+    t.eq(wm.history[1], 2)
+    wm:focused(1)
+    wm:act("show", 1)
+    a.tick()
+    wm:act("app", { bundle = "net.kovidgoyal.kitty" })
+    t.eq(wm:current_ws(), 4)
+end)
+
+t.test("Cmd+Return asks for a new window on an empty workspace, even when the app is running", function()
+    local a, wm = setup(1)
+    a.wins[1].app = "net.kovidgoyal.kitty"
+    wm.windows[1].app = "net.kovidgoyal.kitty"
+    wm:act("app", { bundle = "net.kovidgoyal.kitty" })
+    t.eq(#a.launched, 0)
+    wm.actions.app(wm, { bundle = "net.kovidgoyal.kitty" }, true)
+    t.eq(a.fresh[1], true)
+    t.eq(wm:shown(2) ~= nil, true)
+end)
+
+t.test("an app key launches the app when it has no window", function()
+    local a, wm = setup(1)
+    wm:act("app", { bundle = "com.example.other" })
+    t.eq(a.launched[1].bundle, "com.example.other")
+    wm:act("app", { run = "browser2" })
+    t.eq(a.launched[2].run, "browser2")
+end)
+
+t.test("Super+Space asks for the launcher", function()
+    local _, wm = setup(0)
+    local opened = false
+    wm.open_launcher = function()
+        opened = true
+    end
+    wm:act("launcher")
+    t.eq(opened, true)
+end)
+
+t.test("a layout command switches the workspace's layout", function()
+    local a, wm = setup(2)
+    a.focus_ = 1
+    wm:act("layout", "twocol")
+    t.eq(wm.workspaces[1].mode, "twocol")
+end)
+
 t.done("wm")

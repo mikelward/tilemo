@@ -589,4 +589,22 @@ t.test("a window you send joins the end of the stack, even when new windows go t
     t.eq(order[#order], 2)
 end)
 
+t.test("an app key brings its workspace along", function()
+    local a, wm = setup(2)
+    a.wins[2].app = "net.kovidgoyal.kitty"
+    wm.windows[2].app = "net.kovidgoyal.kitty"
+    a.focus_ = 2
+    wm:act("send", 4)
+    wm:act("app", { bundle = "net.kovidgoyal.kitty" })
+    t.eq(wm.screen_ws.A, 4)
+    t.eq(a.focus_, 2)
+end)
+
+t.test("Cmd+Return launches on the first empty workspace", function()
+    local a, wm = setup(2)
+    wm.actions.app(wm, { run = "browser2" }, true)
+    t.eq(wm.screen_ws.A, 2)
+    t.eq(a.launched[1].run, "browser2")
+end)
+
 t.done("workspaces")

@@ -8,14 +8,24 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 2. The mouse: edge drags set the split, Super+drag moves and resizes,
    Super+middle-click maximizes, resize mode (SPEC.md §5.3).
 3. Focus follows mouse (SPEC.md §5.2).
-4. Workspaces by minimizing, displays and restarts (SPEC.md §6). **This PR.**
-5. The launcher, app keys, the dashboard, attention (SPEC.md §7–§9, §14).
+4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
+5. The launcher, app keys and the Super tap (SPEC.md §7.2, §9). **This PR.**
+6. The menu bar workspaces, the sign on switching, attention and Super+Tab,
+   and the dashboard (SPEC.md §8, §14).
    **Decided for v1:** no top bar. A menu bar item shows the workspaces as
    chips (current, occupied, wanting attention; a click switches), a large
    number shows briefly on each switch, and Clocker shows the time zones.
-6. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
+7. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
    (description starting `timo:`). scripts: `setup-macos` installs
    Hammerspoon and timo, and frees the keys in SPEC.md §7.3.
+
+## Later
+
+- **CI on a macOS runner:** install Hammerspoon with Homebrew, load timo,
+  and check every `hs.*` call it makes exists in that version, which the
+  fake can't catch. Hosted runners can't grant Accessibility, so it's a
+  smoke test, not a tiling test. macOS minutes are free on public repos,
+  10× on private ones, and they can queue.
 
 ## Decisions needing review
 
@@ -62,5 +72,22 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   `wm.add`.
 - **A display that goes away hides its workspace;** Super+N brings it back
   on the display that's left. Reversible: `wm.map_screens`.
+- **App keys run tide's helpers** (`browser1`, `google-calendar`, …)
+  through `runenv`, as tide does, but those are Linux scripts today, so on
+  a Mac most app keys need either macOS support in scripts or a `bundle`
+  override. Super+T opens kitty by bundle ID. Reversible: `keys.APPS`.
+- **Screenshots go to the clipboard only.** tide also saves each to
+  `~/Pictures/Screenshots` (SPEC.md §10). Reversible: add a file path to
+  the `screencapture` calls in `launcher_hs.lua`.
+- **Do Not Disturb runs a Shortcuts shortcut** named "Toggle Do Not
+  Disturb", which you make once; macOS has no public switch for Focus.
+  Reversible: `launcher_hs.lua`'s `QUICK.dnd`.
+- **Cmd+Return on a running app presses Cmd+N** to get a new window on the
+  empty workspace; an app without that shortcut just comes forward.
+  Alternative: `open -n`, which starts a second copy of the app. Reversible:
+  `hs_adapter.lua`'s `launch`.
+- **The launcher isn't kept out of screen shares** (SPEC.md §9): hs.chooser
+  doesn't expose its window's sharing type. Reversible once the launcher is
+  its own window.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.

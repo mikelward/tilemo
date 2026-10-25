@@ -15,6 +15,8 @@ local mouse = require("timo.mouse")
 local wm_mod = require("timo.wm")
 local adapter_mod = require("timo.hs_adapter")
 local ffm_mod = require("timo.ffm")
+local launcher_hs = require("timo.launcher_hs")
+local tap_mod = require("timo.tap")
 
 local M = {}
 
@@ -136,6 +138,22 @@ function M.start(config)
     })
     self.pointer = adapter_mod.pointer_moves(function(x, y, flags)
         self.wm.ffm:move(x, y, keys.super_held(self.super, flags))
+    end)
+    self.launcher = launcher_hs.new(self)
+    self.wm.open_launcher = function()
+        self.launcher.show()
+    end
+    -- Without Karabiner's tap rule, timo watches for a lone Super tap itself.
+    self.tap = tap_mod.new(function()
+        if not self.karabiner then
+            self.launcher.show()
+        end
+    end)
+    self.tap_watch = adapter_mod.taps(function(flags)
+        local none = not (flags.cmd or flags.alt or flags.ctrl or flags.shift or flags.fn)
+        self.tap:flags(not none and keys.super_alone(self.super, flags), none, hs.timer.secondsSinceEpoch())
+    end, function()
+        self.tap:other()
     end)
     choose_super(self, true)
     self.karabiner_timer = hs.timer.doEvery(M.KARABINER_CHECK, function()
