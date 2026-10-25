@@ -24,6 +24,12 @@ local NOT_A_WINDOW = {
 -- freeze timo (Amethyst#342).
 M.AX_TIMEOUT = 0.25
 
+M.SETTINGS_KEY = "timo.state"
+
+function M.load()
+    return hs.settings.get(M.SETTINGS_KEY)
+end
+
 function M.new()
     local a = {}
     local cache = {}
@@ -257,6 +263,30 @@ function M.new()
         end
     end
 
+    function a.minimize(id)
+        local w = win(id)
+        if w then
+            try(w.minimize, w)
+        end
+    end
+
+    function a.unminimize(id)
+        local w = win(id)
+        if w then
+            try(w.unminimize, w)
+        end
+    end
+
+    -- Where every window is, for the next start (SPEC.md §6.3). The
+    -- settings store wants string keys.
+    function a.save(snap)
+        local windows = {}
+        for id, v in pairs(snap.windows) do
+            windows[tostring(id)] = v
+        end
+        hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens })
+    end
+
     function a.close(id)
         local w = win(id)
         if w then
@@ -307,16 +337,15 @@ function M.new()
 end
 
 -- Call `on_change` on any window coming, going, hiding or changing state,
--- `on_focus(id)` when one gains focus, and `on_moved(id)` when one moves or
--- changes size. Returns what to keep alive.
-function M.watch(on_change, on_focus, on_moved)
+-- `on_focus(id)` when one gains focus, `on_moved(id)` when one moves or
+-- changes size, and `on_min(id)` / `on_unmin(id)` when one is minimized or
+-- comes back. Returns what to keep alive.
+function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
     local wf = hs.window.filter.new(false)
     wf:setDefaultFilter({ allowRoles = "*" })
     wf:subscribe({
         hs.window.filter.windowCreated,
         hs.window.filter.windowDestroyed,
-        hs.window.filter.windowMinimized,
-        hs.window.filter.windowUnminimized,
         hs.window.filter.windowHidden,
         hs.window.filter.windowUnhidden,
         hs.window.filter.windowFullscreened,
@@ -334,6 +363,8 @@ function M.watch(on_change, on_focus, on_moved)
     end
     wf:subscribe(hs.window.filter.windowFocused, with_id(on_focus))
     wf:subscribe(hs.window.filter.windowMoved, with_id(on_moved))
+    wf:subscribe(hs.window.filter.windowMinimized, with_id(on_min))
+    wf:subscribe(hs.window.filter.windowUnminimized, with_id(on_unmin))
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
@@ -366,6 +397,7 @@ function M.mouse(is_super, h)
         local kind = e:getType()
         local p = e:location()
         if kind == t.leftMouseDown or kind == t.rightMouseDown then
+            h.clicked()
             if not is_super(e:getFlags()) then
                 return false
             end

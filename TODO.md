@@ -7,8 +7,8 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 1. Tiling and keys: layouts, floats, the window keys.
 2. The mouse: edge drags set the split, Super+drag moves and resizes,
    Super+middle-click maximizes, resize mode (SPEC.md §5.3).
-3. Focus follows mouse (SPEC.md §5.2). **This PR.**
-4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
+3. Focus follows mouse (SPEC.md §5.2).
+4. Workspaces by minimizing, displays and restarts (SPEC.md §6). **This PR.**
 5. The launcher, app keys, the dashboard, attention (SPEC.md §7–§9, §14).
    **Decided for v1:** no top bar. A menu bar item shows the workspaces as
    chips (current, occupied, wanting attention; a click switches), a large
@@ -23,8 +23,6 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   is tide's file unchanged, and CI fails if they drift
   (`make check-geometry`). The alternative is a git submodule of tide.
   Reversible: swap the copy for the submodule path.
-- **One workspace per display until workspaces land.** Each display's
-  workspace is numbered in display order. Reversible: PR 4 replaces it.
 - **No frame-offset store.** tico stores, per app, how far a window's frame
   lands from where it asked (tico SPEC.md §5.3). timo leaves an app that
   rounds its size where it settled. Reversible: add the store in `wm.lua`'s
@@ -56,5 +54,13 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   `timo.toggle_focus_follows_mouse()` from Hammerspoon's console, or
   `focus_follows_mouse = false` in `start()`. Reversible: bind it in
   `keys.map`.
+- **A window minimized before timo first starts counts as yours,** so timo
+  never restores something you put away. Reversible: `wm.add`.
+- **Restarts match windows by id only.** An app that quits and relaunches
+  gets new window ids, and its windows join the workspace showing; SPEC.md
+  §6.3's matching by app and title is still to do. Reversible: add it to
+  `wm.add`.
+- **A display that goes away hides its workspace;** Super+N brings it back
+  on the display that's left. Reversible: `wm.map_screens`.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.

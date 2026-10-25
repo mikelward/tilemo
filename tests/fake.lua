@@ -159,6 +159,20 @@ function M.new()
         to_front(id)
     end
 
+    function a.minimize(id)
+        a.calls[#a.calls + 1] = "minimize " .. id
+        a.wins[id].minimized = true
+    end
+
+    function a.unminimize(id)
+        a.calls[#a.calls + 1] = "unminimize " .. id
+        a.wins[id].minimized = false
+    end
+
+    function a.save(snap)
+        a.saved = snap
+    end
+
     function a.close(id)
         a.calls[#a.calls + 1] = "close " .. id
     end

@@ -34,7 +34,19 @@ M.map = {
     { key = "help", action = "toggle_float" },
     { key = "delete", action = "close" },
     { key = "r", shift = true, action = "resize_mode" },
+    { key = "left", action = "step", arg = -1 },
+    { key = "right", action = "step", arg = 1 },
+    { key = "pageup", action = "step", arg = -1 },
+    { key = "pagedown", action = "step", arg = 1 },
+    { key = "left", shift = true, action = "carry", arg = -1 },
+    { key = "right", shift = true, action = "carry", arg = 1 },
 }
+
+-- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.
+for n = 1, 9 do
+    M.map[#M.map + 1] = { key = tostring(n), action = "show", arg = n }
+    M.map[#M.map + 1] = { key = tostring(n), shift = true, action = "send", arg = n }
+end
 
 -- Resize mode (tide's): each key grows or shrinks the focused float by
 -- 40 px; Esc or Return leaves.
