@@ -165,7 +165,13 @@ end
 -- window id.
 function M.arrange(ws, area, ids, config)
     config = config or M.defaults
-    local boxes = geometry.arrange(ws.mode, area, #ids, ws.opts[ws.mode], config.single)
+    -- A width you dragged a lone window to on this workspace beats the
+    -- single-window rule.
+    local single = config.single
+    if ws.single_width then
+        single = { { min_aspect = 0, width = ws.single_width } }
+    end
+    local boxes = geometry.arrange(ws.mode, area, #ids, ws.opts[ws.mode], single)
     local out = {}
     for i, wid in ipairs(ids) do
         out[wid] = boxes[i]

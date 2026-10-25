@@ -345,4 +345,157 @@ t.test("a float you focus stays in front when a tile's floats are raised again",
     t.eq(a.calls[#a.calls], "raise 2")
 end)
 
+t.test("timo's own moves aren't read as drags", function()
+    local a, wm = setup(2)
+    a.calls = {}
+    wm:moved(1)
+    wm:moved(2)
+    t.eq(a.calls, {})
+end)
+
+t.test("resizing the master by its edge sets the split", function()
+    local a, wm = setup(2)
+    a.wins[1].frame = { x = 0, y = 25, w = 1152, h = 1055 }
+    wm:moved(1)
+    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+    t.eq(frame(a, 2), { x = 1152, y = 25, w = 768, h = 1055 })
+end)
+
+t.test("a drag waits for the button to come up", function()
+    local a, wm = setup(2)
+    a.buttons = true
+    a.wins[1].frame = { x = 0, y = 25, w = 1152, h = 1055 }
+    wm:moved(1)
+    t.eq(wm.workspaces[1].opts.tile.mfact, 0.55)
+    a.buttons = false
+    a.tick()
+    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+end)
+
+t.test("dropping a tile on another swaps them", function()
+    local a, wm = setup(3)
+    -- Window 1 moved, same size, its center now in window 3's tile.
+    a.wins[1].frame = { x = 1000, y = 500, w = 1056, h = 1055 }
+    wm:moved(1)
+    t.eq(wm.workspaces[1].order, { 3, 2, 1 })
+    t.eq(frame(a, 3).x, 0)
+end)
+
+t.test("dropping a tile on another display moves it to that display's workspace", function()
+    local a = fake.new()
+    a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
+    a.add(1, {})
+    a.add(2, {})
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:retile()
+    a.wins[2].frame = { x = 2400, y = 200, w = 864, h = 1055 }
+    wm:moved(2)
+    t.eq(wm.windows[2].ws, 2)
+    t.eq(frame(a, 2), { x = 1920, y = 25, w = 1920, h = 1055 })
+    t.eq(frame(a, 1).w, 1920)
+end)
+
+t.test("Super+drag on a float moves it where it's dropped", function()
+    local a, wm = setup(1)
+    a.add(2, { subrole = "AXDialog", frame = { x = 0, y = 0, w = 400, h = 200 } })
+    wm:sync()
+    a.focus_ = 2
+    local f = frame(a, 2)
+    local d = wm:grab("move", f.x + 10, f.y + 10)
+    t.eq(d.id, 2)
+    wm:drop(d, f.x + 110, f.y + 60)
+    t.eq(frame(a, 2), { x = f.x + 100, y = f.y + 50, w = 400, h = 200 })
+end)
+
+t.test("Super+right-drag on the master sets the split", function()
+    local a, wm = setup(2)
+    local d = wm:grab("resize", 1000, 500)
+    t.eq(d.id, 1)
+    wm:drop(d, 1096, 500)
+    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+end)
+
+t.test("Super+middle-click maximizes the window under the pointer, and again restores it", function()
+    local a, wm = setup(2)
+    wm:maximize_at(1500, 500)
+    t.eq(a.focus_, 2)
+    t.eq(frame(a, 2), { x = 0, y = 25, w = 1920, h = 1055 })
+    wm:maximize_at(1500, 500)
+    t.eq(frame(a, 2).x, 1056)
+end)
+
+t.test("resize mode grows and shrinks the focused float, not a tile", function()
+    local a, wm = setup(1)
+    a.add(2, { subrole = "AXDialog", frame = { x = 0, y = 0, w = 400, h = 200 } })
+    wm:sync()
+    a.focus_ = 2
+    wm:act("resize_by", { 40, -40 })
+    t.eq(frame(a, 2).w, 440)
+    t.eq(frame(a, 2).h, 160)
+    a.focus_ = 1
+    a.calls = {}
+    wm:act("resize_by", { 40, 0 })
+    t.eq(a.calls, {})
+end)
+
+t.test("Super+drag over picture-in-picture doesn't grab the tile under it", function()
+    local a, wm = setup(2)
+    a.add(3, { title = "Picture in Picture", frame = { x = 100, y = 100, w = 300, h = 200 } })
+    wm:sync()
+    t.eq(wm:grab("move", 150, 150), nil)
+    wm:maximize_at(150, 150)
+    t.eq(wm.windows[1].big, nil)
+end)
+
+t.test("a tile dropped on another display moves there even if macOS resized it", function()
+    local a = fake.new()
+    a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1280, h = 775 }, full = { x = 1920, y = 0, w = 1280, h = 800 } }
+    a.add(1, {})
+    a.add(2, {})
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:retile()
+    a.wins[2].frame = { x = 2000, y = 25, w = 864, h = 775 } -- shorter
+    wm:moved(2)
+    t.eq(wm.windows[2].ws, 2)
+    t.eq(wm.workspaces[1].opts.tile.mfact, 0.55)
+    t.eq(a.wins[2].frame, { x = 1920, y = 25, w = 1280, h = 775 })
+end)
+
+t.test("a lone window keeps the width you drag it to, until a second window opens", function()
+    local a, wm = setup(1)
+    wm:request(1, { x = 0, y = 25, w = 1536, h = 1055 }) -- right edge dragged in to x = 1536
+    local f = a.wins[1].frame
+    t.eq(f.w, 1152) -- 60% of 1920, centered
+    t.eq(f.x, 384)
+    a.add(2, {})
+    wm:sync()
+    wm:retile()
+    t.eq(a.wins[1].frame.x, 0)
+    a.drop(2)
+    wm:sync()
+    wm:retile()
+    t.eq(a.wins[1].frame.w, 1152)
+end)
+
+t.test("a float Super+dragged to the other display joins its workspace", function()
+    local a = fake.new()
+    a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
+    a.add(1, {})
+    a.add(2, { frame = { x = 2000, y = 100, w = 800, h = 600 } })
+    a.add(3, { subrole = "AXDialog", frame = { x = 100, y = 100, w = 300, h = 200 } })
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:retile()
+    local before = wm.windows[3].ws
+    local f = a.wins[3].frame
+    local x, y = f.x + 10, f.y + 10
+    local d = wm:grab("move", x, y)
+    t.eq(d.id, 3)
+    wm:drop(d, x + 1920, y)
+    t.eq(wm.windows[3].ws ~= before, true)
+    t.eq(wm.windows[3].ws, wm.windows[2].ws)
+end)
+
 t.done("wm")

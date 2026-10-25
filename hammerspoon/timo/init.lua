@@ -8,6 +8,7 @@
 -- before the built-in ones (timo/rules.lua).
 
 local keys = require("timo.keys")
+local mouse = require("timo.mouse")
 local wm_mod = require("timo.wm")
 local adapter_mod = require("timo.hs_adapter")
 
@@ -36,6 +37,22 @@ local function bind_all(self)
     end
 end
 
+local function resize_mode(self)
+    local modal = hs.hotkey.modal.new()
+    for _, b in ipairs(keys.resize) do
+        local fn = function()
+            self.wm:act("resize_by", b.d)
+        end
+        modal:bind({}, b.key, fn, nil, fn)
+    end
+    for _, k in ipairs(keys.resize_exit) do
+        modal:bind({}, k, function()
+            modal:exit()
+        end)
+    end
+    return modal
+end
+
 local function choose_super(self, announce)
     local super, karabiner = keys.super(self.adapter.read, self.adapter.running, os.getenv("HOME") or "",
         self.adapter.decode)
@@ -61,7 +78,30 @@ function M.start(config)
         self.wm:schedule()
     end, function(id)
         self.wm:focused(id)
+    end, function(id)
+        self.wm:moved(id)
     end)
+    self.resize = resize_mode(self)
+    self.wm.enter_resize_mode = function()
+        self.resize:enter()
+    end
+    self.mouse = adapter_mod.mouse(function(flags)
+        return keys.is_super(self.super, flags)
+    end, {
+        grab = function(kind, x, y)
+            return self.wm:grab(kind, x, y)
+        end,
+        update = function(d, x, y)
+            self.adapter.outline(mouse.update(d, x, y))
+        end,
+        drop = function(d, x, y)
+            self.adapter.outline(nil)
+            self.wm:drop(d, x, y)
+        end,
+        middle = function(x, y)
+            self.wm:maximize_at(x, y)
+        end,
+    })
     choose_super(self, true)
     self.karabiner_timer = hs.timer.doEvery(M.KARABINER_CHECK, function()
         choose_super(self, false)

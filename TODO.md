@@ -4,13 +4,15 @@
 
 The Hammerspoon version, in the order SPEC.md §18 sets:
 
-1. Tiling and keys: layouts, floats, the window keys. **This PR.**
+1. Tiling and keys: layouts, floats, the window keys.
 2. The mouse: edge drags set the split, Super+drag moves and resizes,
-   Super+middle-click maximizes, resize mode (SPEC.md §5.3).
+   Super+middle-click maximizes, resize mode (SPEC.md §5.3). **This PR.**
 3. Focus follows mouse (SPEC.md §5.2).
 4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
-5. The launcher, app keys, the dashboard and bar, attention
-   (SPEC.md §7–§9, §14).
+5. The launcher, app keys, the dashboard, attention (SPEC.md §7–§9, §14).
+   **Decided for v1:** no top bar. A menu bar item shows the workspaces as
+   chips (current, occupied, wanting attention; a click switches), a large
+   number shows briefly on each switch, and Clocker shows the time zones.
 6. conf: the Karabiner rule that turns Win+key into Ctrl+Option+Command+key
    (description starting `timo:`). scripts: `setup-macos` installs
    Hammerspoon and timo, and frees the keys in SPEC.md §7.3.
@@ -39,5 +41,16 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   being. SPEC.md §5.1 wants those left in place, but timo can't yet tell
   them apart. Reversible: skip `place_float` for a float that opens away
   from the display's origin, say.
+- **A tile's height can't be dragged.** tide's stacks are equal rows, so a
+  tile dragged taller or shorter snaps back; only the split between columns
+  follows a drag. Reversible: give each stack row a weight in the layout.
+- **Super+drag shows an outline and moves the window on release,** rather
+  than moving it live, since each move is a round trip to the app.
+  Reversible: call `set_frame` from the drag's `update` instead.
 - **Hammerspoon's own console floats** by a built-in rule. Reversible: drop
   the rule.
+- **Dragging a lone window's edge sets its width,** kept centered, for that
+  workspace until timo reloads; it isn't saved across restarts. With several
+  windows and no stack, a drag sets nothing. Alternatives: let the drag set
+  the width without centering, or save it. Reversible: `ws.single_width` in
+  `layout.lua` and `wm.lua`.

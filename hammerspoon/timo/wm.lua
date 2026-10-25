@@ -9,6 +9,7 @@
 -- its own, numbered in display order.
 
 local layout = require("timo.layout")
+local mouse = require("timo.mouse")
 local rules = require("timo.rules")
 
 local M = {}
@@ -21,6 +22,8 @@ local function remove_value(list, v)
         end
     end
 end
+
+local set_big_on
 
 -- How long to wait after the last window event before retiling, since one
 -- window opening sends several (tico SPEC.md §5.3).
@@ -39,6 +42,7 @@ function M.new(adapter, config)
         screen_ws = {}, -- display uuid -> workspace number
         floats = {},    -- float ids, bottom to top
         mru = {},       -- workspace number -> ids, most recent first
+        placed = {},    -- id -> the frame timo last gave it, as it landed
     }, M)
     return self
 end
@@ -244,6 +248,7 @@ function M:forget(id)
         remove_value(self.mru[w.ws], id)
     end
     remove_value(self.floats, id)
+    self.placed[id] = nil
 end
 
 -- Match what timo knows to the windows that exist now: add new ones, forget
@@ -290,7 +295,12 @@ function M:retile()
                 local cur = f and f.frame
                 if not cur or cur.x ~= box.x or cur.y ~= box.y or cur.w ~= box.w or cur.h ~= box.h then
                     self.a.set_frame(id, box)
+                    -- Read it back: an app may round the size, and the move
+                    -- this causes mustn't look like a drag.
+                    local after = self.a.state(id)
+                    cur = after and after.frame or box
                 end
+                self.placed[id] = cur
             end
         end
     end
@@ -309,6 +319,140 @@ function M:schedule()
             self:refocus(n)
         end
     end)
+end
+
+-- The mouse (SPEC.md §5.3) --------------------------------------------------
+
+local function same(a, b)
+    return a and b and a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
+end
+
+-- The managed window under a point: the frontmost visible window there,
+-- or nil if that one is ignored or unknown, such as picture-in-picture
+-- over a tile.
+function M:window_at(x, y)
+    for _, id in ipairs(self.a.ordered()) do
+        local st = self.a.state(id)
+        if st and not st.minimized and not st.hidden and inside(st.frame, x, y) then
+            local w = self.windows[id]
+            if w and w.kind ~= "ignore" and w.ws then
+                return id
+            end
+            return nil
+        end
+    end
+end
+
+-- A tile the user moved or resized to `box`, by its own edges or with
+-- Super+drag. A resize sets the split; a move puts the window in the tile
+-- nearest where its center landed, swapping with that tile's window, or on
+-- the workspace of the display it landed on.
+function M:request(id, box)
+    local w = self.windows[id]
+    if not w or not w.ws or w.floating then
+        return
+    end
+    local old = self.placed[id]
+    local cx, cy = center(box)
+    local s = self:screen_for(box)
+    local n = self:ws_on_screen(s)
+    -- Another display first: macOS may resize a window it moves onto a
+    -- smaller display, and that's still a move.
+    if n and n ~= w.ws then
+        layout.remove(self.workspaces[w.ws], id)
+        remove_value(self.mru[w.ws], id)
+        w.ws = n
+        layout.insert(self.workspaces[n], id, nil, self.layout)
+    elseif old and (old.w ~= box.w or old.h ~= box.h) then
+        local ws = self.workspaces[w.ws]
+        local ids = self:tiled(w.ws)
+        local i = layout.index_of(ids, id)
+        if s and i and #ids == 1 then
+            -- A lone window: the drag sets its width on this workspace.
+            ws.single_width = mouse.single_width_for(s.area, old, box) or ws.single_width
+        else
+            local f = s and i and mouse.mfact_for(ws.mode, ws.opts[ws.mode] or {}, i, #ids, s.area, old, box)
+            if f then
+                ws.opts[ws.mode].mfact = layout.geometry.clamp(f, 0.1, 0.9)
+            end
+        end
+    elseif n then
+        local ws = self.workspaces[n]
+        local ids = self:tiled(n)
+        local boxes = layout.arrange(ws, s.area, ids, self.layout)
+        for _, other in ipairs(ids) do
+            if other ~= id and inside(boxes[other], cx, cy) then
+                local a, b = layout.index_of(ws.order, id), layout.index_of(ws.order, other)
+                ws.order[a], ws.order[b] = ws.order[b], ws.order[a]
+                break
+            end
+        end
+    end
+    self:retile()
+end
+
+-- macOS says a window moved or changed size. Ignore the moves timo made;
+-- treat the rest as a request, once the button is up.
+function M:moved(id)
+    local w = self.windows[id]
+    if not w or not w.ws or w.floating then
+        return
+    end
+    local st = self.a.state(id)
+    if not st or same(st.frame, self.placed[id]) then
+        return
+    end
+    if self.a.buttons_down() then
+        self.a.after(0.1, function()
+            self:moved(id)
+        end)
+        return
+    end
+    self:request(id, st.frame)
+end
+
+-- A Super+drag or Super+right-drag starting at x, y. Returns the drag, or
+-- nil if there's no window there.
+function M:grab(kind, x, y)
+    local id = self:window_at(x, y)
+    local st = id and self.a.state(id)
+    if not st then
+        return nil
+    end
+    local d = mouse.grab(kind, st.frame, x, y)
+    d.id = id
+    return d
+end
+
+-- The drag ended with the pointer at x, y.
+function M:drop(d, x, y)
+    local box = mouse.update(d, x, y)
+    local w = self.windows[d.id]
+    if not w then
+        return
+    end
+    if w.floating then
+        self.a.set_frame(d.id, box)
+        -- Dropped on another display, it joins the workspace there, so
+        -- tiling it again later tiles it where it is.
+        local n = self:ws_on_screen(self:screen_for(box))
+        if n and n ~= w.ws then
+            remove_value(self.mru[w.ws], d.id)
+            w.ws = n
+            table.insert(self.mru[n], 1, d.id)
+        end
+    else
+        self:request(d.id, box)
+    end
+end
+
+-- Super+middle-click: maximize the window under the pointer, or put it back.
+function M:maximize_at(x, y)
+    local id = self:window_at(x, y)
+    if id then
+        self:focus_window(id)
+        set_big_on(self, id, "max")
+    end
 end
 
 -- Raise the workspace's floats over its tiles, keeping their order, so a
@@ -465,9 +609,9 @@ function A.monocle(self)
     self:retile()
 end
 
-local function set_big(self, kind)
-    local id, w = self:focused_tile()
-    if not id then
+function set_big_on(self, id, kind)
+    local w = self.windows[id]
+    if not w or not w.ws or w.floating then
         return
     end
     w.big = (w.big ~= kind) and kind or nil
@@ -477,6 +621,13 @@ local function set_big(self, kind)
         -- The tile is already focused, so no focus event will put its
         -- floats back over it.
         self:raise_floats(w.ws, w.pid)
+    end
+end
+
+local function set_big(self, kind)
+    local id = self:focused_tile()
+    if id then
+        set_big_on(self, id, kind)
     end
 end
 
@@ -521,6 +672,32 @@ function A.close(self)
     local id = self.a.focused()
     if id then
         self.a.close(id)
+    end
+end
+
+-- Resize mode (Super+Shift+R): grow or shrink the focused float by dx, dy,
+-- keeping it on its display.
+function A.resize_by(self, d)
+    local id = self.a.focused()
+    local w = self.windows[id or false]
+    local st = w and w.floating and self.a.state(id)
+    if not st then
+        return
+    end
+    local f = st.frame
+    self.a.set_frame(id, {
+        x = f.x,
+        y = f.y,
+        w = math.max(mouse.MIN, f.w + d[1]),
+        h = math.max(mouse.MIN, f.h + d[2]),
+    })
+end
+
+-- Super+Shift+R: the keys for resize mode are Hammerspoon's to bind
+-- (init.lua), so this only enters it.
+function A.resize_mode(self)
+    if self.enter_resize_mode then
+        self.enter_resize_mode()
     end
 end
 

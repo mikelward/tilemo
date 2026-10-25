@@ -92,6 +92,53 @@ function M.new()
         end)
     end
 
+    -- Visible windows, front to back.
+    function a.ordered()
+        local ids = {}
+        for _, w in ipairs(hs.window.orderedWindows()) do
+            local id = try(w.id, w)
+            if id then
+                cache[id] = cache[id] or w
+                ids[#ids + 1] = id
+            end
+        end
+        return ids
+    end
+
+    function a.buttons_down()
+        for _, down in pairs(hs.eventtap.checkMouseButtons()) do
+            if down then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- The outline shown during a Super+drag, or nil to hide it.
+    local outline
+    function a.outline(b)
+        if not b then
+            if outline then
+                outline:delete()
+                outline = nil
+            end
+            return
+        end
+        if not outline then
+            outline = hs.canvas.new(b)
+            outline:level(hs.canvas.windowLevels.overlay)
+            outline[1] = {
+                type = "rectangle",
+                action = "stroke",
+                strokeWidth = 3,
+                strokeColor = { white = 1, alpha = 0.8 },
+            }
+            outline:show()
+        else
+            outline:frame(b)
+        end
+    end
+
     function a.screens()
         local out = {}
         for _, s in ipairs(hs.screen.allScreens()) do
@@ -194,8 +241,9 @@ function M.new()
 end
 
 -- Call `on_change` on any window coming, going, hiding or changing state,
--- and `on_focus(id)` when one gains focus. Returns what to keep alive.
-function M.watch(on_change, on_focus)
+-- `on_focus(id)` when one gains focus, and `on_moved(id)` when one moves or
+-- changes size. Returns what to keep alive.
+function M.watch(on_change, on_focus, on_moved)
     local wf = hs.window.filter.new(false)
     wf:setDefaultFilter({ allowRoles = "*" })
     wf:subscribe({
@@ -210,15 +258,64 @@ function M.watch(on_change, on_focus)
     }, function()
         on_change()
     end)
-    wf:subscribe(hs.window.filter.windowFocused, function(w)
-        local ok, id = pcall(w.id, w)
-        if ok and id then
-            on_focus(id)
+    local function with_id(fn)
+        return function(w)
+            local ok, id = pcall(w.id, w)
+            if ok and id then
+                fn(id)
+            end
         end
-    end)
+    end
+    wf:subscribe(hs.window.filter.windowFocused, with_id(on_focus))
+    wf:subscribe(hs.window.filter.windowMoved, with_id(on_moved))
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
+end
+
+-- Super+drag, Super+right-drag and Super+middle-click (SPEC.md §5.3).
+-- `is_super(flags)` says whether exactly Super is held. The handlers get the
+-- pointer's position; a press with Super held is swallowed, so the app under
+-- it never sees it, and anything else passes straight through.
+function M.mouse(is_super, h)
+    local t = hs.eventtap.event.types
+    local drag
+    local tap = hs.eventtap.new({
+        t.leftMouseDown, t.leftMouseDragged, t.leftMouseUp,
+        t.rightMouseDown, t.rightMouseDragged, t.rightMouseUp,
+        t.otherMouseDown,
+    }, function(e)
+        local kind = e:getType()
+        local p = e:location()
+        if kind == t.leftMouseDown or kind == t.rightMouseDown then
+            if not is_super(e:getFlags()) then
+                return false
+            end
+            drag = h.grab(kind == t.leftMouseDown and "move" or "resize", p.x, p.y)
+            return drag ~= nil
+        elseif kind == t.leftMouseDragged or kind == t.rightMouseDragged then
+            if drag then
+                h.update(drag, p.x, p.y)
+                return true
+            end
+        elseif kind == t.leftMouseUp or kind == t.rightMouseUp then
+            if drag then
+                local d = drag
+                drag = nil
+                h.drop(d, p.x, p.y)
+                return true
+            end
+        elseif kind == t.otherMouseDown then
+            -- Button 2 is the middle one.
+            if e:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 and is_super(e:getFlags()) then
+                h.middle(p.x, p.y)
+                return true
+            end
+        end
+        return false
+    end)
+    tap:start()
+    return tap
 end
 
 return M
