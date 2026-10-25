@@ -1,12 +1,13 @@
 -- A smoke test that runs inside a real Hammerspoon, on CI's macOS runner.
 -- The fake in tests/ can't tell whether an hs.* function timo calls exists
--- in the Hammerspoon people install, so this checks that, then starts timo
--- and opens and closes the dashboard. Hosted runners can't grant
--- Accessibility, so nothing tiles: a failure here means a missing API or a
--- Lua error, not a layout bug.
+-- in the Hammerspoon people install, so this checks that, then starts timo,
+-- opens and closes the dashboard, and tiles a few windows. GitHub's macOS
+-- runners come with Accessibility granted, so the tiling is real.
 --
 -- ci/hs-smoke.sh points ~/.hammerspoon/init.lua at this file, with
 -- TIMO_SMOKE_OUT set to where the results go.
+
+local layout = require("timo.layout")
 
 local out_path = TIMO_SMOKE_OUT
 local failed = false
@@ -83,6 +84,107 @@ for _, path in ipairs(paths) do
 end
 say("checked %d hs.* names", #paths)
 
+-- Open TextEdit windows and check timo tiles them where its layout says
+-- (SPEC.md §5). TextEdit, because `open` can give it several windows
+-- without asking for Automation, which a runner can't grant.
+local APP = "com.apple.TextEdit"
+local WANT = 3
+local SLACK = 2
+local TILE_WAIT = 20
+
+local function app_windows(wm)
+    local out = {}
+    for id, w in pairs(wm.windows) do
+        if w.app == APP and not w.floating then
+            out[#out + 1] = id
+        end
+    end
+    return out
+end
+
+-- Where each tiled window is against where timo's layout puts it, or nil
+-- and why not yet.
+local function tiling_misses(wm)
+    if #app_windows(wm) < WANT then
+        return nil, string.format("%d of %d TextEdit windows tiled", #app_windows(wm), WANT)
+    end
+    local misses, checked = {}, 0
+    for uuid, n in pairs(wm.screen_ws) do
+        local s = wm:screen_by_uuid(uuid)
+        local ws = wm.workspaces[n]
+        local ids = wm:tiled(n)
+        local boxes = s and ws and layout.arrange(ws, s.area, ids, wm.layout) or {}
+        for _, id in ipairs(ids) do
+            local want = boxes[id]
+            local st = wm.a.state(id)
+            local got = st and st.frame
+            if want and got then
+                if wm.windows[id].app == APP then
+                    checked = checked + 1
+                end
+                local off = math.max(math.abs(got.x - want.x), math.abs(got.y - want.y),
+                    math.abs(got.w - want.w), math.abs(got.h - want.h))
+                if off > SLACK then
+                    misses[#misses + 1] = string.format("window %s at %d,%d %dx%d, want %d,%d %dx%d", tostring(id),
+                        got.x, got.y, got.w, got.h, want.x, want.y, want.w, want.h)
+                end
+            end
+        end
+    end
+    if checked < WANT then
+        return nil, string.format("%d of %d TextEdit windows on a shown workspace", checked, WANT)
+    end
+    return misses
+end
+
+local function check_tiling()
+    if not hs.accessibilityState() then
+        fail("tiling: Hammerspoon doesn't have Accessibility on this runner")
+        finish()
+        return
+    end
+    local dir = os.getenv("TMPDIR") or "/tmp"
+    local files = {}
+    for i = 1, WANT do
+        local path = string.format("%s/timo-smoke-%d.txt", dir, i)
+        local f, err = io.open(path, "w")
+        if not f then
+            fail("tiling: can't write %s: %s", path, tostring(err))
+            finish()
+            return
+        end
+        f:close()
+        files[#files + 1] = "'" .. path .. "'"
+    end
+    local output, opened = hs.execute("open -a TextEdit " .. table.concat(files, " ") .. " 2>&1")
+    if not opened then
+        fail("tiling: couldn't open TextEdit: %s", output)
+        finish()
+        return
+    end
+    -- TextEdit and timo's watchers take a moment; wait for them, up to a
+    -- deadline, rather than a fixed time.
+    local started = hs.timer.secondsSinceEpoch()
+    -- A global, like smoke_timer, so it isn't collected.
+    smoke_poll = hs.timer.doEvery(0.5, function()
+        local misses, why = tiling_misses(timo.wm)
+        local done = misses and #misses == 0
+        if done or hs.timer.secondsSinceEpoch() - started > TILE_WAIT then
+            smoke_poll:stop()
+            if done then
+                say("%d TextEdit windows tiled", WANT)
+            elseif not misses then
+                fail("tiling: %s after %ds", why, TILE_WAIT)
+            else
+                for _, m in ipairs(misses) do
+                    fail("tiling: %s", m)
+                end
+            end
+            finish()
+        end
+    end)
+end
+
 -- Start timo as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
     timo = require("timo")
@@ -112,8 +214,9 @@ smoke_timer = hs.timer.doAfter(3, function()
     end, debug.traceback)
     if not closed then
         fail("closing the dashboard: %s", close_err)
-    else
-        say("dashboard opened and closed")
+        finish()
+        return
     end
-    finish()
+    say("dashboard opened and closed")
+    check_tiling()
 end)
