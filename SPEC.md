@@ -277,9 +277,12 @@ each new window once, in this order, and the first rule that matches wins:
    *(unverified)*.
 5. **A dialog or panel floats:** subrole `AXDialog`, `AXSystemDialog` or
    `AXFloatingWindow` *(unverified per app)*.
-6. **Everything else tiles,** which is mostly `AXStandardWindow`. That's
-   last on purpose: some dialogs report themselves as standard windows,
-   and the checks above catch them first.
+6. **A standard window tiles** (`AXStandardWindow`). That comes late on
+   purpose: some dialogs report themselves as standard windows, and the
+   checks above catch them first.
+7. **Anything else is left alone,** such as `AXUnknown`. Extension popups
+   and other odd windows mustn't take a tile *(which subrole Chrome's
+   extension popups report is unverified)*.
 
 Placing and keeping floats:
 
