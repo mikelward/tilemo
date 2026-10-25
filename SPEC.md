@@ -206,7 +206,7 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
 | Focus follows mouse (KDE) | timo's own (§5.2) | **yes**, but focusing raises (§13) |
 | Nothing steals focus (tide §14) | macOS activation rules, plus timo's focus guard (§14) | **partial**: apps can still activate themselves |
 | Super+Tab to the window wanting attention (tide §14.3, tico §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
-| Full-width bar with workspaces and urgency (tide §7) | timo's own bar over an auto-hidden menu bar, with its own battery, volume and Wi-Fi icons (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
+| Full-width bar with workspaces and urgency (tide §7) | timo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
 | SYD / LAX / NYC / LON clocks (tico `src/clocks.js`) | bar clocks, and tico's clock panel in the dashboard | **yes** |
 | Launcher on a Super tap (tide §8) | timo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
 | Tab search (tico §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
@@ -776,7 +776,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Tab`, `Super+Home` | the next window wanting attention (§14) | hotkey, and an event tap to see Super let go |
 | `Super+Shift+N` | Notification Center | no public way to open it *(unverified)*; else the clock in the menu bar |
 | `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
-| mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | timo, through Core Audio, with an on-screen sign |
+| mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | timo, through `hs.audiodevice`'s input mute on the default input device, with an on-screen sign; the bar's microphone item does the same |
 | media, brightness, volume keys | as macOS does them | native |
 
 - **The Super tap** must not fire after Super+T, Super+drag or
@@ -840,9 +840,8 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
     set to hide automatically (System Settings › Control Center ›
     "Automatically hide and show the menu bar": Always, or
     `defaults write NSGlobalDomain _HIHideMenuBar -bool true`). timo's bar
-    takes the top 36 px of each display, and draws battery, volume and
-    Wi-Fi itself, so the common status items don't need the menu bar
-    revealed. A click on one opens its System Settings pane.
+    takes the top 36 px of each display, and draws the common status items
+    itself (below), so they don't need the menu bar revealed.
   - **What still needs the menu bar:** the app's own menus, the Apple menu,
     and other apps' status items (a VPN, an IT agent, Zoom). They show when
     the pointer reaches the top edge, over the bar, which sits below the
@@ -877,17 +876,46 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - Focus follows mouse pauses over it, as over the menu bar (§5.2).
   - A full-screen window (§5.4) still has the bar over its top 36 px
     *(to do: hide the bar on that display while one is full screen)*.
-- **timo's status icons** come from Hammerspoon, read every 5 s:
-  - battery: `hs.battery`, with its percentage and a charging mark, or
-    none on a Mac without one;
-  - volume: the default output device through `hs.audiodevice`, in four
-    levels with mute;
-  - Wi-Fi: `hs.wifi`, on or off and signal in three bars from the RSSI. The
+- **timo's status items** are 16 px line drawings in the text color,
+  drawn by `bar.js` itself with no icon font or fetch, so they follow the
+  bar's light and dark colors. State shows as color: muted or off in the
+  muted color, active (keeping awake, a camera in use) in the accent
+  color, and a low battery in the urgent color. `make mocks` renders them.
+  They come from Hammerspoon. Audio, cameras and the input source have
+  watchers, so a change shows at once; the rest are read every 5 s. Left
+  to right:
+  - input source: `hs.keycodes`, a short label for the current layout or
+    input method, only with more than one enabled. A click goes to the
+    next one.
+  - keep awake: `hs.caffeinate`'s `displayIdle`, the same switch as the
+    launcher's Keep awake. A click toggles it.
+  - camera: `hs.camera`, shown only while one is in use, as macOS's green
+    dot *(unverified that reading it needs no Camera permission)*.
+  - microphone: the default input device through `hs.audiodevice`, muted
+    or not. A click mutes or unmutes, as `Super+Shift+M` does (§7.2). A
+    device without its own mute control says so rather than faking one.
+    **No "in use" light:** Hammerspoon's `inUse()` reads
+    `kAudioDevicePropertyDeviceIsRunningSomewhere` in the global scope, so
+    on a headset that's both input and output, playing sound would light
+    it. It has no input-only reading; macOS's own orange dot shows a
+    microphone in use.
+  - speaker: the default output device, in four levels with mute. A click
+    mutes or unmutes; scrolling on it changes the volume 5% a step, and up
+    unmutes, as the volume keys do.
+  - network: Wi-Fi through `hs.wifi`, on or off with signal in three bars
+    from the RSSI, or a wire, or no network, by which interface
+    `hs.network.primaryInterfaces` says carries traffic. The Wi-Fi
     network's name shows on hover only when macOS gives it, which needs
     Location Services on recent macOS *(unverified for Hammerspoon)*.
-  - Bluetooth has no Hammerspoon module *(unverified)*, so it isn't drawn.
-  - The settings panes they open are named by URL
-    (`x-apple.systempreferences:…`) *(unverified on macOS 26)*.
+  - battery: `hs.battery`, with its percentage and a charging mark, and on
+    hover how long until full or empty when macOS knows. None on a Mac
+    without one.
+  - The battery and network items open their System Settings panes, named
+    by URL (`x-apple.systempreferences:…`) *(unverified on macOS 26)*.
+- **Not drawn:** Bluetooth and Focus (Do Not Disturb). Hammerspoon has no
+  module for either (there is no `hs.bluetooth` or `hs.focus`), and timo
+  doesn't shell out to a helper such as `blueutil` from the bar. Their menu
+  bar items show when the menu bar is revealed.
 - **The notch,** on a MacBook's own display, sits where tide centers the
   title. There, the title moves left of it *(unverified how wide it is per
   model)*.
@@ -1205,8 +1233,7 @@ Each one names a workaround, or says there is none.
    doesn't work out.
 2. **Build route:** Hammerspoon first (§3 B), or straight to a native app?
 3. **Bar:** decided, timo's own bar over an auto-hidden menu bar, with its
-   own battery, volume and Wi-Fi icons (§8). The menu bar item stays as
-   the fallback.
+   own status items (§8). The menu bar item stays as the fallback.
 4. **Amethyst:** keep it alongside while timo grows, or replace it outright?
    Running both would fight over the same windows.
 5. **Does HazeOver's one-layer dim** carry over to a canvas or panel, and

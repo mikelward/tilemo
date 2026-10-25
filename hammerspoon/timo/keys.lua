@@ -69,6 +69,8 @@ end
 M.map[#M.map + 1] = { key = "space", action = "launcher" }
 M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
 M.map[#M.map + 1] = { key = "tab", action = "attention" }
+-- tide's mic-mute key: the microphone, everywhere (SPEC.md §7.2).
+M.map[#M.map + 1] = { key = "m", shift = true, action = "mic_mute" }
 M.map[#M.map + 1] = { key = "home", action = "attention" }
 
 -- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.

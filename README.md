@@ -18,8 +18,9 @@ It brings tide's desktop to macOS:
 - nine workspaces shared across displays (§6);
 - the launcher and app keys (§9);
 - tide's bar along the top: the workspaces, the window's title, the clocks
-  and timo's own battery, volume and Wi-Fi icons, with Super+Tab to what
-  wants attention (§8, §14.2);
+  and timo's own status items (input source, keep awake, camera,
+  microphone, speaker, network, battery), with Super+Tab to what wants
+  attention and Super+Shift+M to mute the microphone (§7.2, §8, §14.2);
 - tico's dashboard on Super+Shift+Space.
 
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it

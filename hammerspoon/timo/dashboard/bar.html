@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <title>timo bar</title>
+<script>
+// First, so an error in the bar's own script, even one that stops it
+// parsing, still reaches timo, which logs it.
+window.onerror = (message, source, line, column) => {
+  window.webkit?.messageHandlers?.timo?.postMessage({ error: `${message} (line ${line}:${column})` });
+};
+</script>
 <style>
 /*TIMO_CSS*/
 </style>
@@ -30,12 +37,14 @@ body {
 #icons {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
 }
+/* Line icons in the text color (bar.js draws them); state shows as color,
+   not a background. */
 #icons .icon {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: center;
+  gap: 3px;
   height: 26px;
   padding: 0 6px;
   border: none;
@@ -45,53 +54,32 @@ body {
   font: inherit;
   cursor: pointer;
 }
-#icons .icon:hover {
+#icons button.icon:hover {
   background: var(--raised);
 }
-#icons .wifi {
-  align-items: flex-end;
-  padding-bottom: 7px;
+#icons svg {
+  display: block;
+  flex: none;
 }
-#icons .wifi span {
-  width: 3px;
-  background: var(--muted);
-  opacity: 0.35;
+#icons .source {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
-#icons .wifi span:nth-child(1) { height: 4px; }
-#icons .wifi span:nth-child(2) { height: 8px; }
-#icons .wifi span:nth-child(3) { height: 12px; }
-#icons .wifi span.lit {
-  background: var(--fg);
-  opacity: 1;
+#icons [data-state="off"],
+#icons [data-state="muted"],
+#icons [data-state="mute"],
+#icons [data-state="none"] {
+  color: var(--muted);
 }
-#icons .wifi.off span {
-  opacity: 0.2;
+#icons [data-state="on"].awake,
+#icons [data-state="in-use"] {
+  color: var(--accent);
 }
-#icons .volume,
-#icons .battery {
-  align-items: center;
-}
-#icons .battery .cell {
-  position: relative;
-  width: 22px;
-  height: 11px;
-  border: 1px solid var(--fg);
-  border-radius: 3px;
-}
-#icons .battery .fill {
-  position: absolute;
-  top: 1px;
-  bottom: 1px;
-  left: 1px;
-  max-width: calc(100% - 2px);
-  border-radius: 1px;
-  background: var(--fg);
-}
-#icons .battery.low .fill {
-  background: var(--urgent);
+#icons .battery[data-state="low"] {
+  color: var(--urgent);
 }
 #icons .battery .text {
-  margin-left: 4px;
   font-variant-numeric: tabular-nums;
 }
 </style>

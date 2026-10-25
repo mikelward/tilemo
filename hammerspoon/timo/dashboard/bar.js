@@ -2,7 +2,8 @@
 // the workspaces left, the focused window's title in the middle, and the
 // clocks and status icons right. timo fills it with timo.update(state) and
 // hears back through the "timo" message handler: { uuid, show: n },
-// { uuid, step: 1 or -1 }, { open: "battery" | "volume" | "wifi" } or
+// { uuid, step: 1 or -1 }, { open: "battery" | "wifi" | "network" },
+// { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 } or
 // { dashboard: true }.
 
 import { renderClocks } from "./clockview.js";
@@ -29,7 +30,6 @@ export function crowded(width, left, right, gap = 24) {
 // A trackpad sends many small scrolls; one step is this much of them.
 const STEP = 50;
 
-const VOLUME = { mute: "🔇", low: "🔈", mid: "🔉", high: "🔊" };
 
 let uuid = null;
 let scrolled = 0;
@@ -55,39 +55,113 @@ function renderWorkspaces(nav, workspaces) {
   }
 }
 
-function icon(name, label) {
+// The status icons: 16 px line drawings in the text color, drawn here, so
+// they follow the bar's light and dark colors. Each item's state is also in
+// its data-state, for the styles and the tests.
+const svg = (body, width = 16) =>
+  `<svg viewBox="0 0 ${width} 16" width="${width}" height="16" fill="none" stroke="currentColor" ` +
+  `stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+
+const SLASH = `<path d="M2.5 2.5l11 11"/>`;
+const PATHS = {
+  awake: `<path d="M3 6h7.5v3.5a3 3 0 0 1-3 3h-1.5a3 3 0 0 1-3-3z"/><path d="M10.5 7h1a1.75 1.75 0 0 1 0 3.5h-1"/><path d="M5.5 2.5v1.5M8 2.5v1.5"/>`,
+  mic: `<rect x="6" y="2" width="4" height="7.5" rx="2"/><path d="M3.5 8a4.5 4.5 0 0 0 9 0"/><path d="M8 12.5v2"/>`,
+  speaker: `<path d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z"/>`,
+  waves: [`<path d="M10.5 6.5a2 2 0 0 1 0 3"/>`, `<path d="M12 5a4 4 0 0 1 0 6"/>`, `<path d="M13.5 3.5a6.4 6.4 0 0 1 0 9"/>`],
+  speakerOff: `<path d="M11 6.5l3 3M14 6.5l-3 3"/>`,
+  camera: `<rect x="1.5" y="4.5" width="9" height="7" rx="1.5"/><path d="M10.5 7.2l4-2.2v6l-4-2.2"/>`,
+  arcs: [`<path d="M6 10.6a2.8 2.8 0 0 1 4 0"/>`, `<path d="M4 8.5a5.7 5.7 0 0 1 8 0"/>`, `<path d="M2 6.4a8.5 8.5 0 0 1 12 0"/>`],
+  dot: `<path d="M8 12.8v.01"/>`,
+  wired: `<path d="M5.5 2v3M10.5 2v3"/><path d="M3.5 5h9v2.5a4.5 4.5 0 0 1-9 0z"/><path d="M8 12v2.5"/>`,
+  bolt: `<path d="M5.5 2.5l-3 6h3l-1 5 4-7h-3z"/>`,
+};
+
+const VOLUME = { mute: 0, low: 1, mid: 2, high: 3 };
+
+// Wi-Fi's dot and arcs, `lit` of three at full strength and the rest faint.
+const arcs = (lit) =>
+  PATHS.dot + PATHS.arcs.map((a, i) => (i < lit ? a : a.replace("<path ", '<path opacity="0.3" '))).join("");
+
+// A status item: a button sending `msg` when clicked, drawn with `art`.
+function icon(name, label, msg, art, state) {
   const b = el("button", `icon ${name}`);
   b.type = "button";
   b.setAttribute("aria-label", label);
   b.setAttribute("title", label);
-  b.addEventListener("click", () => send({ open: name }));
+  b.setAttribute("data-state", state);
+  b.innerHTML = art;
+  b.addEventListener("click", () => send(msg));
+  return b;
+}
+
+// Wi-Fi with its bars, a wire, or neither.
+function network(icons) {
+  const kind = icons.network?.kind ?? (icons.wifi?.on ? "wifi" : "none");
+  const w = icons.wifi;
+  if (kind === "wifi" && w) {
+    return icon("wifi", w.name || "Wi-Fi", { open: "wifi" }, svg(arcs(w.bars)), `bars-${w.bars}`);
+  }
+  if (kind === "wired") {
+    return icon("wired", "Wired network", { open: "network" }, svg(PATHS.wired), "wired");
+  }
+  const off = w && !w.on;
+  return icon("wifi", off ? "Wi-Fi off" : "No network", { open: w ? "wifi" : "network" }, svg(arcs(0) + SLASH), off ? "off" : "none");
+}
+
+// The battery: an outline with a bar as full as it is, and a bolt beside it
+// while charging.
+function battery(p) {
+  const fill = Math.max(0, Math.min(100, Math.round(p.percent))) * 0.08;
+  const body =
+    `<rect x="1.5" y="4.5" width="11" height="7" rx="1.5"/><path d="M14.5 7v2"/>` +
+    `<rect x="3" y="6" width="${fill.toFixed(2)}" height="4" rx="0.5" fill="currentColor" stroke="none"/>`;
+  const state = p.charging ? "charging" : p.percent <= 20 ? "low" : "normal";
+  const b = icon("battery", p.tip || `Battery ${p.text}`, { open: "battery" }, (p.charging ? svg(PATHS.bolt, 10) : "") + svg(body), state);
+  b.append(el("span", "text", p.text));
   return b;
 }
 
 function renderIcons(box, icons) {
   box.replaceChildren();
-  if (icons.wifi) {
-    const w = icons.wifi;
-    const b = icon("wifi", w.on ? w.name || "Wi-Fi" : "Wi-Fi off");
-    b.classList.toggle("off", !w.on);
-    for (let i = 1; i <= 3; i++) b.append(el("span", i <= w.bars ? "lit" : ""));
+  if (icons.source) {
+    const b = icon("source", icons.source.name, { toggle: "source" }, "", "label");
+    b.textContent = icons.source.label;
     box.append(b);
+  }
+  if (icons.awake) {
+    const on = !!icons.awake.on;
+    box.append(icon("awake", on ? "Keeping awake" : "Keep awake", { toggle: "awake" }, svg(PATHS.awake), on ? "on" : "off"));
+  }
+  if (icons.camera) {
+    const c = el("span", "icon camera");
+    c.setAttribute("title", "Camera in use");
+    c.setAttribute("data-state", "in-use");
+    c.innerHTML = svg(PATHS.camera);
+    box.append(c);
+  }
+  if (icons.mic) {
+    const muted = !!icons.mic.muted;
+    const art = svg(PATHS.mic + (muted ? SLASH : ""));
+    box.append(icon("mic", muted ? "Microphone muted" : "Microphone", { toggle: "mic" }, art, muted ? "muted" : "on"));
   }
   if (icons.volume) {
     const v = icons.volume;
-    box.append(Object.assign(icon("volume", v.muted ? "Sound muted" : "Sound"), { textContent: VOLUME[v.level] }));
-  }
-  if (icons.battery) {
-    const p = icons.battery;
-    const b = icon("battery", p.charging ? `Battery ${p.text}, charging` : `Battery ${p.text}`);
-    const cell = el("span", "cell");
-    const fill = el("span", "fill");
-    fill.style.width = `${p.percent}%`;
-    cell.append(fill);
-    b.classList.toggle("low", p.percent <= 20 && !p.charging);
-    b.append(cell, el("span", "text", p.charging ? `⚡${p.text}` : p.text));
+    const waves = VOLUME[v.level] ?? 0;
+    const art = svg(PATHS.speaker + (waves === 0 ? PATHS.speakerOff : PATHS.waves.slice(0, waves).join("")));
+    const b = icon("volume", v.muted ? "Sound muted" : "Sound", { toggle: "volume" }, art, v.level);
+    let wheeled = 0;
+    b.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      wheeled += e.deltaY;
+      if (Math.abs(wheeled) < STEP) return;
+      // Scrolling up, away from you, turns it up.
+      send({ volume: wheeled < 0 ? 1 : -1 });
+      wheeled = 0;
+    });
     box.append(b);
   }
+  box.append(network(icons));
+  if (icons.battery) box.append(battery(icons.battery));
 }
 
 // Every clock if the title keeps MIN_TITLE, else local time alone. Then the
