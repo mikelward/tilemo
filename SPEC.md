@@ -868,14 +868,23 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   state as JSON on every change, on the attention poll (for titles that
   change without focus moving) and when the icons change. Each page only
   redraws when what it was sent changed.
-  - Not yet: app icons in the chips, and double-clicking the title to
-    maximize.
+  - Each occupied chip shows one app icon per window, tiles in layout
+    order then floats, up to five, then `+n`. Icons come from
+    `hs.image.imageFromAppBundle`, sent as 32 px PNG data URLs, made once
+    per bundle id and sent once per app, not per window. An app with no
+    icon shows as a blank square, so the count still reads.
+  - Double-clicking the title maximizes the focused window, or puts it
+    back (§5.4). The message names its bar's display, and timo acts only
+    if the focused window is there, where the title shows.
   - Clicking the clocks opens the dashboard, with its clock panel.
   - It floats above every app's window but below the menu bar, joins every
     Space, and stays put.
   - Focus follows mouse pauses over it, as over the menu bar (§5.2).
-  - A full-screen window (§5.4) still has the bar over its top 36 px
-    *(to do: hide the bar on that display while one is full screen)*.
+  - The bar hides on a display while a window there is full screen, and
+    comes back after: timo's full screen (§5.4) on that display's
+    workspace, or the focused window in macOS's own full screen on that
+    display. macOS's is only known for the focused window *(unverified
+    how a swipe away from its Space shows to timo)*.
 - **timo's status items** are 16 px line drawings in the text color,
   drawn by `bar.js` itself with no icon font or fetch, so they follow the
   bar's light and dark colors. State shows as color: muted or off in the

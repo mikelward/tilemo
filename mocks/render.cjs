@@ -20,14 +20,37 @@ try {
 const ws = (spec) =>
   Array.from({ length: 9 }, (_, i) => ({ n: i + 1, ...(spec[i + 1] || {}) }));
 
+// Stand-in app icons: a rounded square in a color with a letter, as SVG
+// data URLs, so the mocks need no real app's artwork.
+const appIcon = (color, letter) =>
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${color}"/>` +
+      `<text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">${letter}</text></svg>`,
+  );
+const APP_ICONS = {
+  mail: appIcon("#2f7de1", "M"),
+  term: appIcon("#333333", ">"),
+  web: appIcon("#e8710a", "W"),
+  notes: appIcon("#e5b100", "N"),
+  chat: appIcon("#7b4bd8", "C"),
+  code: appIcon("#1f9d55", "{"),
+};
+
 const STATES = [
   {
     name: "bar-wide",
     width: 1920,
     state: {
       uuid: "A",
-      workspaces: ws({ 1: { current: true, occupied: true }, 2: { occupied: true }, 3: { elsewhere: true, occupied: true }, 5: { occupied: true, urgent: true } }),
+      workspaces: ws({
+        1: { current: true, occupied: true, apps: ["mail", "web"] },
+        2: { occupied: true, apps: ["term", "term"] },
+        3: { elsewhere: true, occupied: true, apps: ["code"] },
+        5: { occupied: true, urgent: true, apps: ["chat"] },
+      }),
       title: "Inbox (3) — Mail",
+      app_icons: APP_ICONS,
       icons: {
         source: { label: "DVO", name: "Dvorak" },
         awake: { on: true },
@@ -45,7 +68,14 @@ const STATES = [
     width: 1280,
     state: {
       uuid: "A",
-      workspaces: ws({ 1: { occupied: true }, 2: { current: true, occupied: true }, 4: { occupied: true }, 6: { occupied: true }, 9: { occupied: true } }),
+      workspaces: ws({
+        1: { occupied: true, apps: ["web"] },
+        2: { current: true, occupied: true, apps: ["notes"] },
+        4: { occupied: true, apps: ["term"] },
+        6: { occupied: true, apps: ["chat"] },
+        9: { occupied: true, apps: ["mail"] },
+      }),
+      app_icons: APP_ICONS,
       title: "A very long document title that won't fit in the middle of the bar — Notes",
       icons: {
         mic: { muted: false },
@@ -53,6 +83,25 @@ const STATES = [
         wifi: { on: true, bars: 2 },
         network: { kind: "wifi" },
         battery: { percent: 52, charging: false, text: "52%", tip: "Battery 52%, 3:12 left" },
+      },
+    },
+  },
+  {
+    // A full workspace: five icons, then how many more, and an app with no
+    // icon as a blank square.
+    name: "bar-apps",
+    width: 1440,
+    state: {
+      uuid: "A",
+      workspaces: ws({
+        1: { current: true, occupied: true, apps: ["term", "web", "code", "term", "unknown"], more: 3 },
+        2: { occupied: true, apps: ["mail"] },
+      }),
+      title: "~/src — Terminal",
+      app_icons: APP_ICONS,
+      icons: {
+        volume: { level: "mid", muted: false },
+        network: { kind: "wired" },
       },
     },
   },

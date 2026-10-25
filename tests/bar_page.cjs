@@ -69,10 +69,13 @@ vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
 const ws = [];
 for (let n = 1; n <= 9; n++) ws.push({ n, current: n === 2, elsewhere: n === 3, occupied: n === 5, urgent: n === 5 });
+ws[4].apps = ["com.a", "com.b", "com.a", "com.c", "com.d"];
+ws[4].more = 2;
 sandbox.timo.update({
   uuid: "B",
   workspaces: ws,
   title: "Chat (1)",
+  app_icons: { "com.a": "data:image/png;base64,QQ==", "com.b": "data:image/png;base64,Qg==", "com.c": false },
   icons: {
     source: { label: "DVO", name: "Dvorak" },
     awake: { on: false },
@@ -86,7 +89,17 @@ sandbox.timo.update({
 });
 
 const chips = ids.workspaces.children;
-assert.strictEqual(chips.map((b) => b.textContent).join(" "), "2 3 5", "only showing or occupied workspaces");
+assert.strictEqual(chips.map((b) => b.children[0].textContent).join(" "), "2 3 5", "only showing or occupied workspaces");
+// A chip's number, then one icon per window, then how many more.
+const parts = chips[2].children;
+assert.deepStrictEqual(
+  parts.map((c) => c.tag + "." + c.className),
+  ["span.n", "img.app", "img.app", "img.app", "span.app none", "span.app none", "span.more"],
+);
+assert.strictEqual(parts[1].src, "data:image/png;base64,QQ==");
+assert.strictEqual(parts[3].src, parts[1].src, "one icon per window, so an app's second window repeats it");
+assert.strictEqual(parts[6].textContent, "+2");
+assert.strictEqual(chips[0].children.length, 1, "an empty chip is its number alone");
 assert.ok(chips[0].classList.contains("current"));
 assert.ok(chips[1].classList.contains("elsewhere"));
 assert.ok(chips[2].classList.contains("urgent"));
@@ -126,6 +139,7 @@ assert.strictEqual(ids.clocks.classList.contains("compact"), false);
 chips[2].listeners.click();
 byName.wifi.listeners.click();
 ids.clocks.listeners.click();
+ids.title.listeners.dblclick();
 const wheel = (deltaY) => ids.workspaces.listeners.wheel({ deltaY, preventDefault() {} });
 wheel(20);
 wheel(40);
@@ -145,6 +159,7 @@ assert.strictEqual(
     { uuid: "B", show: 5 },
     { uuid: "B", open: "wifi" },
     { uuid: "B", dashboard: true },
+    { uuid: "B", maximize: true },
     { uuid: "B", step: 1 },
     { uuid: "B", step: -1 },
     { uuid: "B", toggle: "mic" },

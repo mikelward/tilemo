@@ -23,8 +23,6 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    Hammerspoon and timo, frees the keys in SPEC.md §7.3, and hides the menu
    bar for timo's bar (`defaults write NSGlobalDomain _HIHideMenuBar -bool
    true`).
-9. The bar (SPEC.md §8): hide it on a display while a window there is full
-   screen; app icons in the chips; double-click the title to maximize.
 
 ## Decisions needing review
 
@@ -36,6 +34,15 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   cameras and the input source have watchers. A battery or network change
   takes up to 5 s to show. Reversible: `hs.battery.watcher` and
   `hs.network.reachability` in `bar_hs.lua`.
+- **macOS's own full screen hides the bar only while that window is
+  focused,** on its display. timo hears of focus changes but not of Space
+  swipes, so a full-screen window swiped away from but still focused may
+  keep the bar hidden *(unverified)*. The alternative is tracking Spaces
+  through `hs.spaces`. Reversible: `bar.hidden` in `bar.lua`.
+- **A chip's icons are its tiles in layout order, then its floats by
+  window id;** an app with no icon is a blank square rather than left out,
+  so the count matches the windows. Reversible: `apps_of` in `bar.lua` and
+  `renderWorkspaces` in `bar.js`.
 - **A click on the bar may make Hammerspoon the front app** *(unverified)*,
   emptying the title until focus moves. Reversible: hand focus back after
   a click, as the dashboard does on closing.
