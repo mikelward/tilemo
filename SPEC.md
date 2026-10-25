@@ -1,0 +1,1190 @@
+# timo: tide and tico on macOS
+
+**Status: exploration.** This explores what macOS allows. It doesn't
+yet decide what timo is. It takes everything tide does on Linux
+([mikelward/tide](https://github.com/mikelward/tide)) and tico does on
+chromeOS ([mikelward/tico](https://github.com/mikelward/tico)), and says, for
+each one, how a Mac can do it, how well, and at what cost.
+
+The setup this would replace already exists: `setup-macos` in
+[mikelward/scripts](https://github.com/mikelward/scripts) installs Amethyst
+and Karabiner and rebinds the Spaces shortcuts. Its `docs/MACOS.md` compares
+Amethyst, yabai and AeroSpace, and this spec builds on that comparison rather
+than repeating it.
+
+Claims about Apple or third-party behavior carry a source. Anything not
+checked against a source or a Mac is marked *(unverified)*.
+
+## 1. Goals
+
+- **Everything tide and tico do,** where macOS allows it:
+  - window management: layouts, workspaces and the dim;
+  - keys: one key map across the three desktops;
+  - a launcher and dashboard: tab search, clocks, a calendar;
+  - attention, focus, idle, theme, and the setup checklist.
+- **The same key map and layouts** as tide and tico, so a hand moving
+  between Linux, chromeOS and a Mac doesn't notice. Where those two
+  differ, timo follows tide, since macOS can bind all of its keys (§7).
+- **No SIP changes.** A managed work Mac can't lower its security, and a
+  personal one shouldn't have to.
+- **Say what can't be done,** as tico §2 does for chromeOS, so nobody spends
+  a week finding out (§13).
+
+## 2. What macOS allows
+
+### 2.1 Moving other apps' windows: the Accessibility API
+
+- **What it does:** `AXUIElement` lets an app list another app's windows, and
+  move, resize, raise, focus, minimize and unminimize them. Every macOS
+  window manager uses it: Amethyst, yabai, AeroSpace, Rectangle and
+  Hammerspoon.
+- **Permission:** the user grants **Accessibility** to the app once, in
+  System Settings › Privacy & Security. An update or a re-signed build can
+  reset the grant (scripts `docs/MACOS.md`, Troubleshooting).
+- **Window IDs:** AeroSpace says the one private call it needs is
+  `_AXUIElementGetWindow`, which maps an accessibility window to its window
+  server ID. Everything else it does is public API
+  ([AeroSpace README](https://github.com/nikitabobko/AeroSpace)).
+- **Limits:**
+  - Apps can refuse or round a size: terminals snap to their character grid,
+    and apps with a minimum size leave gaps or overlap.
+  - Each call is a synchronous round trip, so one hung app stalls a retile
+    (scripts `docs/MACOS.md`).
+  - Title bars and rounded corners stay. No public API removes another
+    app's frame.
+- **Not allowed in the Mac App Store:** the sandbox can't control other
+  apps, so timo ships outside the store (§12).
+
+### 2.2 Global keys
+
+- **Without any permission:** Carbon's `RegisterEventHotKey` still works, and
+  asks for no permission, on current macOS, including macOS 26
+  ([go-macos/hotkey](https://pkg.go.dev/github.com/go-macos/hotkey)). It
+  binds a fixed key and modifier set, and fails silently if another app
+  already holds the combination.
+- **With Accessibility:** a `CGEventTap` sees every key before apps do. That
+  allows remapping, held-modifier tricks, and taking a key from the system.
+- **What the system owns:** Spotlight, Mission Control and the Spaces keys
+  live in `com.apple.symbolichotkeys`, which can be rewritten. `setup-macos`
+  already does that (scripts `docs/MACOS.md`, "How desktop switching
+  works").
+- **So unlike chromeOS,** where an extension's keys work only while Chrome
+  has focus (tico §2.2), every tide key can work everywhere on a Mac.
+
+### 2.3 Spaces: no public API
+
+- **Native Spaces:** nothing public can switch to "desktop 3" or move a
+  window there. The ways in are:
+  - **symbolichotkeys:** rebind the system's own "Switch to Desktop N", which
+    WindowServer enforces. It's reliable once live, but each Space has to
+    exist first (scripts `docs/MACOS.md`).
+  - **Private window-server calls:** these move a window to a Space.
+    Amethyst's `throw-space` uses them, and so does yabai 7.1.25 (May 2026)
+    with SIP enabled, through
+    `SLSBridgedMoveWindowsToManagedSpaceOperation`, checked on macOS 26.4.
+    They break when macOS changes (scripts `docs/MACOS.md`, yabai#2788).
+  - The Space switch always animates. Reduce Motion turns the slide into a
+    crossfade.
+- **Emulated workspaces (AeroSpace's way):** keep everything on one Space,
+  and park the windows of hidden workspaces outside the visible area. Its
+  maintainer describes the windows as placed "outside of visible area of the
+  screen", and a user reports them tucked into the lower-right corner
+  ([HN](https://news.ycombinator.com/threads?id=irth)).
+  - It switches instantly, and the workspace count is just config.
+  - But Cmd+Tab and Mission Control show every workspace's windows, and
+    native full-screen apps misbehave (scripts `docs/MACOS.md`).
+- **Minimizing (tico's way):** hide a workspace by minimizing its windows.
+  It's public API, but every switch plays the Genie animation, and minimized
+  windows pile up in the Dock *(unverified at scale)*.
+
+### 2.4 Drawing over the desktop
+
+- **Own windows only:** an app can draw its own windows at any level: a
+  borderless panel, a full-width bar, a dashboard, an overlay. It can't draw
+  inside another app's window, and it can't move the menu bar.
+- **The dim:** HazeOver lays "a translucent dark layer behind" the window in
+  use, rather than shading each other window
+  ([HazeOver help](https://hazeover.com/help.html)). It needs
+  Accessibility to follow focus reliably. That one-layer approach is what
+  timo would copy. How HazeOver keeps the layer ordered just below another
+  app's window is *(unverified)*.
+- **A bar:** SketchyBar is a free, open-source menu bar replacement that also
+  shows the system's own menu bar items
+  ([SketchyBar](https://github.com/felixkratz/sketchybar)). It sits over a
+  menu bar set to hide automatically *(unverified detail)*.
+- **Borders:** JankyBorders (`brew install borders`) outlines the focused
+  window, with SIP fully on (scripts `docs/MACOS.md`).
+
+### 2.5 Reading what other apps are doing
+
+- **Window list:** `CGWindowListCopyWindowInfo` lists every window and its
+  owner. Its window names need the **Screen Recording** permission
+  *(unverified on macOS 26)*. Accessibility's `AXTitle` gives the same
+  titles with the Accessibility grant alone, which is how yabai and
+  Amethyst read them *(unverified on macOS 26)*. So timo shouldn't need
+  Screen Recording at all.
+- **Unread counts:** an app can't read other apps' notifications. It can read
+  the Dock badges, which carry the same counts:
+  - Through Accessibility, as the `AXStatusLabel` of each Dock item. That's
+    a community technique with no Apple documentation, and some apps don't
+    report through it ([MailMate list](https://lists.freron.com/mailmate/2018-October/010356.html)).
+  - Through `lsappinfo`, which can disagree with the visible badge
+    ([Cursor forum](https://forum.cursor.com/t/macos-dock-badge-stuck-at-1-after-update-os-badge-null-until-killall-dock/165949)).
+- **Browser tabs:** Chrome and Safari list their tabs, with titles and
+  addresses, to AppleScript or JavaScript for Automation. The user grants
+  **Automation** per browser the first time *(unverified on macOS 26)*. That
+  gives tico's tab search without an extension.
+
+### 2.6 What macOS does natively
+
+- **Tiling, since macOS 15 Sequoia:**
+  - Fn-Control-F fills the screen and Fn-Control-C centers a window.
+  - Fn-Control with an arrow takes half the screen; adding Shift arranges a
+    second window alongside.
+  - Fn-Control-R restores the window's size.
+  - ([Apple](https://support.apple.com/guide/mac-help/mchl9674d0b0/mac),
+    [9to5Mac](https://9to5mac.com/2024/07/19/use-automatic-window-tiling-macos-sequoia/),
+    [SlashGear](https://www.slashgear.com/1673225/macos-sequoia-window-tiling-shortcuts))
+  - It's manual snapping, not dwm layouts, and it has no API.
+- **Spotlight in macOS 26 Tahoe:** runs actions, including ones apps provide
+  through App Intents. It also has Quick Keys (short typed abbreviations)
+  and clipboard history
+  ([MacMost](https://macmost.com/how-to-use-spotlight-actions-in-macos-tahoe.html),
+  [iThinkDiff](https://www.ithinkdiff.com/spotlight-macos-tahoe-quick-keys-clipboard/)).
+  timo's commands could appear there as App Intents, beside its own
+  launcher.
+- **Pointer acceleration:** Sonoma added an on/off switch, under System
+  Settings › Mouse › Advanced. `defaults write -g com.apple.mouse.scaling`
+  takes values beyond the slider's range, and a log-out applies them
+  ([iBoysoft](https://iboysoft.com/wiki/macos-mouse-acceleration.html),
+  [NoMouseAccel](https://github.com/apsun/NoMouseAccel)).
+- **The rest:** Notification Center, Focus modes, screenshots, lock, US
+  Dvorak, and dark mode on a sun schedule are all native (§10).
+
+## 3. Three ways to build it
+
+| | A. Configure existing tools | B. Hammerspoon config | C. A native timo app |
+|---|---|---|---|
+| What | Amethyst, Karabiner, Spotlight or Raycast, SketchyBar, JankyBorders or HazeOver, as `setup-macos` does now | One Lua config on [Hammerspoon](https://www.hammerspoon.org), which wraps windows (`hs.window`), keys (`hs.hotkey`), drawing (`hs.canvas`) and a picker (`hs.chooser`) | One Swift app: window manager, keys, launcher, bar and dim |
+| Layouts | Amethyst's built-ins match Krohnkite's. JavaScript layouts are possible | **tide's own Lua layout**, which is pure Lua by design (tide AGENTS: "keep geometry free of the `hl` API") | Port tide's or tico's geometry |
+| Workspaces | Native Spaces, via symbolichotkeys | Minimizing (§6), or native Spaces through community modules, or emulated | Any of §2.3 |
+| Launcher and dashboard | Spotlight, or Raycast (free, with a paid tier) | `hs.chooser` plus canvases. Basic, but enough for tab search | Full control, like tico's dashboard |
+| Dim | HazeOver ($5) or borders | A canvas layer *(ordering unverified)* | Own layer, as HazeOver does |
+| Focus follows mouse | Off: Amethyst's breaks popovers (Amethyst#337) | timo's own (§5.2) | Same |
+| Cost to build | Done | Days to a first version | Weeks |
+| Breakage risk | Amethyst's throw-to-space on private API | Hammerspoon's community `spaces` modules | Ours to fix |
+
+**Recommendation: B first, then decide on C.** Hammerspoon runs tide's
+layout code unchanged, gets every tide key working everywhere, and shows
+within days which parts macOS fights. Whatever turns out to need native
+code becomes the case for C. Which Lua version Hammerspoon embeds
+is *(unverified)*: tide's layout targets 5.4 and 5.5.
+
+## 4. Feature map
+
+Status: **yes** = timo or macOS meets the tide or tico behavior;
+**partial** = close, with the gap named; **no** = not reachable.
+
+| tide / tico | On macOS | Status |
+|---|---|---|
+| Tile, three-column, two columns + stack, monocle (tide §6.1) | tide's Lua layout over Accessibility moves (§5) | **yes**, with apps' own size limits |
+| Lone window 80% on ultrawide, 60% from 32:9 | same layout, per display (§5) | **yes** |
+| New windows join the end of the stack, with a setting for elsewhere (tide §6.1) | timo state (§5) | **yes** |
+| Layout, `mfact`, master count per workspace | timo state | **yes** |
+| 9 workspaces, Super+1…9, Shift to send | minimized windows, as tico does (§6) | **partial**: each switch animates |
+| One workspace per monitor from a shared pool (tide §6.5) | timo tracks which display shows each workspace, as tico does (§6) | **yes** |
+| Dim inactive, 0.07, not a lone window or video (tide §6.2) | one dark layer behind the focused window (§5.6) | **partial**: dims the desktop too, as HazeOver does *(unverified)* |
+| No borders, no gaps | gaps 0; title bars stay | **partial** |
+| Maximize, fullscreen, restore (tide §6.3) | timo's own, on the same workspace (§5.4) | **yes**; native full screen is its own Space (§13) |
+| Picture-in-picture pinned bottom-right on every workspace (tide §6.4) | left alone and never minimized (§5.5) | **partial**: its place is the app's |
+| Dialogs float, centered | rules, subrole, fixed size and modality (§5.1) | **yes** *(unverified per app)* |
+| Super+drag moves, Super+right-drag resizes (conf `hyprland.lua`) | an event tap on mouse buttons with Super held (§5.3) | **yes**, with Accessibility |
+| Drag a tiled window's edge to set the split (tico §5.3) | Accessibility's resize notification (§5.3) | **yes** |
+| Drop a dragged tile on another to swap them (tico §5.3) | Accessibility's move notification (§5.3) | **yes** |
+| Super+middle-click maximizes the window under the pointer (tide §6.6) | the same event tap (§5.3) | **yes** |
+| Resize mode for floats, Super+Shift+R (tide §6.6) | a timo key mode (§5.3) | **yes** |
+| Focus follows mouse (KDE) | timo's own (§5.2) | **yes**, but focusing raises (§13) |
+| Nothing steals focus (tide §14) | macOS activation rules, plus timo's focus guard (§14) | **partial**: apps can still activate themselves |
+| Super+Tab to the window wanting attention (tide §14.3, tico §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
+| Full-width bar with workspaces and urgency (tide §7) | own bar over an auto-hidden menu bar, or SketchyBar | **partial**: the menu bar stays the system's |
+| SYD / LAX / NYC / LON clocks (tico `src/clocks.js`) | bar clocks, and tico's clock panel in the dashboard | **yes** |
+| Launcher on a Super tap (tide §8) | timo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
+| Tab search (tico §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
+| App keys (tide `hyprland.lua`, tico §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
+| Second and third Chrome profiles (`browser2`, `browser3`) | separate `--user-data-dir`s, as tide runs them (§7) | **yes** |
+| Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
+| Idle: dim, lock, off, suspend (tide §10) | Energy and Lock Screen settings; `caffeinate` or an IOPM assertion to keep awake | **partial**: system timings |
+| Lock = login, short hostname | macOS lock and login | **partial**: no hostname |
+| Screenshots, to the clipboard and a folder (tide §13) | `screencapture` on tide's Print keys (§10) | **yes** |
+| Meet: share a 16:9 slice of an ultrawide (tide §12) | ScreenCaptureKit can share a region *(unverified in Meet)* | **partial** |
+| Light and dark by time (tide §15) | Appearance › Auto follows the sun; a fixed 07:00–19:00 needs a scheduled job | **yes**, with a job |
+| US Dvorak | native input source | **yes** |
+| Mouse: fastest, acceleration on, left-handed, wheel 3× (conf `hyprland.lua`) | Mouse settings and `com.apple.mouse.scaling` (§10) | **partial**: wheel scaling *(unverified)* |
+| Touchpad: natural scroll, tap to click; mouse not natural | Trackpad settings (§10) | **partial**: one natural-scroll switch for both *(unverified)* |
+| Key repeat: 600 ms, 25 a second | `InitialKeyRepeat` and `KeyRepeat` (§10) | **partial**: macOS's steps |
+| Caps Lock as Compose | no Compose; Karabiner can map key sequences | **partial** |
+| Setup checklist (tico §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
+| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | timo reads the same files (§15) | **yes** |
+| `tide doctor` (tide §5.4) | `timo doctor` (§15) | **yes** |
+| Workspace swipe, three fingers (conf `hyprland.lua`) | no public gesture API (§13) | **no** |
+| kitty, Ubuntu Mono, shell config | native, through `setup` and `conf` | **yes** |
+
+## 5. Windows and layouts
+
+- **Geometry:** tide's layout is pure Lua, and tico's
+  `src/geometry.js` is a tested port of it. The four layouts, the
+  single-window rule and the share bounds carry over as they are:
+  - tile, three-column, two columns plus a stack, and monocle (tide §6.1);
+  - each workspace's own layout, `mfact` and master count;
+  - the default by the display's shape: three-column from an aspect of
+    2.1, tile below it;
+  - a lone tiled window centered at 80% wide from 2.1, 60% from 3.2, and
+    full width below 2.1;
+  - floats and full-screen windows don't count toward "one window".
+- **New windows join the end of the stack,** and the master stays put. A
+  setting puts them at the top of the stack, after the focused window, or
+  in as master (tide §6.1). A window moved in from another workspace, or
+  tiled again after floating, counts as new. Amethyst's
+  `new-windows-to-main: false` in conf agrees.
+- **Applying a layout:** set position, then size, through Accessibility, and
+  read the frame back. tico reads its windows' bounds back the same way
+  (tico §5.3), and stores the difference per app, so the next layout
+  allows for it. An app that refuses a size gets its own frame, and the
+  rest tile around what it took *(design to settle)*.
+- **When to retile:** when a window opens, closes, minimizes or comes back;
+  when an app launches, quits or hides; when a display changes; and after
+  any layout key. timo waits 50 ms after the last of a burst, as tico does,
+  since one window opening sends several notifications.
+- **The mouse** can move and resize windows too (§5.3).
+
+### 5.1 Floating windows and dialogs
+
+Dialogs must float, and stay in front of the window that opened them.
+Amethyst gets this wrong: it tiles some dialogs, such as autocomplete lists
+(Amethyst#883), and hides others behind their parent (§5.2). timo decides
+each new window once, in this order, and the first rule that matches wins:
+
+1. **Not a window: ignore it.** Sheets (`AXSheet`) are attached to their
+   window. Popovers, menus, tooltips and the menu bar aren't `AXWindow`s.
+   timo never moves, focuses or counts any of them.
+2. **A user rule** by app bundle ID and, optionally, title, as tide's float
+   rules (tide §6.4). Rules come first so a misbehaving app can always be
+   fixed.
+3. **A window whose size can't be changed floats.** Accessibility says
+   whether `AXSize` is settable, which catches fixed-size dialogs whose apps
+   report them as standard windows.
+4. **A modal window floats:** one whose app reports it `AXModal`
+   *(unverified)*.
+5. **A dialog or panel floats:** subrole `AXDialog`, `AXSystemDialog` or
+   `AXFloatingWindow` *(unverified per app)*.
+6. **Everything else tiles,** which is mostly `AXStandardWindow`. That's
+   last on purpose: some dialogs report themselves as standard windows,
+   and the checks above catch them first.
+
+Placing and keeping floats:
+
+- **A new float centers on its parent,** the app's focused window, or on its
+  display if the app has none (tide §6.4). One that opens already placed,
+  like a palette remembering its spot, keeps its place.
+- **Floats stay above the tiles.** macOS has no public way to set another
+  app's window level. Tiles never overlap, though, so the only thing that
+  can cover a float is a tile being raised. When timo raises a tile, it
+  raises that workspace's visible floats after it *(raising without focus
+  unverified)*.
+- **A float's size** is what it asks for, capped at 80% of its display
+  (tide §6.4). timo remembers each app's float size and position until you
+  log out.
+- **Floats move with their workspace,** as tico's do (tico §6.1), and are
+  minimized and restored with it. A dialog moves with its parent's
+  workspace.
+- **A dialog from the app you're in takes focus.** One from any other app
+  opens unfocused and is marked for attention (§14).
+- **Super+Shift+F toggles** a window between tiled and floating, as on tide
+  and tico.
+
+Chrome's windows, from tico §5.4 and tide §6.4:
+
+- **Popups float:** sign-in popups, extension popups and Chrome's own
+  "Save as". Each reports a dialog or floating subrole, or has a fixed size
+  *(unverified per kind)*.
+- **App windows tile:** installed web apps and Secure Shell's terminals
+  report as standard windows.
+- **Chrome's own notification popups** appear only when Chrome isn't
+  allowed to use Notification Center. They'd float, like any untitled small
+  window. The fix is to allow Chrome's notifications, which the checklist
+  asks for (§10).
+- **Chrome Remote Desktop** and tico's other URL rules can't be read from a
+  window. A title rule stands in for each.
+
+**Dialog checklist on a real Mac.** Each must open floating and centered on
+its parent, and stay in front:
+
+- TextEdit's Open and Save sheets;
+- Chrome's Save As;
+- an About window;
+- System Settings opened from an app;
+- an Electron app's dialog;
+- a JetBrains IDE's dialog;
+- Finder's Get Info window.
+
+### 5.2 Focus follows mouse
+
+**What it should feel like** is tide's (tide §14.2), which is KDE's focus
+follows mouse:
+
+- Focus moves to a window when the pointer crosses into it, and nothing
+  else moves it.
+- Menus, popovers, dropdowns and dialogs stay open and in front while the
+  pointer moves over, onto or off them.
+- The pointer never jumps.
+
+Amethyst is what `setup-macos` uses now, and its focus follows mouse had to
+be turned off. Its bugs are listed below, so timo doesn't repeat them. It
+isn't a model for anything else.
+
+#### How timo decides
+
+Each step either hands on to the next, or stops with focus left where it
+is.
+
+1. **Watch pointer moves only.** An event tap, under the Accessibility
+   permission (§2.2), sees mouse-moved events.
+   - Drags arrive as separate events, so a drag never moves focus.
+   - timo never moves the pointer, so it never sees a move of its own
+     making.
+2. **Track the window under the pointer, and act only when it changes.**
+   timo remembers which window the pointer was last over.
+   - Moving within that window does nothing, even if focus went elsewhere
+     by a key. Hyprland's `mouse_refocus false` does the same, and tide
+     uses it.
+   - When a window opens, closes or moves under a still pointer (a retile,
+     a workspace switch), timo updates its record without focusing
+     anything. A one-pixel nudge afterward isn't a crossing.
+3. **Ask the window server what's on top at that point,** the moment the
+   pointer leaves the window it was over. There's no wait: focus moves on
+   entering, as on tide.
+   - So crossing another window on the way to the menu bar focuses it, and
+     the menu bar shows that app's menus. Holding Super on the way keeps
+     focus where it was (below). The window list
+   (`CGWindowListCopyWindowInfo`) comes in front-to-back order, with each
+   window's bounds and level. That's public API, and needs no Screen
+   Recording permission for those fields *(unverified on macOS 26)*.
+   - **If the topmost thing isn't a window timo manages, tiled or
+     floating, stop.** That includes a menu, popover, dropdown,
+     autocomplete list or tooltip (these sit above the normal level
+     *(unverified for every kind)*), the menu bar, the Dock,
+     notifications, Spotlight, or timo's own bar.
+   - This is the rule Amethyst misses. It looks only among the windows it
+     tiles, so the tile under a popover gets focus and the popover closes
+     (Amethyst#337, #1566, #1629, #1872).
+   - timo checks each move against the part of the last window that no
+     other known window covers: its frame, less the frames of the floats
+     above it. It asks the window server only when the pointer leaves that
+     part, so moving from a tile onto a float over it counts as a crossing.
+     That keeps the window list call off the busy path.
+4. **Prefer the window's own dialog.** If that window has a sheet or
+   drawer, or its app has a float open over it, focus that instead. yabai
+   does the same, because macOS won't let the main window take focus from
+   its sheet (yabai `src/mouse_handler.c`).
+5. **Focus it, then put its floats back on top.**
+   - On macOS, focusing a window raises it (§13). Tiles don't overlap, so
+     that's harmless, except over a float.
+   - So right after raising the window, timo raises its app's dialogs and
+     then the workspace's other floats, in their previous order. A dialog
+     can never end up behind the window that opened it, which Amethyst
+     does (Amethyst#1243, #1026, #473).
+6. **One focus in flight at a time.** Until macOS confirms the focus
+   change, new moves update the target but don't start another. yabai
+   holds back in the same way.
+
+#### When it stays still
+
+Focus follows mouse pauses, and focus stays where it is:
+
+- **While a mouse button is held,** for a drag, a selection or a resize
+  (§5.3).
+- **While a menu is open,** from Accessibility's `AXMenuOpened` until
+  `AXMenuClosed`, in any app *(unverified across apps)*.
+- **While Super is held,** so Super+drag (§5.3) and reaching for the menu
+  bar are free. yabai and AutoRaise also pause while a modifier is held.
+- **While a system screen is up:** Mission Control, App Exposé, Launchpad,
+  Spotlight, Notification Center. It also pauses during a Space-switch
+  swipe and for about a second after it, as yabai does (1250 ms).
+- **While the pointer is in the menu bar's strip,** including an
+  auto-hidden menu bar's reveal edge, or over the Dock or timo's bar
+  (Amethyst#1221).
+- **While timo's launcher or dashboard is open.** It keeps the keyboard
+  until it closes (tide §14.2).
+- **While an app that must keep focus is in front:** the screenshot picker
+  (`com.apple.screencaptureui`) and password prompts
+  (`com.apple.SecurityAgent`), from AutoRaise's own list. More can be added
+  as a setting, by bundle ID.
+
+#### Around the edges
+
+- **Closing a window** focuses the window under the pointer, or else the
+  last one used on that workspace. Something always has focus. Amethyst can
+  leave nothing focused (Amethyst#1560). This is tide's
+  `focus_on_close cursor`.
+- **No warping, ever.** timo has no "mouse follows focus". `Super+J`,
+  `Super+Tab` and a new window move focus, not the pointer, as on tide
+  (tide §14.2). Amethyst's warp sends a fake pointer move that its own
+  focus follows mouse then reacts to (Amethyst#995, #1006).
+- **More than one display:** every position is in macOS's single global
+  coordinate space, never converted per screen. Amethyst's per-screen
+  conversion breaks on rotated and offset displays (Amethyst#1150,
+  #1120) *(cause inferred from its source)*. Moving onto another display
+  follows the same rules. An empty desktop changes nothing.
+- **A hung or slow app can't freeze it.** Each Accessibility call gets a
+  short timeout (`AXUIElementSetMessagingTimeout`), and an app that misses
+  it is skipped. Amethyst's focus follows mouse hangs Java apps
+  (Amethyst#342).
+- **A key turns it off and on,** for the rare app that misbehaves. It's a
+  safety valve, not the fix. Amethyst's only answer to #337 was a toggle
+  key *(key to settle in §7)*.
+- **In monocle,** only the front window is visible, so there's nothing else
+  to cross into, and focus follows the keys.
+- **Focusing without raising,** as KDE does, needs a private call, which
+  yabai's `autofocus` uses with SIP on. It's listed under §13.
+
+#### Amethyst's bugs, and the rule above that prevents each
+
+| Amethyst bug | timo's rule |
+|---|---|
+| Popovers, menus, extension popups and dropdowns close as the pointer moves (#337, #1566, #1629, #1872) | Hit-test the topmost window, and stop on anything that isn't a managed window (step 3) |
+| A main window comes up over its own dialog or float, hiding it (#1243, #1026, #473) | Prefer the dialog (step 4), and re-raise floats after any raise (step 5) |
+| Small modal windows can't keep focus (#889) | Prefer the dialog (step 4) |
+| Launchpad, Spotlight and the menu bar close or lose focus (#1221, #1243) | Pause for system screens and the menu bar strip |
+| Focus jumps with mouse follows focus on (#995, #1006) | No warping, ever |
+| Nothing focused after a close (#1560) | Focus the window under the pointer, or the last used |
+| Wrong targets on rotated or second displays (#1150, #1120) | One global coordinate space |
+| Java apps hang (#342) | A timeout on every Accessibility call |
+| Wide layout focuses the wrong window (#1595, #1705) | Hit-test real bounds, not layout slots *(cause unknown)* |
+
+#### Checklist on a real Mac
+
+Each of these must pass before focus follows mouse is on by default:
+
+- A Chrome extension popup stays open while the pointer moves across it
+  and over the window under it.
+- Finder's right-click menu, Mail's address autocomplete, and a Calendar
+  dropdown stay open while the pointer crosses another window.
+- With a TextEdit Save sheet open, pointing at another app's window
+  focuses that window, and the sheet stays open. Pointing back at
+  TextEdit's window focuses the sheet, not the document under it.
+- A Settings window (Notes, say) floats, and stays in front while the
+  pointer moves over the tile behind it and back.
+- Spotlight, Launchpad and the auto-hidden menu bar stay open while the
+  pointer moves.
+- Cmd-Shift-4 keeps its region picker while the pointer crosses windows.
+- Typing into timo's launcher works with the pointer resting on a window,
+  and again after moving it across two (tide §14.2).
+- Moving onto a window focuses it at once, with no wait.
+- After `Super+J`, a small move within the old window doesn't take focus
+  back.
+- A window tiling in under a still pointer doesn't get focus, even after a
+  one-pixel nudge.
+- Closing a window focuses the one under the pointer.
+- A window-edge drag and a Super+drag across other windows change no focus.
+- A Space swipe and Mission Control change no focus.
+- With two displays, one rotated, focus lands on the window under the
+  pointer on both.
+- A JetBrains IDE doesn't hang.
+
+### 5.3 Moving and resizing with the mouse
+
+These are tide's mouse bindings (conf `hyprland.lua`) and tico's drag
+handling (tico §5.3):
+
+- **Dragging a window's own edge or title bar works as on any Mac.** timo
+  sees the result through Accessibility's `kAXMovedNotification` and
+  `kAXResizedNotification`, and treats it as a request:
+  - **Resizing a tile** sets the workspace's split (`mfact`), and its
+    neighbors follow.
+  - **Dropping a moved tile** puts it in the tile nearest its center,
+    swapping with that tile's window. If the center is on another display,
+    the window first joins the workspace showing there.
+  - **A moved or resized float** keeps its new frame.
+- **Super+drag moves any window, and Super+right-drag resizes it,** from
+  anywhere inside it, as on tide.
+  - macOS has no built-in way to do this for every app, so timo watches
+    mouse buttons with an event tap while Super is held (§2.2), which
+    Accessibility covers.
+  - A plain click passes straight through to the app. Only a press with
+    Super held is taken.
+  - Under the rotation, Super is Option (§7.1), and Option-drag means
+    something in many Mac apps: Finder copies, and text editors select a
+    column. With Karabiner's mapping (§7.1), Super+drag arrives with
+    Ctrl+Option+Command held instead, so those stay the apps'. Without
+    Karabiner, timo takes them.
+  - A resize moves the edge or corner nearest the pointer.
+  - When the drag ends, it's handled like a drag of the window's own edge
+    (above). A drag on a tile sets the split or swaps tiles, and one on a
+    float moves it.
+  - **While dragging,** timo shows an outline where the window will go, and
+    moves the real window when the button is released. Moving another
+    app's window on every mouse event lags, since each move is a round
+    trip to that app (§2.1). Hammerspoon's SkyRocket spoon draws the
+    outline in the same way *(unverified)*.
+- **Super+middle-click** maximizes the window under the pointer, or puts it
+  back in its tile, as on tide (tide §6.6).
+- **Super+Shift+R** enters resize mode for a float. In it, H J K L or the
+  arrows resize the window, and Esc or Return leaves. This is tide's resize
+  mode (tide §6.6). It needs only keys.
+- **Focus follows the mouse during none of this** (§5.2). While a button is
+  held, focus doesn't change.
+
+### 5.4 One window big: monocle, maximize, full screen
+
+These work as on tide (tide §6.3), on the same workspace:
+
+- **Monocle** is a layout. Every window fills the tiling area, and
+  `Super+J` and `K` flip between them. New windows open full size. The bar
+  shows `[n]`, the hidden count.
+- **Maximize** (`Super+Up`) covers the tiling area with just this window.
+  It lasts until you press it again, close the window, or focus another
+  window on the workspace.
+- **Full screen** (`Super+Shift+Up`) covers the whole display, bar and all.
+  It's timo's own: a move to the display's whole frame, which works
+  over an auto-hidden menu bar *(unverified)*, not macOS's native full
+  screen, which moves the window to a Space of its own (§13).
+  An app's own native full screen (the green button) is left alone, and
+  that window isn't on any timo workspace while it lasts.
+- **`Super+Down`** puts it back in its tile from either.
+- **macOS brings all of an app's windows forward** when the app is
+  activated *(unverified for Accessibility focus)*. In monocle that could
+  shuffle the stack, so timo puts the order back after each activation.
+
+### 5.5 Picture-in-picture and always-on-top windows
+
+- **Picture-in-picture** and a call's pop-out stay on every workspace.
+  timo never tiles, minimizes or dims them (tide §6.4, tico §5.4).
+- They're spotted by subrole and app: Safari's and Chrome's
+  picture-in-picture windows, and Meet's pop-out by title
+  *(unverified per kind)*.
+- **Their place is the app's.** Pinning them to the bottom-right corner, as
+  tide does, would mean moving them again after each move of the app's own.
+
+### 5.6 The dim
+
+- **Strength 0.07,** as on tide (tide §6.2), set on the Appearance page.
+- **Never dimmed:** a workspace with one visible window, a video playing
+  full screen, picture-in-picture, and a screen-share preview.
+- **How:** one dark layer just below the focused window, as HazeOver does
+  (§2.4). That also dims the desktop, and the other display's windows.
+  - A layer per other display isn't possible: timo can't place a layer
+    between two other apps' windows.
+  - The alternative, an outline round the focused window instead, is
+    JankyBorders' (§13).
+
+## 6. Workspaces
+
+**Decided: minimize, as tico does.** It uses only public API, so macOS
+updates shouldn't break it. Mission Control shows only the workspace on
+screen. Cmd+Tab still lists every app, but choosing one whose windows are
+all hidden brings their workspace along (below), so no window turns up on
+the wrong workspace. Two settings soften the costs, and the setup
+checklist (§10) asks for both:
+
+- **System Settings › Desktop & Dock › "Minimize windows into application
+  icon"** keeps minimized windows out of the Dock, so hidden workspaces
+  don't crowd it.
+- **"Minimize windows using: Scale effect"** is quicker than the default
+  Genie animation.
+
+What it still costs is an animation on every switch, and switches slower
+than the other two choices.
+
+### 6.1 Model
+
+This is tico's model (tico §6.1), which already solves minimizing on
+chromeOS:
+
+- **Nine workspaces, shared across displays.** Each display shows one at a
+  time. Decided, as tide decided (tide §6.5): per display, not one desktop
+  spanning every display.
+- **Each workspace keeps** its windows in tile order, its layout, `mfact`
+  and master count, and its focused window.
+- **Each window belongs to one workspace,** and carries one flag: whether
+  you minimized it yourself.
+- **A new window joins the workspace showing** on the display it opens on.
+  A window from a launch you made, which opens after you've moved to
+  another workspace, goes to the workspace you launched it from instead,
+  marked for attention (tide §14.2).
+
+**One rule decides what's on screen:** a window shows if its workspace is
+showing on some display and you haven't minimized it. Every operation
+changes only that state. Then one reconcile step makes the screen match:
+it restores the windows that should show first, in tile order, and only
+then minimizes the rest, so the screen is never empty in between.
+
+| Operation | What changes | Focus |
+|---|---|---|
+| **Show N** (`Super+N`) on a display | That display shows N. If N was on another display, the two swap, as on tide. | N's last focused window |
+| **Send** a window to N (`Super+Shift+N`) | It moves to the end of N's stack. | stays put, as on tide |
+| **Next or previous** (`Super+Left`, `Right`, `PgUp`, `PgDn`) | Show N±1, stopping at 1 and 9. | as Show N |
+| **Carry** a window to the next or previous (`Super+Shift+Left`, `Right`) | Send, then show that workspace. | that window |
+| **Activate**: an app key, `Super+Tab`, Cmd+Tab, a Dock click, a notification click | If the window's workspace isn't showing, show it on the focused display. | that window |
+| **Moved to another display** by you | It joins the stack of the workspace showing there. | that window |
+| **Minimize** by you (Cmd+M, the yellow button) | Set the flag. | macOS decides |
+| **Restore** by you, from the Dock or Cmd+Tab | Clear the flag. If its workspace is hidden, this is Activate. | that window |
+| **Hide** an app (Cmd+H) | Nothing: hidden apps are macOS's, and come back where they were. | macOS decides |
+
+- **The current Mac setup follows a thrown window**
+  (`follow-space-thrown-windows: true` in conf's `amethyst.yml`). timo's
+  Send doesn't, to match tide. The Carry keys follow.
+- **A window that refuses** to minimize or restore is logged and skipped,
+  so it can't stop a workspace switch. timo then stops managing it, as
+  tico does (tico §6.4).
+
+### 6.2 Displays
+
+- **A display that goes away,** from a lid closing or a cable coming out,
+  hands its workspaces to the remaining display, as on tide (tide §6.5).
+  Its windows move with them. They stay put when it comes back; Show N
+  puts any workspace on it.
+- Each display is keyed by its UUID, so its settings follow it from port to
+  port, as tide keys displays by description (tide §16).
+
+### 6.3 Restarts
+
+- **When an app quits and relaunches,** its windows come back with new IDs.
+  timo matches each to its old place by app and title, closest first, as
+  tico matches by tab addresses (tico §14.2). A window it can't match joins
+  the workspace showing.
+- **If timo quits,** it restores every hidden window first, so nothing is
+  left stranded in the Dock.
+- **If it crashes,** the next start restores what it can't place and
+  reconciles the rest. `timo restore` does it by hand (§16).
+
+### 6.4 Mission Control settings
+
+The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
+
+- **One Space per display.** timo doesn't use the rest.
+- **"Displays have separate Spaces"** stays on, the default.
+- **"Automatically rearrange Spaces based on most recent use"** off
+  (`mru-spaces`), as `setup-macos` sets it now.
+- **Stage Manager** off, since it groups windows itself.
+- **Sequoia's tiling:** "Drag windows to screen edges to tile" off, and
+  "Hold Option key while dragging windows to tile" off. With Super as
+  Option, the second would fight Super+drag (§5.3).
+- **"Click wallpaper to reveal desktop"** set to "Only in Stage Manager".
+
+### 6.5 The alternatives, to revisit if minimizing doesn't work out
+
+1. **Native Spaces, nine per display:**
+   - Switching uses symbolichotkeys, as `setup-macos` does now.
+   - Sending a window uses the private calls Amethyst and yabai use.
+   - It matches the user's current Mac, Cmd+Tab stays honest, and full
+     screen works.
+   - The costs: the animation, Spaces created by hand, and a private call
+     that may break.
+2. **Emulated, AeroSpace-style:**
+   - Switching is instant, there's one shared pool across monitors, and
+     tide's model fits exactly.
+   - The cost is Cmd+Tab and Mission Control showing everything. That's the
+     reason `setup-macos` turned AeroSpace down.
+3. **Minimized, tico-style:** the choice above.
+
+Revisit if switching is too slow even with the Scale effect, if apps restore
+from minimize in the wrong place or size, or if a window refuses to
+minimize, which tico had to handle on chromeOS (tico §6.4). Native Spaces
+come first then, since Cmd+Tab stays honest with them. The private call is
+the risk, and it breaks about once a year at a major macOS release *(from
+memory, not counted)*.
+
+## 7. Keys
+
+### 7.1 Where Super comes from
+
+- **tide's map, everywhere.** tide and tico differ where chromeOS can't
+  bind a key (tico §7.1), but macOS can bind all of tide's, so timo follows
+  tide (tide §6.6).
+- **Super is the PC keyboard's Win key.** `setup-macos`'s rotation turns it
+  into Option, and Ctrl into Command, so copy and paste stay under the same
+  finger (scripts `docs/MACOS.md`, "Modifier rotation").
+- **Option already means things on a Mac,** which plain Option bindings
+  would take away:
+  - Option+Backspace deletes a word, and Option+Up and Down move by
+    paragraph.
+  - Option+Left and Right move by word. Karabiner makes those from Ctrl+arrow
+    now, and a hotkey on Option+arrow can't tell the two apart (conf
+    `config/karabiner/README.md`).
+  - Option+`, E, I, N and U are dead keys for accents on US layouts
+    *(unverified on Dvorak)*.
+- **Decided: Karabiner turns physical Win+key into a combination nothing
+  else uses** (Ctrl+Option+Command+key), and timo registers that. Karabiner
+  sees the physical key before the rotation (conf
+  `config/karabiner/README.md`), so Option's own meanings stay intact.
+  Depending on Karabiner is accepted, but timo must work without it.
+  - Karabiner needs an admin, once, and IT can block it (§11).
+- **Without Karabiner, timo falls back,** rather than leaving keys dead:
+  - **How it tells:** at start, and whenever Karabiner starts or stops,
+    timo checks that Karabiner is running and has timo's rules loaded
+    *(how to check unverified: its background process, and its config
+    file)*.
+  - **The keys:** timo registers the same map on plain Option instead. Every
+    key still works, at the cost of Option's text gestures above.
+  - **The Super tap:** an event tap, if Input Monitoring is granted, or
+    Super+Space alone if not (§7.2).
+  - **Super+drag:** on Option, so Finder's Option-drag copy goes to timo
+    (§5.3).
+  - **It says so once,** in a notification naming what's lost and how to
+    fix it. The checklist (§10) and `timo doctor` (§15) report it too.
+  - **When Karabiner comes back,** timo moves its keys back to Karabiner's
+    combinations, with no restart.
+- **The rotation covers every keyboard,** the MacBook's own included. If
+  that's wrong for the built-in keyboard, `hidutil` can match PC keyboards
+  alone *(unverified)*. That's a question for `setup-macos`.
+
+### 7.2 The map
+
+timo registers each with `RegisterEventHotKey`, which needs no permission
+(§2.2). The second column is what macOS sees once Karabiner has mapped it.
+
+| Keys | Action | How |
+|---|---|---|
+| tap `Super` | launcher (§9) | event tap, or a Karabiner tap rule (below) |
+| `Super+Space` | launcher | hotkey |
+| `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
+| `Super+T` / `W` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
+| `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
+| `Super+L` | lock | macOS's lock (Ctrl+Cmd+Q) |
+| `Super+Shift+E` | log out | System Events |
+| `Super+1…9` / `Super+Shift+1…9` | show / send to workspace | hotkey |
+| `Super+Left` / `Right`, `Super+PgUp` / `PgDn` | previous / next workspace | hotkey |
+| `Super+Shift+Left` / `Right` | carry the window to the previous / next workspace | hotkey |
+| `Super+J` / `K`, with Shift | focus / move down and up the stack | hotkey |
+| `Super+Return` | swap with the master | hotkey |
+| `Super+\` / `Super+/` | grow / shrink the master (`mfact` ±0.025), repeating | hotkey |
+| `Super+=` / `Super+-` | add / remove a master | hotkey |
+| `Super+.` / `Super+,` | next / previous layout | hotkey |
+| ``Super+` ``, `Super+O` | monocle | hotkey |
+| `Super+Up` / `Super+Shift+Up` / `Super+Down` | maximize / full screen / restore (§5.4) | hotkey |
+| `Super+Shift+F`, `Super+Insert` | float or tile | hotkey |
+| `Super+Shift+R` | resize mode for a float (§5.3) | hotkey, then plain keys until Esc |
+| `Super`+drag, `Super`+right-drag, `Super`+middle-click | move, resize, maximize (§5.3) | event tap |
+| `Super+Tab`, `Super+Home` | the next window wanting attention (§14) | hotkey, and an event tap to see Super let go |
+| `Super+Shift+N` | Notification Center | no public way to open it *(unverified)*; else the clock in the menu bar |
+| `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
+| mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | timo, through Core Audio, with an on-screen sign |
+| media, brightness, volume keys | as macOS does them | native |
+
+- **The Super tap** must not fire after Super+T, Super+drag or
+  Super+click (tide §8). A mouse button or scroll counts as "another key"
+  in between.
+  - An event tap needs Accessibility and maybe Input Monitoring (§11). A
+    Karabiner rule (`to_if_alone` on physical Win) avoids both.
+- **Super+Tab** steps to the next waiting window each time it's pressed
+  with Super held, and letting Super go ends the round (tide §14.3).
+  `RegisterEventHotKey` doesn't report a modifier being let go, so that
+  part needs the event tap.
+- **App keys** are tide's (conf `hyprland.lua`). Each brings the app's
+  window forward, launching the app if it has none, and brings its
+  workspace with it (Activate, §6.1).
+  - Browser profiles run with their own `--user-data-dir`, as tide's
+    `browser2` and `browser3` do.
+  - Web apps are installed web apps, which have their own Dock icons and
+    badges (tico §3.5).
+  - Helpers run through the login shell's environment. Apps started from a
+    key inherit launchd's short `PATH`, which tide met as "PATH missing in
+    keybinds" (tide §17).
+- **The Keys page** in timo's settings lists every binding live, as tide's
+  does (tide §16).
+
+### 7.3 Taking keys from the system and the old setup
+
+`RegisterEventHotKey` fails silently on a key someone else holds (§2.2), so
+`setup-macos` has to free these first:
+
+- **symbolichotkeys:**
+  - 118–126 (Option+1…9, "Switch to Desktop N"), set by `setup-macos` now;
+  - 64 (Spotlight on Option+Space): Spotlight moves back to Cmd+Space,
+    physical Ctrl+Space;
+  - 79 and 81 (Ctrl+Option+arrows, move a Space left and right).
+- **Amethyst:** retired once timo takes over (§19, question 4), and conf's
+  `amethyst.yml` with it. Its `mod1`-`mod4` combinations go.
+- **Rectangle:** `setup` installs it too, and its defaults sit on
+  Ctrl+Option+arrows *(unverified)*. It goes.
+- **Karabiner's Win+arrow rule** sends Ctrl+Option+arrow for native Spaces
+  and Win+Shift+arrow for Amethyst's throw. Both now go to timo.
+- **Super+Shift+N sends to workspace N.** Under the rotation that's
+  Option+Shift+digit, which makes a character in typing but can still be
+  registered. Hammerspoon passes Option and Shift straight to
+  `RegisterEventHotKey`
+  ([libhotkey.m](https://github.com/Hammerspoon/hammerspoon/blob/master/extensions/hotkey/libhotkey.m)).
+  `setup-macos` uses Super+Alt+N now only because Amethyst wouldn't take
+  the combination *(cause unverified)*.
+
+## 8. Bar, clocks and dashboard
+
+- **The menu bar stays the system's.** Two ways to live with it:
+  - **Option 1:** the bar is a timo panel along the top, with the menu bar
+    set to hide automatically. It shows the workspaces, the layout symbol,
+    the title and the clocks, as tide's does (tide §7). The cost: the
+    system's status items (Wi-Fi, battery, volume) and the app's menus show
+    only when the pointer reaches the top edge.
+  - **Option 2:** no bar. The workspaces and clocks go in the menu bar's
+    right side as status items, plus a full-screen dashboard on a key, as
+    tico's is (tico §8.1).
+- **If it's a bar, it's tide's** (tide §7.1–§7.4):
+  - a flush 36 px strip, one per display, with the tiling area starting
+    below it;
+  - workspace chips that show current, occupied (up to five app icons, then
+    `+n`), showing on another display, empty, and wanting attention;
+  - a click shows that workspace, and scrolling steps through them;
+  - the title only on the focused display, where double-clicking it
+    maximizes;
+  - the clocks shrink to local time alone when the title would get narrower
+    than 200 px.
+- **The notch,** on a MacBook's own display, sits where tide centers the
+  title. There, the title moves left of it *(unverified how wide it is per
+  model)*.
+- **Status icons:** macOS's orange and green dots already show the
+  microphone and camera in use, which covers tide's privacy pills
+  (tide §7.4). The microphone-mute state from `Super+Shift+M` shows in the
+  bar, since macOS has no system-wide mute of its own.
+- **Clocks:** tico's `src/clocks.js` and `calendar.js` hold the zone,
+  daytime-strip, DST and calendar logic, all tested. A native timo would port
+  them, and a Hammerspoon one could run the dashboard as an `hs.webview` of
+  tico's own page *(unverified)*.
+
+## 9. Launcher
+
+- **Scopes, as tico's:** apps, timo's commands, and open tabs (tico §9.4).
+  Apps come from `/Applications` and Spotlight's index. Tabs come from
+  Chrome and Safari through AppleScript (§2.5).
+- **Matching:** tico's fuzzy match and ranking (`src/launcher.js`), with
+  the most used and most recent first, and tide's empty-query sections
+  (tide §8). Text matching nothing in a scope searches all of them.
+- **Quick actions, as tide's** (tide §8): screenshot the window, screen or
+  a region; lock, log out, sleep, restart, shut down; Do Not Disturb,
+  keep awake, and dark style; timo's settings; reload timo.
+- **Cmd+Return** (physical Ctrl+Enter) runs the app on the first empty
+  workspace, as Ctrl+Enter does on tide.
+- **The window before the launcher** gets focus back if you dismiss it, and
+  is the window "screenshot window" captures (tide §13).
+- **Kept out of screen shares,** as tide keeps its launcher out (tide §12),
+  by marking timo's windows unshareable (`NSWindow.sharingType`)
+  *(unverified that screen sharing still honors it on macOS 26)*.
+- **Spotlight stays** on Cmd+Space, physical Ctrl+Space (§7.3). In macOS
+  26, timo's commands can also appear there as App Intents (§2.6).
+
+## 10. The rest of the desktop
+
+- **Notifications:** Notification Center, with Focus for Do Not Disturb.
+  Automatic Do Not Disturb while sharing the screen is a Focus option
+  *(unverified)*. Clicking a notification counts as Activate, so its
+  window's workspace comes along (§6.1).
+- **Idle and lock** (tide §10):
+  - System Settings sets the display sleep and when a password is required.
+    The checklist asks for the password at once after the screen locks.
+  - Sleep on battery only: "Prevent automatic sleeping when the display is
+    off" on power adapter *(unverified wording on macOS 26)*. `pmset`
+    sets the rest, with an admin (§11.2).
+  - timo's keep-awake toggle holds a power assertion, as `caffeinate`
+    does. As on tide, it never times out, starts off at each login, and
+    turns on by itself while the microphone is in use (Core Audio reports
+    that) *(unverified)*.
+  - Chrome can hold the screen awake on its own. `pmset -g assertions`
+    shows who's holding it (tide §17) *(unverified that it happens on a
+    Mac)*.
+- **Theme** (tide §15):
+  - Appearance › Auto follows sunrise and sunset.
+  - tide's fixed 07:00 and 19:00 need a scheduled job that sets
+    the appearance through System Events *(unverified on macOS 26)*.
+  - A switch by hand lasts until the next scheduled change.
+  - macOS's dynamic wallpapers already change with the appearance, and
+    kitty can follow it with its automatic themes *(unverified version)*.
+- **Screenshots** (tide §13): macOS's own, with tide's Print keys mapped to
+  them (§7.2). tide saves each shot to the clipboard *and* to
+  `~/Pictures/Screenshots`, with a timestamped name. macOS does one or the
+  other per shot, so timo runs `screencapture` to the folder, then copies
+  the file to the clipboard.
+- **Mouse** (conf `hyprland.lua`, tide §16):
+  - Speed at the fastest, with acceleration left on: tide found a flat
+    curve felt wrong. `com.apple.mouse.scaling` goes beyond the slider
+    (§2.6).
+  - Left-handed: the primary button on the right, in Mouse settings.
+  - Wheel scaling beyond the slider is *(unverified)*. It's the gap that
+    tico §19.2 fills on chromeOS.
+- **Trackpad:** natural scroll and tap to click, in Trackpad settings.
+  macOS may tie natural scrolling for the mouse and trackpad together
+  *(unverified)*; if so, LinearMouse can reverse the mouse alone (§13).
+- **Keyboard:** repeat after 600 ms at 25 a second, set as `InitialKeyRepeat`
+  and `KeyRepeat` in 15 ms steps, so the nearest is 40 and 3
+  *(unverified units)*. US Dvorak is a native input source.
+- **Setup checklist:** as tico's (tico §3.4). Each item links to its System
+  Settings pane with an `x-apple.systempreferences:` URL *(unverified per
+  pane on macOS 26)*. It covers the Mission Control settings (§6.4), the
+  minimize settings (§6), Chrome's notifications (§5.1), and each
+  permission (§11).
+- **The rest of the setup:** tico's Appendix A lists the helper scripts
+  `setup` installs (Bluetooth, the audio profile switcher, notes, IRC,
+  remote desktop, the file manager on `Super+E`). Which of them run on a
+  Mac, and what stands in for the rest, is for `setup-macos` to settle,
+  not timo.
+
+## 11. Permissions, admin rights and managed Macs
+
+### 11.1 What each permission buys
+
+| Permission | Asked when | Buys |
+|---|---|---|
+| Accessibility | first run; tiling needs it | moving windows, focus follows mouse, mouse drags (§5.3), Dock badges |
+| Input Monitoring | only for the lone Super tap, if done by an event tap (§7) *(unverified that Accessibility alone isn't enough)* | seeing Option go down and up |
+| Screen Recording | probably never: titles come through Accessibility (§2.5) | nothing timo needs, if that holds |
+| Automation, per browser | the first tab search | tab titles and addresses |
+| none | — | global keys, the bar, clocks, the launcher's app list |
+
+Ask for each only when a feature needs it, as tico does with its extras
+(tico §14.1).
+
+### 11.2 Admin rights
+
+A standard user can run timo once it's installed. These steps need an
+administrator:
+
+| Step | Needs admin? | Workaround without admin |
+|---|---|---|
+| Installing Homebrew | **yes**, once, to create `/opt/homebrew` | Install apps from a downloaded copy into `~/Applications` instead *(unverified for Hammerspoon)*. |
+| Installing an app into `/Applications` | **yes**, usually | `~/Applications`. |
+| Turning on a privacy permission (§11.1) | **yes**, an admin's password unlocks the setting *(unverified on macOS 26 for standard users)* | A managed Mac's MDM can grant it instead (§11.3). |
+| Karabiner's keyboard driver | **yes**: it's a system extension, approved once | Skip Karabiner. timo then binds Option directly, which takes Option's text gestures (§7.1), and the lone Super tap needs an event tap. |
+| `pmset` for the idle timeline (§10) | **yes**, `sudo` | Energy and Lock Screen settings, which a user can change. |
+| Everything else `setup-macos` writes: symbolichotkeys, Dock and minimize settings, mouse scaling, appearance | no: per-user `defaults` | — |
+
+### 11.3 On a managed work Mac
+
+A Mac enrolled in MDM can grant or block most of this, so on a work machine
+it's IT's call. tico has the same section for chromeOS (tico §14.4).
+
+| Feature | What MDM can do | If it's blocked |
+|---|---|---|
+| Accessibility, so all of tiling | grant it to a named app with a Privacy Preferences (PPPC) profile, or block it | **No workaround**: no tiling, no focus follows mouse, no mouse drags. Global keys and the launcher still work. |
+| Input Monitoring and Screen Recording | only let a standard user approve them, or block them; a profile can't switch them on silently *(unverified for Input Monitoring)* | Super+Space for the launcher (§7), or Karabiner's tap rule. timo shouldn't need Screen Recording (§2.5). |
+| Automation for tab search | grant it per app pair in the same profile, or block it | No tab search. Apps and commands still work. |
+| Karabiner's system extension | allow or block it by team ID, and the rotation needs it too | Skip Karabiner (§11.2). |
+| Running timo or Hammerspoon at all | block apps by name or signature, with Gatekeeper rules or a tool such as Santa | **No workaround.** Ask IT to allow it. A Developer ID build (§12) is easier for IT to allow than an unsigned one. |
+| Login items | manage background items, and hide or block them | Start timo by hand. |
+| Idle and lock timings | enforce the screen lock delay and password rules | **None.** The policy wins, and timo's keep-awake toggle may not stop the lock *(unverified)*. |
+| Spaces, Dock and Mission Control settings | lock some of these preferences | Leave the defaults; minimizing still works (§6). |
+
+Nothing in timo needs SIP lowered, which a managed Mac wouldn't allow. That
+was a goal (§1), and it's why the native-Spaces alternative avoids yabai's
+scripting addition (§6).
+
+## 12. Distribution, cost and reliability
+
+- **Not the Mac App Store:** controlling other apps' windows isn't allowed
+  in the sandbox (§2.1).
+- **Hammerspoon (B):** free and open source. timo would be a config
+  repository plus a `setup-macos` step, with no signing.
+- **A native app (C):** needs a Developer ID and notarization, at $99 a year
+  for the Apple Developer Program, or users clear Gatekeeper by hand.
+  Homebrew can ship it as a cask.
+- **Failure modes:**
+  - A macOS update can break private calls (§2.3) or reset permissions.
+  - An app that hangs stalls a retile (§2.1).
+  - None of this touches the network, so there's nothing to go down and no
+    running cost.
+
+## 13. What timo can't have
+
+These are the things macOS doesn't allow, or allows only through private
+calls that break between releases or need SIP lowered, which §1 rules out.
+Each one names a workaround, or says there is none.
+
+| tide or tico has | Why a Mac can't | Workaround |
+|---|---|---|
+| No title bars or borders | No public API removes another app's frame (§2.1). | **None** for the title bars. Gaps of 0 keep the tiles tight. |
+| Focus without raising (KDE's focus follows mouse) | Focusing a window brings it to the front (§5.2). | yabai's `autofocus` does it through a private call, with SIP on *(unverified)*. Otherwise, raise, and keep floats above tiles (§5.1). |
+| Floats always on top | No public way to set another app's window level (§5.1). | timo raises the floats again after any tile it raises. A true window level needs yabai's scripting addition, which needs SIP lowered: **none** within §1. |
+| Nothing ever steals focus (tide §14) | An app can activate itself, and macOS decides whether it may. | timo never focuses anything unasked, and hands focus back when an app takes it without a grant (§14.1) *(unverified that it can act in time)*. |
+| Dimming exactly the inactive windows | timo can't draw inside or between other apps' windows (§2.4). | One dark layer behind the focused window, which dims the desktop too, or JankyBorders' outline as the focus cue instead. |
+| Instant workspace switches with an honest Cmd+Tab | Hiding windows off screen leaves them in Cmd+Tab; minimizing and Spaces animate (§2.3, §6). | Minimize with the Scale effect, and Reduce Motion for Spaces. **No** way to get both at once. |
+| One workspace pool shared by every monitor (tide §6.5) | Minimized windows have no display, and native Spaces are per display. | timo tracks each workspace's display itself, as tico does (tico §6.1). |
+| Moving a window to a native Space | Only private calls can (§2.3). | Workspaces by minimizing (§6). |
+| Exact tiles for every app | Apps can refuse or round a size, such as terminals snapping to their character grid (§2.1). | The rest tile around what the app took (§5). In kitty, the grid snapping can be turned off *(unverified)*. |
+| Tiling native full-screen windows | A full-screen window lives in its own Space. | Maximize instead (§4). |
+| Own bar replacing the menu bar | The menu bar is the system's (§8). | Hide the menu bar automatically and put a bar over it, or use SketchyBar. |
+| Every window's attention request (tide §14.4) | There's no public signal for "this window wants attention" *(unverified)*. | Dock badges, title counts and self-activation (§14.2). **None** for an app that shows none of those. |
+| Own lock screen and login, with the hostname | The lock and login screens are the system's. | Lock Screen's "Show message when locked" can carry the hostname *(unverified on macOS 26)*. **None** for a custom lock screen. |
+| tide's idle timeline (dim, lock, off, suspend) | macOS sets its own timings (§10). | Energy and Lock Screen settings come close. `pmset` sets more, with admin rights (§11). |
+| Sharing a 16:9 slice of an ultrawide in Meet (tide §12) | Meet shares a screen, a window or a tab. | Share a window, or a virtual display from a tool such as BetterDisplay *(unverified)*. |
+| Mouse wheel speed beyond the slider | Mouse settings scale the wheel only so far *(unverified)*. | LinearMouse or Mos, free tools that use Accessibility *(unverified)*. |
+| A Compose key | macOS has none. | Option dead keys, a custom layout made with Ukelele, or Karabiner sequences. |
+| Keys and the Super tap during Secure Input | While a password field or a terminal's secure keyboard entry is active, event taps stop seeing typed keys *(unverified for hotkeys)*. | **None**, by design. Registered hotkeys keep working, if they do. |
+| Three-finger swipe between workspaces (conf `hyprland.lua`) | No public API for trackpad gestures; the native swipe switches Spaces, which timo doesn't use. | BetterTouchTool, a paid app, can bind gestures to keys *(unverified price)*. Otherwise **none**. |
+| Pinning picture-in-picture to a corner (tide §6.4) | The app places it, and moves it back. | Leave it where the app puts it (§5.5). |
+| Option's text gestures alongside Super on Option | One key can't be both. | Karabiner's mapping (§7.1). Without it, **none**: timo takes them. |
+| Natural scrolling on the trackpad but not the mouse | macOS may have one switch for both *(unverified)*. | LinearMouse or Mos reverse the mouse alone *(unverified)*. |
+| Mac App Store distribution | The sandbox forbids controlling other apps (§2.1). | **None.** Ship through Homebrew, or as a Hammerspoon config (§12). |
+
+## 14. Focus and attention
+
+**Nothing takes the keyboard unless you asked for it,** as on tide
+(tide §14). A window that wants attention is marked, never focused, and
+`Super+Tab` takes you there.
+
+### 14.1 Who gets focus
+
+| When | Gets focus? |
+|---|---|
+| timo's launcher, dashboard or resize mode is open | It keeps it until it closes. Focus follows mouse pauses meanwhile (§5.2). |
+| A new window from the app you're in: a dialog, a second window | **Yes**, as tide (tide §14.1). |
+| The first window of an app you launched from timo (the launcher, an app key) | **Yes**, if you haven't typed, clicked or moved focus since. The grant lasts 10 s and is used once. |
+| A window started from the focused terminal (`open .` in kitty) | **Yes**, on the same terms *(how timo learns of it unsettled; tide's shell tells its guard, tide §14.3)*. |
+| A notification you click | **Yes**: the click was yours (§10). |
+| A password prompt | **Yes** when it follows something you did in the app that asks; otherwise it's macOS's to decide. |
+| Any other app activating itself, or a window opening in the background | **No.** It's marked for attention. |
+
+- **How timo enforces "no":** macOS lets an app activate itself, so timo
+  can't refuse it. It can notice (`NSWorkspace`'s activation
+  notification), and hand focus straight back to the window you were in
+  when no grant covers it *(unverified that it can act before a keystroke
+  lands)*. macOS 14 added cooperative activation, which already stops many
+  apps taking focus unasked *(unverified how many apps it covers)*.
+- **Pulled back to another workspace** (tide §14.2): an app launched on 2
+  whose window appears after you've moved to 3 opens on 2, marked for
+  attention, not on 3 (§6.1).
+
+### 14.2 Attention
+
+- **What counts as wanting attention:**
+  - a Dock badge appearing or rising (§2.5);
+  - a window title gaining an unread count, such as `Chat (3)`, seen
+    through Accessibility's title notification, as tico reads titles
+    (tico §10.3);
+  - a window that activated itself without a grant (§14.1);
+  - a Dock icon bouncing *(unverified that it can be seen)*.
+- **A badge marks the app; a title or activation marks the window.**
+  `Super+Tab` goes to the window, or to the app's last-used window.
+- **A mark clears** when you focus the window or app, as on tide
+  (tide §14.4).
+- **`Super+Tab` with nothing waiting** goes to the window you were last in.
+
+## 15. Settings and `timo doctor`
+
+- **One set of files with tide.** timo reads tide's settings from
+  `~/.config/tide/` (tide §16.1): the clocks list, the layouts, and the dim
+  strength. One file serves every desktop. A `.local` file beside each
+  overrides it for one machine.
+- **A bad value is an error at load,** naming the setting, not a failure
+  later.
+- **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
+  Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
+  (§11).
+- **One owner per job** (tide §5): timo tiles, binds keys and draws the
+  bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
+  idle. Nothing else tiles.
+- **`timo doctor`** checks what usually goes wrong:
+  - each permission (§11.1), and whether the event tap is still on (§16);
+  - another tiler running: Amethyst, Rectangle, yabai, AeroSpace;
+  - a symbolichotkey holding one of timo's keys (§7.3), and any key that
+    failed to register;
+  - Karabiner's rules loaded;
+  - Stage Manager or Sequoia's tiling on (§6.4);
+  - a second bar running, such as SketchyBar.
+
+## 16. Known problems
+
+| Problem | What timo does |
+|---|---|
+| macOS switches off an event tap whose handler is too slow (`kCGEventTapDisabledByTimeout`), which would stop the Super tap, drags and focus follows mouse *(unverified how quickly)* | Keeps the handler short, re-enables the tap when told it was switched off, and `timo doctor` reports it. |
+| A macOS update, or a new timo build, resets Accessibility (scripts `docs/MACOS.md`) | The doctor and the checklist say so, and link the pane. |
+| Screen Recording asks again every so often since macOS 15 *(unverified on macOS 26)* | timo doesn't use it (§2.5). |
+| Secure Input stops event taps seeing keys (§13) | Registered hotkeys still work; the tap rules don't. |
+| A hung app stalls Accessibility calls (§2.1) | A short timeout per call, and that app is skipped (§5.2). |
+| timo quits or crashes with workspaces hidden | Restores everything on quit, and reconciles at start (§6.3). |
+
+## 17. Where things live
+
+- **timo** (this repo): the spec, then the code.
+- **conf:**
+  - Karabiner's rules (`config/karabiner/`), updated for §7.1 and §7.3;
+  - `amethyst.yml` retired;
+  - the Hammerspoon config, if timo starts as route B (§3).
+- **scripts:** `setup-macos`. It installs timo, frees the keys in §7.3,
+  removes Amethyst and Rectangle, applies the Mission Control settings
+  (§6.4), and stops making nine Spaces.
+- **tide:** the layout geometry and its test fixtures, shared so timo
+  doesn't keep its own copy.
+
+## 18. Testing and milestones
+
+- **Tests, as tide's and tico's** (tide §20, tico §17):
+  - the geometry against tide's own fixtures;
+  - the workspace model (§6.1) and focus follows mouse's decisions (§5.2)
+    against a fake Accessibility layer, with no sleeps;
+  - nothing that needs a real Mac in CI.
+- **On a real Mac:** the focus follows mouse checklist (§5.2), the dialog
+  checklist (§5.1), and each *(unverified)* claim in this spec. A claim
+  checked comes out of italics, with the macOS version.
+- **Milestones:**
+  1. **This spec,** agreed.
+  2. **Tiling and keys:** the layouts, floats, the key map and the mouse,
+     on Hammerspoon. Done when the dialog checklist passes.
+  3. **Focus follows mouse,** on by default. Done when its checklist
+     passes.
+  4. **Workspaces:** minimizing, displays and restarts. Done when a day's
+     work needs no Mission Control.
+  5. **Bar, launcher and dashboard,** then attention.
+
+## 19. Open questions
+
+1. **Workspaces:** decided, minimize (§6), with native Spaces next if it
+   doesn't work out.
+2. **Build route:** Hammerspoon first (§3 B), or straight to a native app?
+3. **Bar:** a timo bar over an auto-hidden menu bar, or status items plus a
+   dashboard (§8)?
+4. **Amethyst:** keep it alongside while timo grows, or replace it outright?
+   Running both would fight over the same windows.
+5. **Does HazeOver's one-layer dim** carry over to a canvas or panel, and
+   can a third-party app keep it just below another app's window (§2.4)?
+6. **Karabiner for Super:** decided, yes (§7.1).
+7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
+   only (§7.1)?
+8. **Which key toggles focus follows mouse** (§5.2)?
+
+## Sources
+
+- scripts `docs/MACOS.md`: the Amethyst, yabai and AeroSpace evaluation,
+  symbolichotkeys, the modifier rotation, and focus follows mouse.
+- [AeroSpace README](https://github.com/nikitabobko/AeroSpace): one private
+  API (`_AXUIElementGetWindow`), emulated workspaces, no SIP.
+- [Hacker News, AeroSpace](https://news.ycombinator.com/threads?id=irth):
+  hidden windows parked in the lower-right corner.
+- [go-macos/hotkey](https://pkg.go.dev/github.com/go-macos/hotkey):
+  `RegisterEventHotKey` needs no permission, including on macOS 26.
+- [HazeOver help](https://hazeover.com/help.html): one translucent layer
+  behind the active window; Accessibility for focus.
+- [SketchyBar](https://github.com/felixkratz/sketchybar): menu bar
+  replacement.
+- [Apple: tile windows on Mac](https://support.apple.com/guide/mac-help/mchl9674d0b0/mac),
+  [9to5Mac](https://9to5mac.com/2024/07/19/use-automatic-window-tiling-macos-sequoia/),
+  [SlashGear](https://www.slashgear.com/1673225/macos-sequoia-window-tiling-shortcuts):
+  Sequoia tiling and its keys.
+- [MacMost](https://macmost.com/how-to-use-spotlight-actions-in-macos-tahoe.html),
+  [iThinkDiff](https://www.ithinkdiff.com/spotlight-macos-tahoe-quick-keys-clipboard/):
+  Spotlight actions and Quick Keys in macOS 26.
+- [MailMate list](https://lists.freron.com/mailmate/2018-October/010356.html),
+  [Cursor forum](https://forum.cursor.com/t/macos-dock-badge-stuck-at-1-after-update-os-badge-null-until-killall-dock/165949):
+  reading Dock badges.
+- [iBoysoft](https://iboysoft.com/wiki/macos-mouse-acceleration.html),
+  [NoMouseAccel](https://github.com/apsun/NoMouseAccel): pointer
+  acceleration.
+- [Hammerspoon docs](https://www.hammerspoon.org/docs/): `hs.canvas`,
+  `hs.chooser`.
+- [Amethyst issues](https://github.com/ianyh/Amethyst/issues), cited as
+  Amethyst#N: its focus-follows-mouse and dialog bugs (§5.2), read October
+  2026. Its handler is
+  [`FocusFollowsMouseManager.swift`](https://github.com/ianyh/Amethyst/blob/development/Amethyst/Managers/FocusFollowsMouseManager.swift).
+- [yabai wiki](https://github.com/koekeishiya/yabai/wiki/Configuration) and
+  `src/mouse_handler.c`: `autofocus` and `autoraise`, sheet forwarding, and
+  the pauses for Mission Control and Space swipes.
+- [AutoRaise](https://github.com/sbmpost/AutoRaise): menu roles, and the
+  apps that keep focus.
+- [AeroSpace#12](https://github.com/nikitabobko/AeroSpace/issues/12): its
+  focus follows mouse, added in v0.21.0-Beta.
