@@ -85,20 +85,60 @@ local function bars(rssi)
     return 0
 end
 
+-- "1:05" for 65 minutes.
+local function hm(minutes)
+    -- macOS's estimate can be a fraction of a minute.
+    minutes = math.floor(minutes)
+    return string.format("%d:%02d", minutes // 60, minutes % 60)
+end
+
+local function battery_tip(b, p)
+    local tip = "Battery " .. p .. "%"
+    if b.charged then
+        return tip .. ", charged"
+    elseif b.charging then
+        tip = tip .. ", charging"
+        if b.to_full and b.to_full > 0 then
+            tip = tip .. ", full in " .. hm(b.to_full)
+        end
+        return tip
+    elseif b.remaining and b.remaining > 0 then
+        return tip .. ", " .. hm(b.remaining) .. " left"
+    end
+    return tip
+end
+
+-- A short label for an input source: its first word's letters, up to
+-- three, in capitals ("U.S." is US, "Dvorak" is DVO).
+function M.source_label(name)
+    local word = (name or ""):match("^%s*(%S+)") or ""
+    return word:gsub("[^%w]", ""):sub(1, 3):upper()
+end
+
 -- The status icons, from what Hammerspoon reports (bar_hs.lua reads it):
---   battery = { percent, charging } or nil on a Mac without one,
+--   battery = { percent, charging, charged, remaining, to_full } or nil on
+--     a Mac without one, the times in minutes and negative when unknown,
 --   audio = { volume = 0…100, muted } or nil with no output device,
---   wifi = { power, rssi, ssid } or nil with no Wi-Fi interface.
--- The network name needs Location Services on recent macOS, so it may be
--- missing while the rest is there; then the icon shows without it.
-function M.icons(raw)
-    raw = raw or {}
-    local out = {}
+--   mic = { muted } or nil with no input device,
+--   camera = { in_use } or nil with no camera,
+--   source = { current, list = { { name, method }, … } },
+--   awake = whether the display is kept from sleeping,
+--   wifi = { power, rssi, ssid, interface } or nil with no Wi-Fi interface,
+--   network = { primary = the interface carrying traffic, or nil }.
+-- The Wi-Fi network's name needs Location Services on recent macOS, so it
+-- may be missing while the rest is there; then the icon shows without it.
+-- Each item's drawing state from the raw readings, by name.
+local ITEMS = {}
+
+function ITEMS.battery(raw)
     local b = raw.battery
     if b and b.percent then
         local p = math.floor(b.percent + 0.5)
-        out.battery = { percent = p, charging = b.charging or false, text = p .. "%" }
+        return { percent = p, charging = b.charging or false, text = p .. "%", tip = battery_tip(b, p) }
     end
+end
+
+function ITEMS.volume(raw)
     local a = raw.audio
     if a and a.volume then
         local v = math.floor(a.volume + 0.5)
@@ -110,14 +150,96 @@ function M.icons(raw)
         elseif v < 67 then
             level = "mid"
         end
-        out.volume = { level = level, muted = a.muted or false }
+        return { level = level, muted = a.muted or false }
     end
+end
+
+function ITEMS.mic(raw)
+    if raw.mic then
+        return { muted = raw.mic.muted or false }
+    end
+end
+
+-- Only while something has it on, as macOS's green dot.
+function ITEMS.camera(raw)
+    if raw.camera and raw.camera.in_use then
+        return { in_use = true }
+    end
+end
+
+function ITEMS.source(raw)
+    local src = raw.source
+    if src and src.current and src.list and #src.list > 1 then
+        return { label = M.source_label(src.current), name = src.current }
+    end
+end
+
+function ITEMS.awake(raw)
+    if raw.awake ~= nil then
+        return { on = raw.awake }
+    end
+end
+
+function ITEMS.wifi(raw)
     local w = raw.wifi
     if w then
         local on = w.power or false
-        out.wifi = { on = on, bars = on and bars(w.rssi) or 0, name = on and w.ssid or nil }
+        return { on = on, bars = on and bars(w.rssi) or 0, name = on and w.ssid or nil }
+    end
+end
+
+-- Which network carries traffic: Wi-Fi, a wire, or none. Without the
+-- primary interface, Wi-Fi being on stands in for it.
+function ITEMS.network(raw)
+    local w = raw.wifi
+    local primary
+    if raw.network then
+        primary = raw.network.primary
+    elseif w and w.power then
+        primary = w.interface or "wifi"
+    end
+    if primary and w and (primary == w.interface or primary == "wifi") then
+        return { kind = "wifi" }
+    elseif primary then
+        return { kind = "wired" }
+    end
+    return { kind = "none" }
+end
+
+-- Every item at once. One that can't make sense of its reading is left
+-- out, and `on_error(name, err)` hears why, so one bad reading can't stop
+-- the rest of the bar.
+function M.icons(raw, on_error)
+    raw = raw or {}
+    local out = {}
+    for name, item in pairs(ITEMS) do
+        local ok, v = pcall(item, raw)
+        if ok then
+            out[name] = v
+        elseif on_error then
+            on_error(name, v)
+        else
+            error(v, 0)
+        end
     end
     return out
+end
+
+-- The next input source after `current`, in `list` order, wrapping.
+function M.next_source(list, current)
+    for i, s in ipairs(list) do
+        if s.name == current then
+            return list[i % #list + 1]
+        end
+    end
+    return list[1]
+end
+
+-- The volume after a scroll step of 5% up or down, and whether it unmutes,
+-- as the volume keys do.
+function M.volume_step(volume, muted, d)
+    local v = math.max(0, math.min(100, math.floor((volume or 0) + 0.5) + 5 * d))
+    return v, muted and d > 0
 end
 
 -- The System Settings pane each icon opens *(unverified on macOS 26)*.
@@ -125,13 +247,14 @@ M.PANES = {
     battery = "x-apple.systempreferences:com.apple.Battery-Settings.extension",
     volume = "x-apple.systempreferences:com.apple.Sound-Settings.extension",
     wifi = "x-apple.systempreferences:com.apple.wifi-settings-extension",
+    network = "x-apple.systempreferences:com.apple.Network-Settings.extension",
 }
 
 -- What a message from a bar's page does. Every message names its bar's
 -- display, and acts there, not wherever the keys happen to be: a chip or a
 -- scroll on display B's bar shows a workspace on B, and its clocks open the
--- dashboard on B. `act` holds what needs Hammerspoon: open(url) and
--- dashboard(uuid).
+-- dashboard on B. `act` holds what needs Hammerspoon: open(url),
+-- dashboard(uuid), toggle(what) and volume(step).
 function M.handle(wm, body, act)
     local uuid = body.uuid
     if body.show then
@@ -145,6 +268,10 @@ function M.handle(wm, body, act)
         end
     elseif body.dashboard then
         act.dashboard(uuid)
+    elseif body.toggle then
+        act.toggle(body.toggle)
+    elseif body.volume then
+        act.volume(tonumber(body.volume))
     end
 end
 

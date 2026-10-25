@@ -7,6 +7,8 @@
 #                 tide checkout (TIDE=../tide by default)
 #   make check-tico   compare the dashboard's copies of tico's clock modules
 #                 with a tico checkout (TICO=../tico by default)
+#   make mocks    render the bar in fixed states to mocks/*.png (needs Node
+#                 and Playwright's Chromium; skips with a note without them)
 
 LUA ?= $(shell command -v lua5.4 || command -v lua)
 LUAC ?= $(shell command -v luac5.4 || command -v luac)
@@ -20,7 +22,7 @@ export LUA_PATH := hammerspoon/?.lua;hammerspoon/?/init.lua;tests/?.lua;;
 LUA_FILES := $(wildcard hammerspoon/timo/*.lua tests/*.lua ci/*.lua)
 TESTS := $(wildcard tests/*_test.lua)
 
-.PHONY: test lint install check-geometry check-tico
+.PHONY: test lint install check-geometry check-tico mocks
 
 test:
 	@status=0; for t in $(TESTS); do $(LUA) $$t || status=1; done; exit $$status
@@ -46,3 +48,15 @@ check-geometry:
 # dashboards agree.
 check-tico:
 	@for f in $(TICO_FILES); do cmp $(TICO)/src/$$f hammerspoon/timo/dashboard/$$f || exit 1; done
+
+# The bar's page as timo builds it, rendered in fixed states. The page is
+# written to a temporary directory (as .html, so the browser reads it as a
+# page), removed whether the render works or not.
+mocks:
+	@dir=$$(mktemp -d) || exit 1; \
+	if $(LUA) mocks/page.lua > "$$dir/bar.html"; then \
+		NODE_PATH="$$(npm root -g)" node mocks/render.cjs "$$dir/bar.html"; status=$$?; \
+	else \
+		status=1; \
+	fi; \
+	rm -rf "$$dir"; exit $$status

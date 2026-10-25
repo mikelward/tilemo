@@ -1364,6 +1364,13 @@ function A.launcher(self)
     end
 end
 
+-- Super+Shift+M: mute or unmute the microphone (SPEC.md §7.2).
+function A.mic_mute(self)
+    if self.toggle_mic then
+        self.toggle_mic()
+    end
+end
+
 -- Super+Shift+Space: the dashboard, or closes it (SPEC.md §8).
 function A.dashboard(self)
     if self.open_dashboard then

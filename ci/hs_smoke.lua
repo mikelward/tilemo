@@ -162,7 +162,7 @@ local function check_bar()
                     want.x, want.y, want.w, want.h)
             end
             if not (v and v.ready) then
-                fail("bar: its page on display %s didn't load", s.uuid)
+                fail("bar: its page on display %s didn't load (got as far as %s)", s.uuid, v and v.nav or "nothing")
             end
             n = n + 1
         end
@@ -171,7 +171,40 @@ local function check_bar()
             fail("bar: tiling starts at y=%d, want %d", tiling.y, want.y + want.h)
         end
     end
-    say("bar up on %d display(s)", n)
+    -- Which status items this Mac has; the network one is always drawn.
+    local items = {}
+    for k in pairs(timo.bar.icons) do
+        items[#items + 1] = k
+    end
+    table.sort(items)
+    if not timo.bar.icons.network then
+        fail("bar: no network status item")
+    end
+    -- Anything a page reported: a script error or a failed load.
+    for _, e in ipairs(timo.bar.errors) do
+        fail("bar: %s", e)
+    end
+    say("bar up on %d display(s), with %s", n, table.concat(items, ", "))
+end
+
+-- Wait for every bar page to load, up to a deadline, then check the bar
+-- and call `next`.
+local BAR_WAIT = 15
+
+local function wait_for_bar(next)
+    local started = hs.timer.secondsSinceEpoch()
+    -- A global, like smoke_timer, so it isn't collected.
+    smoke_bar_poll = hs.timer.doEvery(0.5, function()
+        local ready = timo.bar ~= nil
+        for _, v in pairs(timo.bar and timo.bar.views or {}) do
+            ready = ready and v.ready
+        end
+        if ready or hs.timer.secondsSinceEpoch() - started > BAR_WAIT then
+            smoke_bar_poll:stop()
+            check_bar()
+            next()
+        end
+    end)
 end
 
 local function check_tiling()
@@ -255,6 +288,5 @@ smoke_timer = hs.timer.doAfter(3, function()
         return
     end
     say("dashboard opened and closed")
-    check_bar()
-    check_tiling()
+    wait_for_bar(check_tiling)
 end)

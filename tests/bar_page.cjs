@@ -13,6 +13,7 @@ class Element {
     this.children = [];
     this.className = "";
     this.textContent = "";
+    this.innerHTML = "";
     this.style = {};
     this.attrs = {};
     this.listeners = {};
@@ -73,9 +74,14 @@ sandbox.timo.update({
   workspaces: ws,
   title: "Chat (1)",
   icons: {
+    source: { label: "DVO", name: "Dvorak" },
+    awake: { on: false },
+    camera: { in_use: true },
+    mic: { muted: false },
     wifi: { on: true, bars: 2, name: "home" },
+    network: { kind: "wifi" },
     volume: { level: "mute", muted: true },
-    battery: { percent: 15, charging: false, text: "15%" },
+    battery: { percent: 15, charging: false, text: "15%", tip: "Battery 15%, 0:40 left" },
   },
 });
 
@@ -88,23 +94,51 @@ assert.strictEqual(ids.title.textContent, "Chat (1)");
 assert.ok(ids.clocks.children.length >= 1, "the clocks row");
 
 const icons = ids.icons.children;
-assert.deepStrictEqual(icons.map((b) => b.className), ["icon wifi", "icon volume", "icon battery"]);
-assert.strictEqual(icons[0].children.filter((s) => s.className === "lit").length, 2, "two of three Wi-Fi bars");
-assert.strictEqual(icons[0].attrs.title, "home");
-assert.strictEqual(icons[1].textContent, "🔇");
-assert.ok(icons[2].classList.contains("low"), "a low battery");
-assert.strictEqual(icons[2].children[0].children[0].style.width, "15%");
+const byName = Object.fromEntries(icons.map((b) => [b.className.replace("icon ", ""), b]));
+assert.deepStrictEqual(
+  icons.map((b) => b.className),
+  ["icon source", "icon awake", "icon camera", "icon mic", "icon volume", "icon wifi", "icon battery"],
+);
+assert.strictEqual(byName.source.textContent, "DVO");
+assert.strictEqual(byName.source.attrs.title, "Dvorak");
+// Each icon is a line drawing, with its state in data-state.
+const state = (b) => b.attrs["data-state"];
+for (const b of icons) if (b.className !== "icon source") assert.ok(b.innerHTML.startsWith("<svg "), `${b.className} is drawn`);
+assert.strictEqual(state(byName.awake), "off");
+assert.strictEqual(state(byName.camera), "in-use");
+assert.strictEqual(byName.camera.attrs.title, "Camera in use");
+assert.strictEqual(byName.mic.attrs.title, "Microphone");
+assert.strictEqual(state(byName.mic), "on");
+assert.ok(!byName.mic.innerHTML.includes("M2.5 2.5l11 11"), "no slash on a live microphone");
+assert.strictEqual(state(byName.wifi), "bars-2");
+assert.strictEqual(byName.wifi.innerHTML.split('opacity="0.3"').length - 1, 1, "two of three Wi-Fi arcs lit");
+assert.strictEqual(byName.wifi.attrs.title, "home");
+assert.strictEqual(state(byName.volume), "mute");
+assert.ok(byName.volume.innerHTML.includes("M11 6.5l3 3"), "the speaker's cross");
+assert.strictEqual(state(byName.battery), "low");
+assert.strictEqual(byName.battery.attrs.title, "Battery 15%, 0:40 left");
+assert.ok(byName.battery.innerHTML.includes('width="1.20"'), "a bar 15% full");
+assert.strictEqual(byName.battery.children[0].textContent, "15%");
 
 // No sizes in the fake DOM, so nothing counts as crowded.
 assert.strictEqual(ids.clocks.classList.contains("compact"), false);
 
 chips[2].listeners.click();
-icons[0].listeners.click();
+byName.wifi.listeners.click();
 ids.clocks.listeners.click();
 const wheel = (deltaY) => ids.workspaces.listeners.wheel({ deltaY, preventDefault() {} });
 wheel(20);
 wheel(40);
 wheel(-60);
+byName.mic.listeners.click();
+byName.volume.listeners.click();
+byName.awake.listeners.click();
+byName.source.listeners.click();
+byName.battery.listeners.click();
+const spin = (deltaY) => byName.volume.listeners.wheel({ deltaY, preventDefault() {} });
+spin(-60);
+spin(30);
+spin(30);
 assert.strictEqual(
   JSON.stringify(sent),
   JSON.stringify([
@@ -113,9 +147,26 @@ assert.strictEqual(
     { uuid: "B", dashboard: true },
     { uuid: "B", step: 1 },
     { uuid: "B", step: -1 },
+    { uuid: "B", toggle: "mic" },
+    { uuid: "B", toggle: "volume" },
+    { uuid: "B", toggle: "awake" },
+    { uuid: "B", toggle: "source" },
+    { uuid: "B", open: "battery" },
+    { uuid: "B", volume: 1 },
+    { uuid: "B", volume: -1 },
   ]),
   "every message names this bar's display",
 );
+sent.length = 0;
+
+// A wire, or no network at all.
+sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
+assert.strictEqual(ids.icons.children[0].className, "icon wired");
+ids.icons.children[0].listeners.click();
+sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
+assert.strictEqual(state(ids.icons.children[0]), "none");
+assert.strictEqual(ids.icons.children[0].attrs.title, "No network");
+assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ uuid: "B", open: "network" }]));
 
 // The title keeps 200 px or the clocks shrink to local time.
 const { crowded } = vm.runInContext('modules["./bar.js"]', sandbox);
@@ -136,7 +187,7 @@ assert.ok(ids.clocks.classList.contains("compact"), "and the clocks shrank");
 
 // Off, Wi-Fi shows its bars dimmed and no name.
 sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
-assert.ok(ids.icons.children[0].classList.contains("off"));
+assert.strictEqual(state(ids.icons.children[0]), "off");
 assert.strictEqual(ids.icons.children[0].attrs.title, "Wi-Fi off");
 // Lua's JSON leaves out a field that's nil: a chip that's only occupied
 // mustn't come out urgent or elsewhere.
@@ -144,4 +195,21 @@ sandbox.timo.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: 
 const only = ids.workspaces.children[0];
 assert.ok(only.classList.contains("occupied"));
 for (const k of ["current", "elsewhere", "urgent"]) assert.ok(!only.classList.contains(k), `not ${k}`);
+// Nor a microphone that's only said not to be muted come out muted.
+sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { mic: { muted: false } } });
+const mic = ids.icons.children[0];
+assert.strictEqual(mic.className, "icon mic");
+assert.strictEqual(state(mic), "on", "not muted");
+// Muted, the microphone is struck through; charging, the battery has its bolt.
+sandbox.timo.update({
+  uuid: "B",
+  workspaces: ws,
+  title: "",
+  icons: { mic: { muted: true }, battery: { percent: 60, charging: true, text: "60%" } },
+});
+const [mutedMic, , charging] = ids.icons.children;
+assert.strictEqual(state(mutedMic), "muted");
+assert.ok(mutedMic.innerHTML.includes("M2.5 2.5l11 11"), "the slash");
+assert.strictEqual(state(charging), "charging");
+assert.strictEqual(charging.innerHTML.split("<svg ").length - 1, 2, "the bolt and the battery");
 console.log("bar page: ok");

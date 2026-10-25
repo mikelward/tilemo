@@ -198,6 +198,13 @@ function M.start(config)
             return items
         end)
     end
+    -- Super+Shift+M, with the bar on or off.
+    self.wm.toggle_mic = function()
+        bar_hs.toggle_mic(self.adapter.log)
+        if self.bar then
+            self.bar.refresh()
+        end
+    end
     self.wm.on_show = function(n, uuid)
         hs.alert.closeAll(0)
         hs.alert.show(tostring(n), { textSize = 96, radius = 24 }, hs.screen.find(uuid) or hs.screen.mainScreen(), 0.5)
