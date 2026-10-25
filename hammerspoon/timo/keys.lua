@@ -67,6 +67,7 @@ for _, a in ipairs(M.APPS) do
 end
 
 M.map[#M.map + 1] = { key = "space", action = "launcher" }
+M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
 M.map[#M.map + 1] = { key = "tab", action = "attention" }
 M.map[#M.map + 1] = { key = "home", action = "attention" }
 

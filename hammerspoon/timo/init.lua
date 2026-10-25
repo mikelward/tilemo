@@ -15,6 +15,7 @@ local mouse = require("timo.mouse")
 local wm_mod = require("timo.wm")
 local adapter_mod = require("timo.hs_adapter")
 local ffm_mod = require("timo.ffm")
+local dashboard_hs = require("timo.dashboard_hs")
 local launcher_hs = require("timo.launcher_hs")
 local tap_mod = require("timo.tap")
 local bar = require("timo.bar")
@@ -50,10 +51,10 @@ local function resize_mode(self)
     local modal = hs.hotkey.modal.new()
     -- The float being resized keeps focus while the mode is on.
     function modal.entered()
-        self.wm.holding_keyboard = true
+        self.wm:hold("resize", true)
     end
     function modal.exited()
-        self.wm.holding_keyboard = false
+        self.wm:hold("resize", false)
     end
     for _, b in ipairs(keys.resize) do
         local fn = function()
@@ -145,6 +146,10 @@ function M.start(config)
     self.launcher = launcher_hs.new(self)
     self.wm.open_launcher = function()
         self.launcher.show()
+    end
+    self.dashboard = dashboard_hs.new(self)
+    self.wm.open_dashboard = function()
+        self.dashboard.show()
     end
     -- Without Karabiner's tap rule, timo watches for a lone Super tap itself.
     self.tap = tap_mod.new(function()

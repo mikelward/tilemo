@@ -201,7 +201,7 @@ function M.new(timo)
     local fresh_key
 
     chooser = hs.chooser.new(function(choice)
-        timo.wm.holding_keyboard = false
+        timo.wm:hold("launcher", false)
         if fresh_key then
             fresh_key:delete()
             fresh_key = nil
@@ -234,7 +234,7 @@ function M.new(timo)
         for _, item in ipairs(items) do
             by_id[item.id] = item
         end
-        timo.wm.holding_keyboard = true
+        timo.wm:hold("launcher", true)
         fresh = false
         -- Taken only while the launcher is open, and given back when it closes.
         fresh_key = hs.hotkey.bind({ "cmd" }, "return", function()

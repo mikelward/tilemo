@@ -1,0 +1,408 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f2f4f6;
+  --fg: #1e1e1e;
+  --muted: #5e5e5e;
+  --surface: #ffffff;
+  --raised: #e6e9ec;
+  --bar: rgba(255, 255, 255, 0.92);
+  --accent: #3584e4;
+  --on-accent: #ffffff;
+  --urgent: #e5a50a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11181f;
+    --fg: #f6f5f4;
+    --muted: #9a9996;
+    --surface: #1e1e1e;
+    --raised: #303030;
+    --bar: rgba(16, 18, 20, 0.92);
+    --accent: #78aeed;
+    --on-accent: #1e1e1e;
+    --urgent: #f8e45c;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 Inter, system-ui, sans-serif;
+}
+
+/* tide's bar: workspaces and layout left, the workspace in the middle,
+   clocks right. */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--bar);
+  font-size: 13px;
+}
+#title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+}
+nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+nav button {
+  min-width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+nav button.occupied {
+  background: var(--raised);
+  color: var(--fg);
+}
+nav button.elsewhere {
+  border-color: var(--accent);
+}
+nav button.urgent {
+  background: var(--urgent);
+  color: var(--on-accent);
+}
+nav button.current {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.layout {
+  margin-left: 8px;
+  font-family: "Ubuntu Mono", ui-monospace, monospace;
+  color: var(--muted);
+}
+#clocks {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  border-radius: 6px;
+}
+#clocks li {
+  white-space: nowrap;
+}
+/* A day mark mustn't make its clock's line taller than the others'. */
+#clocks sup {
+  line-height: 0;
+}
+#clocks:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.label,
+sup {
+  color: var(--muted);
+}
+.label {
+  margin-right: 4px;
+}
+/* A scrubbed time shows in the accent color; the labels stay as they are. */
+#clocks.scrubbed li,
+#clock-detail.scrubbed .time {
+  color: var(--accent);
+}
+
+main {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 12vh 24px 24px;
+}
+.launcher,
+.panel {
+  width: min(680px, 100%);
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.panel[hidden] {
+  display: none;
+}
+.home .panel {
+  width: min(760px, 100%);
+}
+.scopes {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.scopes button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.scopes button[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+#query {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+#results {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+#results li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#results li[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface));
+}
+#results .icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--raised);
+}
+#results .icon.app {
+  background: var(--accent);
+}
+#results .title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#results .kind {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+#results .key {
+  font-family: "Ubuntu Mono", ui-monospace, monospace;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#clock-detail {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  font-variant-numeric: tabular-nums;
+}
+#clock-detail[hidden] {
+  display: none;
+}
+#clock-detail .label,
+#clock-detail .abbr,
+#clock-detail .offset,
+.axis {
+  color: var(--muted);
+}
+#clock-detail .time {
+  font-weight: 600;
+}
+.strip {
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.strip .day,
+.strip .work,
+.strip .now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.strip .day {
+  background: color-mix(in srgb, var(--accent) 35%, var(--raised));
+}
+.strip .work {
+  top: 3px;
+  bottom: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.strip .now {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--fg);
+}
+.axis {
+  grid-column: 4;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.note {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+.calendar {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+.calendar .month {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.calendar .month button {
+  font: inherit;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+.calendar .month button:hover {
+  background: var(--raised);
+}
+.calendar .week {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calendar .days {
+  display: grid;
+  grid-template-columns: 2em repeat(7, 1fr);
+  gap: 2px;
+  margin-top: 6px;
+  text-align: center;
+}
+.calendar .days span {
+  padding: 3px 0;
+  border-radius: 6px;
+}
+.calendar .dow,
+.calendar .wk,
+.calendar .outside {
+  color: var(--muted);
+}
+.calendar .dow,
+.calendar .wk {
+  font-size: 11px;
+  align-self: center;
+}
+.calendar .today {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+.hint {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* A checkbox's own margin sat it below the text beside it. */
+.hint label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hint input {
+  margin: 0;
+}
+#open-settings {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+#open-settings:hover {
+  color: var(--fg);
+}
+
+/* The extras still off (§14.1), until dismissed. */
+#extras h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+#extras ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+#extras li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  align-items: center;
+  padding: 8px 0;
+}
+#extras li p {
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+}
+#extras li button {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+#extras button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+#extras li button {
+  background: var(--accent);
+  color: var(--on-accent);
+}

@@ -11,9 +11,15 @@ cost, and lists the open questions that decide what timo becomes.
 
 ## The Hammerspoon version
 
-It tiles with tide's layouts and binds tide's window keys (SPEC.md §5,
-§7.2). Workspaces, the mouse, focus follows mouse and the launcher come
-next.
+It brings tide's desktop to macOS:
+- tide's layouts and window keys (SPEC.md §5, §7.2);
+- the mouse: edge drags, Super+drag and resize mode;
+- focus follows mouse;
+- nine workspaces shared across displays (§6);
+- the launcher and app keys (§9);
+- the workspaces in the menu bar, with Super+Tab to what wants attention
+  (§8, §14.2);
+- tico's dashboard on Super+Shift+Space.
 
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it
    Accessibility.
@@ -39,5 +45,6 @@ falls back to Option, and says so once (SPEC.md §7.1).
 ## Testing
 
 `make test lint` runs everything in plain Lua 5.4, against a fake of macOS
-(`tests/fake.lua`). Nothing here has run on a Mac yet; the checklists in
+(`tests/fake.lua`). The dashboard page's test also needs Node, and skips
+with a note without it. Nothing here has run on a Mac yet; the checklists in
 SPEC.md §5.1 and §5.2 are what to try first.

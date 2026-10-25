@@ -891,6 +891,15 @@ function M:raise_floats(n, pid)
     end
 end
 
+-- Hold the keyboard for `owner` (the launcher, the dashboard, resize mode)
+-- or let it go. Focus follows mouse pauses while anyone holds it, so one
+-- overlay closing can't release another's hold.
+function M:hold(owner, on)
+    self.holds = self.holds or {}
+    self.holds[owner] = on or nil
+    self.holding_keyboard = next(self.holds) ~= nil
+end
+
 function M:focus_window(id)
     local w = self.windows[id]
     if not w then
@@ -1337,6 +1346,13 @@ end
 function A.launcher(self)
     if self.open_launcher then
         self.open_launcher()
+    end
+end
+
+-- Super+Shift+Space: the dashboard, or closes it (SPEC.md §8).
+function A.dashboard(self)
+    if self.open_dashboard then
+        self.open_dashboard()
     end
 end
 
