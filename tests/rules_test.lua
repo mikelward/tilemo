@@ -1,5 +1,5 @@
 local t = require("t")
-local rules = require("timo.rules")
+local rules = require("tilemo.rules")
 
 local function std(extra)
     local f = { role = "AXWindow", subrole = "AXStandardWindow", app = "com.example.app", title = "Doc" }
@@ -65,11 +65,11 @@ t.test("a window with no known subrole is left alone", function()
     t.eq(rules.decide(f), "ignore")
 end)
 
-t.test("Hammerspoon's console floats, and timo's own windows are left alone", function()
+t.test("Hammerspoon's console floats, and tilemo's own windows are left alone", function()
     local hs = { role = "AXWindow", subrole = "AXStandardWindow", app = "org.hammerspoon.Hammerspoon" }
     hs.title = "Hammerspoon Console"
     t.eq(rules.decide(hs), "float")
-    hs.title = "timo dashboard"
+    hs.title = "tilemo dashboard"
     t.eq(rules.decide(hs), "ignore")
     hs.title = ""
     t.eq(rules.decide(hs), "ignore")

@@ -3,7 +3,7 @@
 -- again, Esc, or clicking another window closes it; a workspace number
 -- shows that workspace. Not runnable outside Hammerspoon.
 
-local dashboard = require("timo.dashboard")
+local dashboard = require("tilemo.dashboard")
 
 local M = {}
 
@@ -12,7 +12,7 @@ local DIR = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
 local function read(name)
     local f, err = io.open(DIR .. name)
     if not f then
-        error("timo: can't read the dashboard's " .. name .. ": " .. tostring(err))
+        error("tilemo: can't read the dashboard's " .. name .. ": " .. tostring(err))
     end
     local text = f:read("a")
     f:close()
@@ -29,8 +29,8 @@ local function build()
     return dashboard.page(read("dashboard.html"), read("launcher.css"), sources)
 end
 
--- `timo` is the started timo module: its wm and adapter.
-function M.new(timo)
+-- `tilemo` is the started tilemo module: its wm and adapter.
+function M.new(tilemo)
     local self = {}
     local page = build()
     local view, before, uuid
@@ -41,25 +41,25 @@ function M.new(timo)
         end
         local v = view
         view = nil
-        timo.wm:hold("dashboard", false)
+        tilemo.wm:hold("dashboard", false)
         v:delete()
         if refocus and before then
-            timo.wm:focus_window(before)
+            tilemo.wm:focus_window(before)
         end
     end
 
-    local content = hs.webview.usercontent.new("timo")
+    local content = hs.webview.usercontent.new("tilemo")
     content:setCallback(function(msg)
         local body = msg.body or {}
         -- Out of the page's own callback before deleting the page.
-        timo.adapter.after(0, function()
+        tilemo.adapter.after(0, function()
             local n = tonumber(body.show)
-            if n and timo.wm.screen_ws[uuid] ~= n then
+            if n and tilemo.wm.screen_ws[uuid] ~= n then
                 -- Showing a workspace focuses its own window, not the one before.
                 -- On the display it opened on, whatever focus does as it
                 -- closes.
                 close(false)
-                timo.wm:show(n, uuid)
+                tilemo.wm:show(n, uuid)
             elseif n then
                 -- The one already here: show() has nothing to do, so focus
                 -- goes back to the window you were in.
@@ -77,41 +77,41 @@ function M.new(timo)
             close(true)
             return
         end
-        before = timo.adapter.focused()
-        uuid = on or timo.wm:current_screen()
-        local s = timo.wm:screen_by_uuid(uuid)
+        before = tilemo.adapter.focused()
+        uuid = on or tilemo.wm:current_screen()
+        local s = tilemo.wm:screen_by_uuid(uuid)
         if not s then
-            timo.adapter.log("dashboard: no display to show it on")
+            tilemo.adapter.log("dashboard: no display to show it on")
             return
         end
-        local state = hs.json.encode(dashboard.state(timo.wm, timo.adapter, uuid))
+        local state = hs.json.encode(dashboard.state(tilemo.wm, tilemo.adapter, uuid))
         view = hs.webview.new(s.full, { developerExtrasEnabled = false }, content)
         view:windowStyle({ "borderless" })
-        -- A title for the rules to see: timo leaves its own windows alone.
-        view:windowTitle("timo dashboard")
+        -- A title for the rules to see: tilemo leaves its own windows alone.
+        view:windowTitle("tilemo dashboard")
         view:level(hs.drawing.windowLevels.modalPanel)
         view:allowTextEntry(true)
         view:navigationCallback(function(action, v)
             if action == "didFinishNavigation" then
-                v:evaluateJavaScript("timo.update(" .. state .. ")", function(_, err)
+                v:evaluateJavaScript("tilemo.update(" .. state .. ")", function(_, err)
                     if err and next(err) then
-                        timo.adapter.log("dashboard: " .. hs.inspect(err))
+                        tilemo.adapter.log("dashboard: " .. hs.inspect(err))
                     end
                 end)
             end
         end)
         view:windowCallback(function(action, _, focused)
-            -- Clicking away closes it, as tico's does.
+            -- Clicking away closes it, as tileco's does.
             if action == "focusChange" and focused == false then
                 close(false)
             elseif action == "closing" then
                 view = nil
-                timo.wm:hold("dashboard", false)
+                tilemo.wm:hold("dashboard", false)
             end
         end)
         view:html(page)
         view:show()
-        timo.wm:hold("dashboard", true)
+        tilemo.wm:hold("dashboard", true)
         local w = view:hswindow()
         if w then
             w:focus()

@@ -5,17 +5,17 @@
 -- is the full, slower read used to decide a new window; `state` is the
 -- quick one used on every retile.
 --
--- Workspaces (SPEC.md §6.1) are tico's: nine, shared by every display,
+-- Workspaces (SPEC.md §6.1) are tileco's: nine, shared by every display,
 -- each display showing one. A window on a workspace that isn't showing is
 -- minimized. Every operation changes only which workspace each display
 -- shows and which workspace each window is on; then reconcile() makes the
 -- screen match, restoring first so the screen never goes empty.
 
-local attention = require("timo.attention")
-local bar = require("timo.bar")
-local layout = require("timo.layout")
-local mouse = require("timo.mouse")
-local rules = require("timo.rules")
+local attention = require("tilemo.attention")
+local bar = require("tilemo.bar")
+local layout = require("tilemo.layout")
+local mouse = require("tilemo.mouse")
+local rules = require("tilemo.rules")
 
 local M = {}
 M.__index = M
@@ -31,17 +31,17 @@ end
 local set_big_on
 
 M.WORKSPACES = 9
--- How long timo waits for macOS to report a minimize or restore it asked for.
+-- How long tilemo waits for macOS to report a minimize or restore it asked for.
 M.EXPECT = 2
 
 -- How long to wait after the last window event before retiling, since one
--- window opening sends several (tico SPEC.md §5.3).
+-- window opening sends several (tileco SPEC.md §5.3).
 M.DEBOUNCE = 0.05
 -- A float's size is capped at this share of its display (tide SPEC.md §6.4).
 M.FLOAT_CAP = 0.8
 -- The focus guard (SPEC.md §14.1): how long a launch you made may give its
 -- window focus, and how soon after something you did (a click, a key with
--- Command, a focus timo asked for) an activation still counts as yours.
+-- Command, a focus tilemo asked for) an activation still counts as yours.
 M.GRANT = 10
 M.GRACE = 1
 -- How long the place of a window whose app quit, or that the last run saved
@@ -55,7 +55,7 @@ function M.new(adapter, config)
     local self = setmetatable({
         a = adapter,
         layout = config.layout or layout.defaults,
-        -- The height timo's bar takes from the top of each display, or 0
+        -- The height tilemo's bar takes from the top of each display, or 0
         -- with the bar off (bar.lua).
         top = config.top or 0,
         rules = rules.check(config.rules or {}, "rules"),
@@ -64,8 +64,8 @@ function M.new(adapter, config)
         screen_ws = {}, -- display uuid -> workspace number
         floats = {},    -- float ids, bottom to top
         mru = {},       -- workspace number -> ids, most recent first
-        placed = {},    -- id -> the frame timo last gave it, as it landed
-        -- id -> the minimizes and restores timo asked for that macOS hasn't
+        placed = {},    -- id -> the frame tilemo last gave it, as it landed
+        -- id -> the minimizes and restores tilemo asked for that macOS hasn't
         -- reported yet, oldest first, each { kind = "min" or "unmin",
         -- token = n }. One entry per request: switching back and forth
         -- quickly can leave several of either kind outstanding.
@@ -75,7 +75,7 @@ function M.new(adapter, config)
         history = {},   -- ids, most recently focused first, across workspaces
         -- The focus guard's inputs: when you last typed or clicked, when you
         -- last did something that switches apps, whether Command is down,
-        -- the launch grant, the focus timo last asked for, and the last
+        -- the launch grant, the focus tilemo last asked for, and the last
         -- window refused.
         last_input = -math.huge,
         last_switch = -math.huge,
@@ -113,7 +113,7 @@ local function inside(box, x, y)
     return x >= box.x and x < box.x + box.w and y >= box.y and y < box.y + box.h
 end
 
--- The displays, each one's tiling area below timo's bar when it's on.
+-- The displays, each one's tiling area below tilemo's bar when it's on.
 function M:screens()
     local out = {}
     for i, s in ipairs(self.a.screens()) do
@@ -162,7 +162,7 @@ function M:map_screens()
             self.screen_ws[uuid] = nil
         end
     end
-    -- A display timo saw last run shows what it showed then.
+    -- A display tilemo saw last run shows what it showed then.
     for _, s in ipairs(screens) do
         local n = self.saved_screens[s.uuid]
         if not self.screen_ws[s.uuid] and n and not used[n] then
@@ -279,7 +279,7 @@ function M:add(id)
         return nil
     end
     local kind = rules.decide(f, self.rules)
-    -- `seen`: when timo found it, so the focus guard can tell a window a
+    -- `seen`: when tilemo found it, so the focus guard can tell a window a
     -- launch opened from one that was already there.
     local w = { id = id, app = f.app, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title }
     self.windows[id] = w
@@ -291,7 +291,7 @@ function M:add(id)
     end)
     self.paired[id] = nil
     if saved and saved.ws then
-        -- timo restarted, or the app relaunched: the window goes back where
+        -- tilemo restarted, or the app relaunched: the window goes back where
         -- it was.
         w.ws = saved.ws
         w.mine = saved.mine
@@ -302,7 +302,7 @@ function M:add(id)
         self:ensure_ws(w.ws, self:screen_for(f.frame).area)
     else
         w.ws = self:ws_on_screen(self:screen_for(f.frame)) or 1
-        -- Minimized before timo knew it: you did that.
+        -- Minimized before tilemo knew it: you did that.
         w.mine = f.minimized or false
     end
     if kind == "float" then
@@ -505,7 +505,7 @@ function M:forget(id, pos, at)
     self.attention:gone(id)
 end
 
--- Match what timo knows to the windows that exist now: add new ones, forget
+-- Match what tilemo knows to the windows that exist now: add new ones, forget
 -- gone ones. Window events call this rather than trusting each event's
 -- window, since a destroyed window can no longer say who it was.
 -- Returns the workspaces that lost a window.
@@ -606,7 +606,7 @@ function M:reconcile()
         return rank(p) < rank(q)
     end)
     -- An expectation lapses if macOS never reports the change, so a later
-    -- minimize of yours isn't mistaken for timo's.
+    -- minimize of yours isn't mistaken for tilemo's.
     local function expect(id, kind)
         -- Each request gets its own token, so an older request's timeout
         -- can't clear a newer one's expectation.
@@ -683,7 +683,7 @@ function M:save()
     end
 end
 
--- The newest of timo's outstanding requests for `id`, if any: a restore
+-- The newest of tilemo's outstanding requests for `id`, if any: a restore
 -- asked after a hide supersedes it, though both reports are still due.
 function M:last_asked(id)
     local e = self.expect[id]
@@ -706,7 +706,7 @@ function M:settle_request(id, match)
     return false
 end
 
--- Take macOS's report of `kind` as the answer to timo's oldest request of
+-- Take macOS's report of `kind` as the answer to tilemo's oldest request of
 -- that kind, if there is one, and say whether there was.
 function M:acknowledge(id, kind)
     return self:settle_request(id, function(r)
@@ -714,7 +714,7 @@ function M:acknowledge(id, kind)
     end)
 end
 
--- macOS says a window was minimized. If timo didn't ask, you did.
+-- macOS says a window was minimized. If tilemo didn't ask, you did.
 function M:minimized(id)
     if self:acknowledge(id, "min") then
         -- Its workspace may have come back meanwhile.
@@ -729,7 +729,7 @@ function M:minimized(id)
     self:schedule()
 end
 
--- macOS says a window came back. If timo didn't ask, you restored it from
+-- macOS says a window came back. If tilemo didn't ask, you restored it from
 -- the Dock or Cmd+Tab: clear the flag, and bring its workspace along.
 function M:unminimized(id)
     if self:acknowledge(id, "unmin") then
@@ -752,7 +752,7 @@ function M:unminimized(id)
     self:schedule()
 end
 
--- When timo quits, nothing stays stranded in the Dock (SPEC.md §6.3).
+-- When tilemo quits, nothing stays stranded in the Dock (SPEC.md §6.3).
 function M:restore_all()
     for id, w in pairs(self.windows) do
         local st = w.ws and not w.mine and self.a.state(id)
@@ -1074,7 +1074,7 @@ function M:request(id, box)
     self:retile()
 end
 
--- macOS says a window moved or changed size. Ignore the moves timo made;
+-- macOS says a window moved or changed size. Ignore the moves tilemo made;
 -- treat the rest as a request, once the button is up.
 -- A float you moved to another display joins the workspace showing there,
 -- so following workspaces between displays doesn't pull it back.
@@ -1203,7 +1203,7 @@ function M:focus_window(id)
     if self.focus_after ~= id then
         self.focus_after = nil
     end
-    -- The focus report this causes is timo's, not an app helping itself,
+    -- The focus report this causes is tilemo's, not an app helping itself,
     -- and moving focus ends a launch's grant.
     self.asked = { id = id, app = w.app, at = self.a.now() }
     self.granted = nil
@@ -1228,7 +1228,7 @@ end
 
 -- A click: whatever it picks is newer than a restore still on its way,
 -- and than a switch that kept keys on its display. (A focus report alone
--- can't say this: macOS moves focus itself as timo minimizes, and a click
+-- can't say this: macOS moves focus itself as tilemo minimizes, and a click
 -- on the window that already has focus reports nothing.)
 function M:clicked()
     self.focus_after = nil
@@ -1243,18 +1243,18 @@ end
 
 -- The focus guard (SPEC.md §14.1) -------------------------------------------
 
--- A launch you made: a window of `app` (of any app, when timo can't tell
+-- A launch you made: a window of `app` (of any app, when tilemo can't tell
 -- which, as for a helper script) may take focus within M.GRANT, once, if
 -- you haven't typed, clicked or moved focus since. `first_only` limits it
 -- to an app with no window open before the grant, for a launch guessed
--- from the click or Return that may have started it outside timo (the
+-- from the click or Return that may have started it outside tilemo (the
 -- Dock, Spotlight, Finder); every window that launch opens counts.
 function M:grant(app, first_only)
     self.granted = { app = app, at = self.a.now(), first_only = first_only or false }
 end
 
 -- A key went down. Typing ends a launch's grant. A key with Command held
--- (Cmd+Tab, timo's own keys) or Return (Spotlight, a file in Finder) is a
+-- (Cmd+Tab, tilemo's own keys) or Return (Spotlight, a file in Finder) is a
 -- choice, so what it activates is yours.
 function M:key_down(key, cmd)
     local now = self.a.now()
@@ -1347,7 +1347,7 @@ function M:refuse(id, w)
     self.granted = g
 end
 
--- Called when macOS reports a window gained focus, by timo or by a click
+-- Called when macOS reports a window gained focus, by tilemo or by a click
 -- or app switch. A window too new to have been synced is added now, so its
 -- focus isn't lost.
 function M:focused(id)
@@ -1645,7 +1645,7 @@ end
 
 -- An app's managed windows, most recently used first: by focus across
 -- workspaces, then by each workspace's own order for windows not focused
--- since timo started.
+-- since tilemo started.
 function M:app_windows(bundle)
     local out, seen = {}, {}
     for _, id in ipairs(self.history) do
@@ -1812,7 +1812,7 @@ end
 function M:act(name, arg)
     local f = A[name]
     if not f then
-        error("timo: no action " .. tostring(name))
+        error("tilemo: no action " .. tostring(name))
     end
     f(self, arg)
 end

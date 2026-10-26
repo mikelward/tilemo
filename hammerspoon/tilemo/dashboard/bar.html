@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>timo bar</title>
+<title>tilemo bar</title>
 <script>
 // First, so an error in the bar's own script, even one that stops it
-// parsing, still reaches timo, which logs it.
+// parsing, still reaches tilemo, which logs it.
 window.onerror = (message, source, line, column) => {
-  window.webkit?.messageHandlers?.timo?.postMessage({ error: `${message} (line ${line}:${column})` });
+  window.webkit?.messageHandlers?.tilemo?.postMessage({ error: `${message} (line ${line}:${column})` });
 };
 </script>
 <style>
-/*TIMO_CSS*/
+/*TILEMO_CSS*/
 </style>
 <style>
-/* timo's additions to tico's bar: the right-hand group, local time alone
+/* tilemo's additions to tileco's bar: the right-hand group, local time alone
    when crowded, and the status icons. */
 body {
   background: var(--bar);
@@ -114,7 +114,7 @@ nav button .more {
 </div>
 </header>
 <script>
-/*TIMO_SCRIPT*/
+/*TILEMO_SCRIPT*/
 </script>
 </body>
 </html>

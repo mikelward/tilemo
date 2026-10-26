@@ -1,6 +1,6 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
+local wm_mod = require("tilemo.wm")
 
 local function setup(n)
     local a = fake.new()
@@ -277,7 +277,7 @@ t.test("after a close, a minimized window is passed over for a visible one", fun
     t.eq(a.focus_, 1)
 end)
 
-t.test("after a close, a window not focused since timo started still gets focus", function()
+t.test("after a close, a window not focused since tilemo started still gets focus", function()
     local a, wm = setup(2)
     a.focus_ = 2
     a.drop(2)
@@ -289,7 +289,7 @@ end)
 
 t.test("a new window that took focus first still goes after the one you were in", function()
     local cfg = {}
-    for k, v in pairs(require("timo.layout").defaults) do
+    for k, v in pairs(require("tilemo.layout").defaults) do
         cfg[k] = v
     end
     cfg.new_window = "next"
@@ -330,7 +330,7 @@ t.test("a float you focus stays in front when a tile's floats are raised again",
     t.eq(a.calls[#a.calls], "raise 2")
 end)
 
-t.test("timo's own moves aren't read as drags", function()
+t.test("tilemo's own moves aren't read as drags", function()
     local a, wm = setup(2)
     a.calls = {}
     wm:moved(1)

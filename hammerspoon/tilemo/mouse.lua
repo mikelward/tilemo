@@ -1,6 +1,6 @@
 -- Super+drag and Super+right-drag (SPEC.md §5.3): where the window would go
 -- for a given pointer position. Pure Lua; the adapter draws the outline and
--- timo moves the real window only when the button comes up, since moving
+-- tilemo moves the real window only when the button comes up, since moving
 -- another app's window on every mouse event lags.
 
 local M = {}

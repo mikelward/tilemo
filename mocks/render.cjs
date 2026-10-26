@@ -147,7 +147,7 @@ const STATES = [
       });
       await tab.clock.setFixedTime(new Date("2026-10-26T09:30:00Z"));
       await tab.goto("file://" + path.resolve(page));
-      await tab.evaluate((s) => window.timo.update(s), state);
+      await tab.evaluate((s) => window.tilemo.update(s), state);
       const out = path.join(__dirname, `${name}.png`);
       await tab.screenshot({ path: out });
       console.log(`wrote ${path.relative(process.cwd(), out)}`);

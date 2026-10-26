@@ -1,6 +1,6 @@
--- The dashboard (SPEC.md §8): tico's bar and clock panel, full screen on a
--- key, in an hs.webview. The page is tico's own modules, copied unchanged
--- into dashboard/, plus timo's settings and page script. A webview can't
+-- The dashboard (SPEC.md §8): tileco's bar and clock panel, full screen on a
+-- key, in an hs.webview. The page is tileco's own modules, copied unchanged
+-- into dashboard/, plus tilemo's settings and page script. A webview can't
 -- load ES modules from files, so bundle() joins them into one script, each
 -- module in its own scope. Pure Lua; dashboard_hs.lua shows it.
 
@@ -19,7 +19,7 @@ local function wrap(name, src)
         return "const " .. names:gsub("%s+as%s+", ": ") .. ' = modules["' .. from .. '"];'
     end)
     if src:find("%f[%w]import%s") then
-        error("timo: dashboard/" .. name .. " has an import bundle() can't read")
+        error("tilemo: dashboard/" .. name .. " has an import bundle() can't read")
     end
     src = src:gsub("export%s+(async%s+function%s+)([%w_$]+)", function(kw, n)
         exports[#exports + 1] = n
@@ -38,7 +38,7 @@ local function wrap(name, src)
         return "let " .. n
     end)
     if src:find("%f[%w]export%f[%W]") then
-        error("timo: dashboard/" .. name .. " has an export bundle() can't read")
+        error("tilemo: dashboard/" .. name .. " has an export bundle() can't read")
     end
     return string.format('modules["./%s"] = (() => {\n%s\nreturn { %s };\n})();\n',
         name, src, table.concat(exports, ", "))
@@ -51,27 +51,27 @@ function M.bundle(sources, modules)
     for _, name in ipairs(modules or M.MODULES) do
         local src = sources[name]
         if not src then
-            error("timo: dashboard/" .. name .. " is missing")
+            error("tilemo: dashboard/" .. name .. " is missing")
         end
         out[#out + 1] = wrap(name, src)
     end
     return table.concat(out)
 end
 
--- The page: the template with tico's stylesheet and the bundled script in
+-- The page: the template with tileco's stylesheet and the bundled script in
 -- place of its two markers.
 function M.page(template, css, sources, modules)
     local script = M.bundle(sources, modules)
-    local html = template:gsub("/%*TIMO_CSS%*/", function()
+    local html = template:gsub("/%*TILEMO_CSS%*/", function()
         return css
     end)
-    html = html:gsub("/%*TIMO_SCRIPT%*/", function()
+    html = html:gsub("/%*TILEMO_SCRIPT%*/", function()
         return script
     end)
     return html
 end
 
--- What the page shows, as plain data for timo.update(): every workspace's
+-- What the page shows, as plain data for tilemo.update(): every workspace's
 -- state as seen from display `uuid`, the one the dashboard is on, and the
 -- focused window's title.
 function M.state(wm, adapter, uuid)

@@ -1,5 +1,5 @@
 local t = require("t")
-local launcher = require("timo.launcher")
+local launcher = require("tilemo.launcher")
 
 t.test("every query character must appear, in order", function()
     t.eq(launcher.score("gc", "Google Calendar") ~= nil, true)
@@ -73,7 +73,7 @@ t.test("items have stable keys", function()
 end)
 
 t.test("every command names a window manager action or a quick action", function()
-    local wm = require("timo.wm")
+    local wm = require("tilemo.wm")
     for _, c in ipairs(launcher.COMMANDS) do
         t.eq(c.quick ~= nil or type(wm.actions[c.action]) == "function", true, c.title)
     end

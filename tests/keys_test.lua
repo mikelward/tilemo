@@ -1,5 +1,5 @@
 local t = require("t")
-local keys = require("timo.keys")
+local keys = require("tilemo.keys")
 
 local HOME = "/home/user"
 local CONFIG = HOME .. "/.config/karabiner/karabiner.json"
@@ -26,12 +26,24 @@ local function profile(selected, ...)
     return { selected = selected, complex_modifications = { rules = { ... } } }
 end
 
-t.test("with Karabiner running and timo's rule loaded, Super is Ctrl+Option+Command", function()
-    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "timo: Win to Super" })) },
+t.test("with Karabiner running and tilemo's rule loaded, Super is Ctrl+Option+Command", function()
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tilemo: Win to Super" })) },
         { ["Karabiner-Core-Service"] = true })
     local super, ok = keys.super(read, running, HOME, decode)
     t.eq(ok, true)
     t.eq(super, { "ctrl", "alt", "cmd" })
+end)
+
+t.test("a rule still described as timo's, from before the rename, counts too", function()
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "timo: Win to Super" })) },
+        { ["Karabiner-Core-Service"] = true })
+    t.eq(select(2, keys.super(read, running, HOME, decode)), true)
+end)
+
+t.test("a rule whose description only mentions tilemo later doesn't count", function()
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "not tilemo: x" })) },
+        { ["Karabiner-Core-Service"] = true })
+    t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
 
 t.test("without Karabiner's rule, Super falls back to Option", function()
@@ -42,13 +54,13 @@ t.test("without Karabiner's rule, Super falls back to Option", function()
 end)
 
 t.test("with the rule but Karabiner not running, Super falls back to Option", function()
-    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "timo: x" })) }, {})
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tilemo: x" })) }, {})
     t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
 
 t.test("the rule only counts in the selected profile", function()
     local read, running = env({
-        [CONFIG] = profiles(profile(false, { description = "timo: x" }), profile(true, { description = "other" })),
+        [CONFIG] = profiles(profile(false, { description = "tilemo: x" }), profile(true, { description = "other" })),
     }, { ["Karabiner-Core-Service"] = true })
     t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
@@ -75,7 +87,7 @@ t.test("no two bindings share keys", function()
 end)
 
 t.test("every binding names an action the window manager has", function()
-    local wm = require("timo.wm")
+    local wm = require("tilemo.wm")
     for _, b in ipairs(keys.map) do
         t.eq(type(wm.actions[b.action]), "function", b.action)
     end
@@ -153,7 +165,7 @@ end)
 
 t.test("a screenshot action asks the adapter for that kind", function()
     local a = require("fake").new()
-    local wm = require("timo.wm").new(a, {})
+    local wm = require("tilemo.wm").new(a, {})
     wm:act("screenshot", "window")
     wm:act("screenshot", "screen")
     t.eq(table.concat(a.shots, " "), "window screen")

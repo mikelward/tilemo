@@ -1,5 +1,5 @@
 local t = require("t")
-local layout = require("timo.layout")
+local layout = require("tilemo.layout")
 
 local HD = { x = 0, y = 25, w = 1920, h = 1055 }
 local UW = { x = 0, y = 25, w = 3440, h = 1415 }

@@ -1,12 +1,12 @@
-# timo
+# tilemo
 
-tide's tiling desktop, and tico's launcher and dashboard, on macOS:
+tide's tiling desktop, and tileco's launcher and dashboard, on macOS:
 [tide](https://github.com/mikelward/tide) is the Linux desktop and
-[tico](https://github.com/mikelward/tico) the chromeOS one.
+[tileco](https://github.com/mikelward/tileco) the chromeOS one.
 
 **Status: exploration, with a first Hammerspoon version.** [SPEC.md](SPEC.md)
 says what macOS allows for each of their features, how well, and at what
-cost, and lists the open questions that decide what timo becomes.
+cost, and lists the open questions that decide what tilemo becomes.
 [TODO.md](TODO.md) says what's next.
 
 ## The Hammerspoon version
@@ -18,16 +18,16 @@ It brings tide's desktop to macOS:
 - nine workspaces shared across displays (§6);
 - the launcher and app keys (§9);
 - tide's bar along the top: the workspaces, the window's title, the clocks
-  and timo's own status items (input source, keep awake, camera,
+  and tilemo's own status items (input source, keep awake, camera,
   microphone, speaker, network, battery), with Super+Tab to what wants
   attention and Super+Shift+M to mute the microphone (§7.2, §8, §14.2);
-- tico's dashboard on Super+Shift+Space.
+- tileco's dashboard on Super+Shift+Space.
 
 With [mikelward/scripts](https://github.com/mikelward/scripts),
-`setup-macos --wm timo` does all of this: it installs Hammerspoon and timo,
-writes the `init.lua` below if there isn't one, frees the keys timo needs
+`setup-macos --wm tilemo` does all of this: it installs Hammerspoon and tilemo,
+writes the `init.lua` below if there isn't one, frees the keys tilemo needs
 (SPEC.md §7.3), and hides the menu bar. Grant Hammerspoon Accessibility,
-and add conf's `timo:` Karabiner rule for a Super key that leaves Option
+and add conf's `tilemo:` Karabiner rule for a Super key that leaves Option
 alone (§7.1). By hand:
 
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it
@@ -35,26 +35,34 @@ alone (§7.1). By hand:
 2. `make install`, then add to `~/.hammerspoon/init.lua`:
 
    ```lua
-   timo = require("timo")
-   timo.start({})
+   tilemo = require("tilemo")
+   tilemo.start({})
    ```
 
 3. Set the menu bar to hide: System Settings › Control Center ›
-   "Automatically hide and show the menu bar": Always. timo's bar takes
+   "Automatically hide and show the menu bar": Always. tilemo's bar takes
    its place; the menu bar still shows when the pointer reaches the top.
 4. Reload Hammerspoon's config.
 
-`timo.start({ bar = false })` leaves the bar out and shows the workspaces in
+`tilemo.start({ bar = false })` leaves the bar out and shows the workspaces in
 the menu bar instead.
 
 `start()` takes float rules, checked when it starts:
 
 ```lua
-timo.start({ rules = { { app = "com.apple.finder", title = "^Info$", action = "float" } } })
+tilemo.start({ rules = { { app = "com.apple.finder", title = "^Info$", action = "float" } } })
 ```
 
+tilemo was called timo. An install from then keeps working after
+`make install`: `require("timo")` still loads tilemo, with a note in the
+console to change it to `require("tilemo")`; a Karabiner rule described
+`timo:` still counts; and the workspaces and launcher history timo saved are
+read the first time tilemo finds none of its own. The old modules in
+`~/.hammerspoon/timo/` are no longer used, and can go once `init.lua` says
+`require("tilemo")`.
+
 Super is the PC keyboard's Win key. With conf's Karabiner rule, it arrives
-as Ctrl+Option+Command, so Option keeps its own meanings. Without it, timo
+as Ctrl+Option+Command, so Option keeps its own meanings. Without it, tilemo
 falls back to Option, and says so once (SPEC.md §7.1).
 
 ## Testing
@@ -64,9 +72,9 @@ falls back to Option, and says so once (SPEC.md §7.1).
 skip with a note without it.
 
 CI also runs `ci/hs-smoke.sh` on a macOS runner. It installs Hammerspoon from
-Homebrew, checks that every `hs.*` name timo uses exists in it, then starts
-timo, checks its bar is up along the top, opens and closes the dashboard,
-and opens three TextEdit windows to check timo tiles them below the bar,
+Homebrew, checks that every `hs.*` name tilemo uses exists in it, then starts
+tilemo, checks its bar is up along the top, opens and closes the dashboard,
+and opens three TextEdit windows to check tilemo tiles them below the bar,
 where its layout says. That's one layout on one
 display; the checklists in SPEC.md §5.1 and §5.2 are what to try on a real
 Mac.

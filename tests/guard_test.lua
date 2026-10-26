@@ -3,7 +3,7 @@
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
+local wm_mod = require("tilemo.wm")
 
 -- Window 1 of app "a" focused long enough ago that nothing you did still
 -- counts, and window 2 of app "b" beside it.
@@ -46,7 +46,7 @@ t.test("an app activating itself is handed focus back and marked", function()
     t.eq(wm:bar_state()[1].urgent, true, "the bar shows it")
 end)
 
-t.test("focus handed back is timo's own, so it stays", function()
+t.test("focus handed back is tilemo's own, so it stays", function()
     local a, wm = setup()
     steal(a, wm, 2)
     wm:focused(1)
@@ -63,7 +63,7 @@ t.test("a new window of the app you're in keeps focus", function()
     t.eq(marked(wm, 3), false)
 end)
 
-t.test("a focus timo asked for is kept", function()
+t.test("a focus tilemo asked for is kept", function()
     local a, wm = setup()
     wm:focus_window(2)
     wm:focused(2)
@@ -217,7 +217,7 @@ t.test("an app left with the focus it took back may open its own dialog", functi
     t.eq(marked(wm, 2), true, "still marked")
 end)
 
-t.test("Return may launch an app outside timo: its first window keeps focus, not another's", function()
+t.test("Return may launch an app outside tilemo: its first window keeps focus, not another's", function()
     local a, wm = setup()
     wm:key_down("return", false)
     a.clock = a.clock + 4
@@ -233,7 +233,7 @@ t.test("Return may launch an app outside timo: its first window keeps focus, not
     t.eq(a.focused(), 1, "an app already open")
 end)
 
-t.test("an app launched outside timo that opens several windows may take focus", function()
+t.test("an app launched outside tilemo that opens several windows may take focus", function()
     local a, wm = setup()
     wm:key_down("return", false)
     a.clock = a.clock + 4

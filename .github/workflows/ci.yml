@@ -15,21 +15,21 @@ jobs:
         with:
           repository: mikelward/tide
           path: tide
-      # So are the dashboard's clock modules from tico.
+      # So are the dashboard's clock modules from tileco.
       - uses: actions/checkout@v4
         with:
-          repository: mikelward/tico
-          path: tico
+          repository: mikelward/tileco
+          path: tileco
       # Ubuntu packages Lua 5.4, which is what Hammerspoon embeds.
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
       # The runner's Node runs the dashboard page test, which mustn't skip.
       - run: make lint test
         env:
-          TIMO_NEED_NODE: "1"
+          TILEMO_NEED_NODE: "1"
       - run: make check-geometry TIDE=tide
-      - run: make check-tico TICO=tico
-  # A smoke test in a real Hammerspoon: every hs.* name timo uses exists,
-  # timo starts and opens its dashboard, and it tiles three windows. The
+      - run: make check-tileco TILECO=tileco
+  # A smoke test in a real Hammerspoon: every hs.* name tilemo uses exists,
+  # tilemo starts and opens its dashboard, and it tiles three windows. The
   # runner comes with Accessibility granted; tests/ covers the rest.
   hammerspoon:
     runs-on: macos-15

@@ -1,7 +1,7 @@
-// timo's bar (SPEC.md §8): tide's bar along the top of each display, with
+// tilemo's bar (SPEC.md §8): tide's bar along the top of each display, with
 // the workspaces left, the focused window's title in the middle, and the
-// clocks and status icons right. timo fills it with timo.update(state) and
-// hears back through the "timo" message handler: { uuid, show: n },
+// clocks and status icons right. tilemo fills it with tilemo.update(state) and
+// hears back through the "tilemo" message handler: { uuid, show: n },
 // { uuid, step: 1 or -1 }, { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 } or
 // { dashboard: true }.
@@ -9,8 +9,8 @@
 import { renderClocks } from "./clockview.js";
 import { DEFAULT_SETTINGS } from "./settings.js";
 
-// Every message names this bar's display, so timo acts there.
-const send = (msg) => window.webkit?.messageHandlers?.timo?.postMessage({ uuid, ...msg });
+// Every message names this bar's display, so tilemo acts there.
+const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage({ uuid, ...msg });
 
 // tide's rule (tide §7.3): below this the clocks shrink to local time.
 export const MIN_TITLE = 200;
@@ -41,7 +41,7 @@ function el(tag, className, text) {
   return e;
 }
 
-// Each chip is its number, then one icon per window (timo sends at most
+// Each chip is its number, then one icon per window (tilemo sends at most
 // five, and how many more as `more`), as tide's are. An app with no icon
 // shows as a blank square of the same size, so the count still reads.
 function renderWorkspaces(nav, workspaces, appIcons = {}) {
@@ -64,7 +64,7 @@ function renderWorkspaces(nav, workspaces, appIcons = {}) {
       }
     }
     if (w.more > 0) b.append(el("span", "more", `+${w.more}`));
-    // A field timo left out is false: toggle(name, undefined) would flip it.
+    // A field tilemo left out is false: toggle(name, undefined) would flip it.
     for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, !!w[k]);
     b.addEventListener("click", () => send({ show: w.n }));
     nav.append(b);
@@ -203,7 +203,7 @@ function tick() {
   fit();
 }
 
-window.timo = {
+window.tilemo = {
   update(state) {
     uuid = state.uuid;
     renderWorkspaces(document.getElementById("workspaces"), state.workspaces, state.app_icons || {});
@@ -222,7 +222,7 @@ document.getElementById("workspaces").addEventListener("wheel", (e) => {
 });
 
 // Double-clicking the title maximizes the focused window, as on a Mac's
-// title bar; timo acts only if that window is on this bar's display.
+// title bar; tilemo acts only if that window is on this bar's display.
 document.getElementById("title").addEventListener("dblclick", () => send({ maximize: true }));
 
 // The clocks open the dashboard, with its clock panel.

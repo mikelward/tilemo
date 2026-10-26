@@ -4,14 +4,14 @@
 
 local M = {}
 
--- Rules that ship with timo, after the user's own. `app` is a bundle ID and
+-- Rules that ship with tilemo, after the user's own. `app` is a bundle ID and
 -- `title` a Lua pattern; either may be left out to match anything.
 M.defaults = {
     -- Picture-in-picture stays on every workspace, untiled (SPEC.md §5.5).
     { title = "^Picture in Picture$", action = "ignore" },
     { title = "^Picture%-in%-Picture$", action = "ignore" },
     -- Hammerspoon's console and preferences float; the rest of its windows
-    -- are timo's own (the launcher, the dashboard), placed by timo, so
+    -- are tilemo's own (the launcher, the dashboard), placed by tilemo, so
     -- they're left alone.
     { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Console$", action = "float" },
     { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Preferences$", action = "float" },
