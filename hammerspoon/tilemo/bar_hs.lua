@@ -1,10 +1,10 @@
 -- The bar on Hammerspoon: bar.lua's state in a borderless hs.webview along
 -- the top of each display (SPEC.md §8), kept open and updated rather than
 -- rebuilt. The page is built like the dashboard's, from the same copies of
--- tico's modules. Not runnable outside Hammerspoon.
+-- tileco's modules. Not runnable outside Hammerspoon.
 
-local bar = require("timo.bar")
-local dashboard = require("timo.dashboard")
+local bar = require("tilemo.bar")
+local dashboard = require("tilemo.dashboard")
 
 local M = {}
 
@@ -16,7 +16,7 @@ local DIR = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
 local function read(name)
     local f, err = io.open(DIR .. name)
     if not f then
-        error("timo: can't read the bar's " .. name .. ": " .. tostring(err))
+        error("tilemo: can't read the bar's " .. name .. ": " .. tostring(err))
     end
     local text = f:read("a")
     f:close()
@@ -60,13 +60,13 @@ function M.toggle_mic(log)
     return true
 end
 
--- `timo` is the started timo module: its wm, adapter and dashboard.
-function M.new(timo)
+-- `tilemo` is the started tilemo module: its wm, adapter and dashboard.
+function M.new(tilemo)
     -- `errors` keeps what the pages reported going wrong, for the log and
     -- the smoke test.
     local self = { views = {}, icons = {}, errors = {} }
     local page = build()
-    local log = timo.adapter.log
+    local log = tilemo.adapter.log
     -- The last error from each source, so a lasting one is logged once.
     local failed = {}
 
@@ -181,7 +181,7 @@ function M.new(timo)
         if pending then
             return
         end
-        pending = timo.adapter.after(0.1, function()
+        pending = tilemo.adapter.after(0.1, function()
             pending = nil
             self.refresh()
         end)
@@ -240,11 +240,11 @@ function M.new(timo)
             return
         end
         -- Out of the page's own callback before changing what's on screen.
-        timo.adapter.after(0, function()
-            bar.handle(timo.wm, body, {
+        tilemo.adapter.after(0, function()
+            bar.handle(tilemo.wm, body, {
                 open = open_url,
                 dashboard = function(uuid)
-                    timo.dashboard.show(uuid)
+                    tilemo.dashboard.show(uuid)
                 end,
                 toggle = toggle,
                 volume = step_volume,
@@ -273,12 +273,12 @@ function M.new(timo)
         if not v.ready then
             return
         end
-        local json = hs.json.encode(bar.state(timo.wm, v.uuid, title, self.icons, icon_of))
+        local json = hs.json.encode(bar.state(tilemo.wm, v.uuid, title, self.icons, icon_of))
         if json == v.sent then
             return
         end
         v.sent = json
-        v.view:evaluateJavaScript("timo.update(" .. json .. ")", function(_, err)
+        v.view:evaluateJavaScript("tilemo.update(" .. json .. ")", function(_, err)
             if err and next(err) then
                 log("bar: " .. hs.inspect(err))
             end
@@ -288,14 +288,14 @@ function M.new(timo)
     local function create(uuid, frame)
         local v = { uuid = uuid, frame = frame }
         -- Each view keeps its own handler, and both stay referenced here.
-        v.content = hs.webview.usercontent.new("timo")
+        v.content = hs.webview.usercontent.new("tilemo")
         v.content:setCallback(function(msg)
             on_message(msg, uuid)
         end)
         v.view = hs.webview.new(frame, { developerExtrasEnabled = false }, v.content)
         v.view:windowStyle({ "borderless" })
-        -- A title for the rules to see: timo leaves its own windows alone.
-        v.view:windowTitle("timo bar")
+        -- A title for the rules to see: tilemo leaves its own windows alone.
+        v.view:windowTitle("tilemo bar")
         -- Above every app's windows, below the menu bar, so the menu bar
         -- still shows over it when the pointer reaches the top.
         v.view:level(hs.drawing.windowLevels.floating)
@@ -323,7 +323,7 @@ function M.new(timo)
     -- One strip per display, following displays as they come and go.
     local function sync_views()
         local present = {}
-        for _, s in ipairs(timo.adapter.screens()) do
+        for _, s in ipairs(tilemo.adapter.screens()) do
             present[s.uuid] = true
             local frame = bar.strip(s.area, bar.HEIGHT)
             local v = self.views[s.uuid]
@@ -344,11 +344,11 @@ function M.new(timo)
 
     function self.update()
         sync_views()
-        local f = timo.adapter.focused()
-        local title = f and timo.wm.windows[f] and timo.adapter.title(f) or ""
+        local f = tilemo.adapter.focused()
+        local title = f and tilemo.wm.windows[f] and tilemo.adapter.title(f) or ""
         for _, v in pairs(self.views) do
             -- Out of a full-screen window's way, and back after.
-            local hide = bar.hidden(timo.wm, v.uuid)
+            local hide = bar.hidden(tilemo.wm, v.uuid)
             if hide ~= (v.hidden or false) then
                 v.hidden = hide
                 if hide then

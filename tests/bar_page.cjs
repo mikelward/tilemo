@@ -1,6 +1,6 @@
 // Runs the bar's bundled script (tests/bar_test.lua writes it to the file
 // named on the command line) against a small fake DOM, and checks
-// timo.update() draws the chips, title, clocks and icons, and what clicks
+// tilemo.update() draws the chips, title, clocks and icons, and what clicks
 // and scrolls send back.
 
 const fs = require("fs");
@@ -63,7 +63,7 @@ const sandbox = {
   Set,
 };
 sandbox.window = sandbox;
-sandbox.webkit = { messageHandlers: { timo: { postMessage: (m) => sent.push(m) } } };
+sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
@@ -71,7 +71,7 @@ const ws = [];
 for (let n = 1; n <= 9; n++) ws.push({ n, current: n === 2, elsewhere: n === 3, occupied: n === 5, urgent: n === 5 });
 ws[4].apps = ["com.a", "com.b", "com.a", "com.c", "com.d"];
 ws[4].more = 2;
-sandbox.timo.update({
+sandbox.tilemo.update({
   uuid: "B",
   workspaces: ws,
   title: "Chat (1)",
@@ -175,10 +175,10 @@ assert.strictEqual(
 sent.length = 0;
 
 // A wire, or no network at all.
-sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
 assert.strictEqual(ids.icons.children[0].className, "icon wired");
 ids.icons.children[0].listeners.click();
-sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
 assert.strictEqual(state(ids.icons.children[0]), "none");
 assert.strictEqual(ids.icons.children[0].attrs.title, "No network");
 assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ uuid: "B", open: "network" }]));
@@ -193,7 +193,7 @@ assert.strictEqual(crowded(1200, 300, 500), true);
 Object.assign(ids.bar, { clientWidth: 1200 });
 Object.assign(ids.workspaces, { offsetWidth: 300 });
 Object.assign(ids.right, { offsetWidth: 500 });
-sandbox.timo.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
 const room = parseFloat(ids.title.style.maxWidth);
 assert.strictEqual(room, 1200 - 2 * 500 - 2 * 24);
 assert.ok(1200 / 2 - room / 2 >= 300, "clear of the chips");
@@ -201,22 +201,22 @@ assert.ok(1200 / 2 + room / 2 <= 1200 - 500, "clear of the clocks and icons");
 assert.ok(ids.clocks.classList.contains("compact"), "and the clocks shrank");
 
 // Off, Wi-Fi shows its bars dimmed and no name.
-sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
 assert.strictEqual(state(ids.icons.children[0]), "off");
 assert.strictEqual(ids.icons.children[0].attrs.title, "Wi-Fi off");
 // Lua's JSON leaves out a field that's nil: a chip that's only occupied
 // mustn't come out urgent or elsewhere.
-sandbox.timo.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: "", icons: {} });
+sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: "", icons: {} });
 const only = ids.workspaces.children[0];
 assert.ok(only.classList.contains("occupied"));
 for (const k of ["current", "elsewhere", "urgent"]) assert.ok(!only.classList.contains(k), `not ${k}`);
 // Nor a microphone that's only said not to be muted come out muted.
-sandbox.timo.update({ uuid: "B", workspaces: ws, title: "", icons: { mic: { muted: false } } });
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { mic: { muted: false } } });
 const mic = ids.icons.children[0];
 assert.strictEqual(mic.className, "icon mic");
 assert.strictEqual(state(mic), "on", "not muted");
 // Muted, the microphone is struck through; charging, the battery has its bolt.
-sandbox.timo.update({
+sandbox.tilemo.update({
   uuid: "B",
   workspaces: ws,
   title: "",

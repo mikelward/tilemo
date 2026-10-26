@@ -1,5 +1,5 @@
 -- Tapping Super on its own opens the launcher (SPEC.md §7.2). Without
--- Karabiner's tap rule, timo watches modifier changes itself. A tap is
+-- Karabiner's tap rule, tilemo watches modifier changes itself. A tap is
 -- Super going down and up with nothing else in between: no other key, no
 -- mouse button and no scroll, so Super+T, Super+drag and Super+click never
 -- open the launcher (tide SPEC.md §8). Pure Lua.

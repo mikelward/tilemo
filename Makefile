@@ -1,12 +1,12 @@
-# timo
+# tilemo
 #
 #   make test     run the tests (plain Lua 5.4, no Mac needed)
 #   make lint     check every Lua file parses
-#   make install  copy the Hammerspoon modules to ~/.hammerspoon/timo
-#   make check-geometry   compare timo's copy of tide's geometry with a
+#   make install  copy the Hammerspoon modules to ~/.hammerspoon/tilemo
+#   make check-geometry   compare tilemo's copy of tide's geometry with a
 #                 tide checkout (TIDE=../tide by default)
-#   make check-tico   compare the dashboard's copies of tico's clock modules
-#                 with a tico checkout (TICO=../tico by default)
+#   make check-tileco   compare the dashboard's copies of tileco's clock
+#                 modules with a tileco checkout (TILECO=../tileco by default)
 #   make mocks    render the bar in fixed states to mocks/*.png (needs Node
 #                 and Playwright's Chromium; skips with a note without them)
 
@@ -14,15 +14,15 @@ LUA ?= $(shell command -v lua5.4 || command -v lua)
 LUAC ?= $(shell command -v luac5.4 || command -v luac)
 HAMMERSPOON_DIR ?= $(HOME)/.hammerspoon
 TIDE ?= ../tide
-TICO ?= ../tico
-# The dashboard files that are tico's, copied unchanged.
-TICO_FILES := clocks.js calendar.js clockview.js launcher.css
+TILECO ?= ../tileco
+# The dashboard files that are tileco's, copied unchanged.
+TILECO_FILES := clocks.js calendar.js clockview.js launcher.css
 export LUA_PATH := hammerspoon/?.lua;hammerspoon/?/init.lua;tests/?.lua;;
 
-LUA_FILES := $(wildcard hammerspoon/timo/*.lua tests/*.lua ci/*.lua)
+LUA_FILES := $(wildcard hammerspoon/tilemo/*.lua hammerspoon/timo/*.lua tests/*.lua ci/*.lua)
 TESTS := $(wildcard tests/*_test.lua)
 
-.PHONY: test lint install check-geometry check-tico mocks
+.PHONY: test lint install check-geometry check-tileco mocks
 
 test:
 	@status=0; for t in $(TESTS); do $(LUA) $$t || status=1; done; exit $$status
@@ -30,26 +30,30 @@ test:
 lint:
 	@for f in $(LUA_FILES); do $(LUAC) -p $$f || exit 1; done
 
+# An init.lua from before the rename says require("timo"): the shim takes
+# the place of timo's own init.lua and loads tilemo.
 install:
+	mkdir -p $(HAMMERSPOON_DIR)/tilemo
+	cp hammerspoon/tilemo/*.lua $(HAMMERSPOON_DIR)/tilemo/
+	mkdir -p $(HAMMERSPOON_DIR)/tilemo/dashboard
+	cp hammerspoon/tilemo/dashboard/* $(HAMMERSPOON_DIR)/tilemo/dashboard/
 	mkdir -p $(HAMMERSPOON_DIR)/timo
-	cp hammerspoon/timo/*.lua $(HAMMERSPOON_DIR)/timo/
-	mkdir -p $(HAMMERSPOON_DIR)/timo/dashboard
-	cp hammerspoon/timo/dashboard/* $(HAMMERSPOON_DIR)/timo/dashboard/
+	cp hammerspoon/timo/init.lua $(HAMMERSPOON_DIR)/timo/
 	@echo "Add to $(HAMMERSPOON_DIR)/init.lua:"
-	@echo '  timo = require("timo")'
-	@echo '  timo.start({})'
+	@echo '  tilemo = require("tilemo")'
+	@echo '  tilemo.start({})'
 
 # geometry.lua is tide's, copied unchanged, so a workspace looks the same on
 # both desktops.
 check-geometry:
-	cmp $(TIDE)/hypr/tide/geometry.lua hammerspoon/timo/geometry.lua
+	cmp $(TIDE)/hypr/tide/geometry.lua hammerspoon/tilemo/geometry.lua
 
-# The dashboard's clocks, calendar and styles are tico's, so the two
+# The dashboard's clocks, calendar and styles are tileco's, so the two
 # dashboards agree.
-check-tico:
-	@for f in $(TICO_FILES); do cmp $(TICO)/src/$$f hammerspoon/timo/dashboard/$$f || exit 1; done
+check-tileco:
+	@for f in $(TILECO_FILES); do cmp $(TILECO)/src/$$f hammerspoon/tilemo/dashboard/$$f || exit 1; done
 
-# The bar's page as timo builds it, rendered in fixed states. The page is
+# The bar's page as tilemo builds it, rendered in fixed states. The page is
 # written to a temporary directory (as .html, so the browser reads it as a
 # page), removed whether the render works or not.
 mocks:

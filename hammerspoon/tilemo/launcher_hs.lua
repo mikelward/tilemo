@@ -3,11 +3,14 @@
 -- and Safari through AppleScript (Automation, asked for the first time),
 -- and commands from launcher.COMMANDS. Not runnable outside Hammerspoon.
 
-local launcher = require("timo.launcher")
+local launcher = require("tilemo.launcher")
+local saved = require("tilemo.saved")
 
 local M = {}
 
-M.RECENCY_KEY = "timo.launcher.recency"
+M.RECENCY_KEY = "tilemo.launcher.recency"
+-- Where timo kept it, before the rename.
+M.OLD_RECENCY_KEY = "timo.launcher.recency"
 
 local APP_DIRS = { "/Applications", "/System/Applications", "/System/Applications/Utilities" }
 
@@ -73,14 +76,14 @@ local function tabs()
     return out
 end
 
--- The tab's window may be minimized, on a workspace timo has hidden, so it's
--- restored too: timo sees a window you restored and brings its workspace
+-- The tab's window may be minimized, on a workspace tilemo has hidden, so it's
+-- restored too: tilemo sees a window you restored and brings its workspace
 -- along with it.
 local BROWSER_BUNDLES = { ["Google Chrome"] = "com.google.Chrome", Safari = "com.apple.Safari" }
 
-local function open_tab(timo, item)
+local function open_tab(tilemo, item)
     -- The browser activating is the launch you made (SPEC.md §14.1).
-    timo.wm:grant(BROWSER_BUNDLES[item.browser])
+    tilemo.wm:grant(BROWSER_BUNDLES[item.browser])
     local set, restore
     if item.browser == "Safari" then
         set = ("set current tab of window %d to tab %d of window %d"):format(item.window, item.tab, item.window)
@@ -97,21 +100,21 @@ local function open_tab(timo, item)
             activate
         end tell]]):format(item.browser, set, restore, item.window))
     if not ok then
-        timo.adapter.notify("Couldn't open that " .. item.browser .. " tab: " .. hs.inspect(err))
+        tilemo.adapter.notify("Couldn't open that " .. item.browser .. " tab: " .. hs.inspect(err))
     end
 end
 
 local QUICK = {}
 
 -- macOS's own screenshot keys, as the Print keys use (SPEC.md §10).
-function QUICK.screenshot_window(timo)
-    timo.wm:act("screenshot", "window")
+function QUICK.screenshot_window(tilemo)
+    tilemo.wm:act("screenshot", "window")
 end
-function QUICK.screenshot_screen(timo)
-    timo.wm:act("screenshot", "screen")
+function QUICK.screenshot_screen(tilemo)
+    tilemo.wm:act("screenshot", "screen")
 end
-function QUICK.screenshot_region(timo)
-    timo.wm:act("screenshot", "region")
+function QUICK.screenshot_region(tilemo)
+    tilemo.wm:act("screenshot", "region")
 end
 function QUICK.lock()
     hs.caffeinate.lockScreen()
@@ -146,9 +149,9 @@ function QUICK.reload()
     hs.reload()
 end
 
--- `timo` is the started timo module: its wm and adapter.
-function M.new(timo)
-    local self = { timo = timo, recency = hs.settings.get(M.RECENCY_KEY) or {} }
+-- `tilemo` is the started tilemo module: its wm and adapter.
+function M.new(tilemo)
+    local self = { tilemo = tilemo, recency = saved.get(hs.settings, M.RECENCY_KEY, M.OLD_RECENCY_KEY) or {} }
     local items = {}
     local before
     local chooser
@@ -177,28 +180,28 @@ function M.new(timo)
             local info = hs.application.infoForBundlePath(item.path)
             local bundle = info and info.CFBundleIdentifier
             if bundle then
-                timo.wm.actions.app(timo.wm, { bundle = bundle }, fresh)
+                tilemo.wm.actions.app(tilemo.wm, { bundle = bundle }, fresh)
             else
                 if fresh then
-                    local n = timo.wm:first_empty()
+                    local n = tilemo.wm:first_empty()
                     if n then
-                        timo.wm:show(n)
+                        tilemo.wm:show(n)
                     end
                 end
                 -- No bundle ID to say which app's window is the launch's.
-                timo.wm:grant(nil)
+                tilemo.wm:grant(nil)
                 hs.application.launchOrFocus(item.path)
             end
         elseif item.kind == "tab" then
-            open_tab(timo, item)
+            open_tab(tilemo, item)
         elseif item.quick then
             if item.quick == "toggle_ffm" then
-                timo.toggle_focus_follows_mouse()
+                tilemo.toggle_focus_follows_mouse()
             elseif QUICK[item.quick] then
-                QUICK[item.quick](timo)
+                QUICK[item.quick](tilemo)
             end
         elseif item.action then
-            timo.wm:act(item.action, item.arg)
+            tilemo.wm:act(item.action, item.arg)
         end
     end
 
@@ -208,7 +211,7 @@ function M.new(timo)
     local fresh_key
 
     chooser = hs.chooser.new(function(choice)
-        timo.wm:hold("launcher", false)
+        tilemo.wm:hold("launcher", false)
         if fresh_key then
             fresh_key:delete()
             fresh_key = nil
@@ -216,7 +219,7 @@ function M.new(timo)
         if not choice then
             -- Dismissed: back to the window you were in.
             if before then
-                timo.wm:focus_window(before)
+                tilemo.wm:focus_window(before)
             end
             return
         end
@@ -235,13 +238,13 @@ function M.new(timo)
         if chooser:isVisible() then
             return
         end
-        before = timo.adapter.focused()
+        before = tilemo.adapter.focused()
         items = launcher.items(scan_apps(), tabs(), launcher.COMMANDS)
         by_id = {}
         for _, item in ipairs(items) do
             by_id[item.id] = item
         end
-        timo.wm:hold("launcher", true)
+        tilemo.wm:hold("launcher", true)
         fresh = false
         -- Taken only while the launcher is open, and given back when it closes.
         fresh_key = hs.hotkey.bind({ "cmd" }, "return", function()

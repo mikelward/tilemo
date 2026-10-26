@@ -1,6 +1,6 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
+local wm_mod = require("tilemo.wm")
 
 local function setup(n, saved)
     local a = fake.new()
@@ -189,7 +189,7 @@ t.test("a window you minimize stays minimized when its workspace comes back", fu
     t.eq(a.wins[1].minimized, false)
 end)
 
-t.test("timo's own minimizes aren't read as yours", function()
+t.test("tilemo's own minimizes aren't read as yours", function()
     local a, wm = setup(1)
     a.focus_ = 1
     wm:act("show", 2)
@@ -201,7 +201,7 @@ t.test("restoring a hidden window from the Dock brings its workspace along", fun
     local a, wm = setup(1)
     a.focus_ = 1
     wm:act("send", 5)
-    a.tick() -- timo's expectation lapses
+    a.tick() -- tilemo's expectation lapses
     a.wins[1].minimized = false
     wm:unminimized(1)
     t.eq(wm.screen_ws.A, 5)
@@ -240,7 +240,7 @@ t.test("a restart puts windows back on their workspaces", function()
     a.focus_ = 2
     wm:act("send", 3)
     local snap = a.saved
-    -- timo restarts: window 2 is still minimized, on workspace 3.
+    -- tilemo restarts: window 2 is still minimized, on workspace 3.
     local wm2 = wm_mod.new(a, { saved = snap })
     wm2:sync()
     wm2:reconcile()
@@ -270,7 +270,7 @@ t.test("quitting restores every hidden window except yours", function()
     t.eq(a.wins[1].minimized, true)
 end)
 
-t.test("a window minimized before timo started counts as yours", function()
+t.test("a window minimized before tilemo started counts as yours", function()
     local a = fake.new()
     a.add(1, { minimized = true })
     local wm = wm_mod.new(a, {})
@@ -392,7 +392,7 @@ t.test("a minimize that finishes after its workspace came back is undone", funct
     t.eq(a.wins[1].minimized, false)
 end)
 
-t.test("a minimize report that lands after the switch back is still timo's", function()
+t.test("a minimize report that lands after the switch back is still tilemo's", function()
     local a, wm = setup(1)
     a.focus_ = 1
     wm:act("show", 2) -- minimize asked; the window reads minimized, no report yet
@@ -406,7 +406,7 @@ t.test("a minimize report that lands after the switch back is still timo's", fun
     t.eq(a.wins[1].minimized, false, "still comes back with its workspace")
 end)
 
-t.test("two minimizes still waiting on their reports are both timo's", function()
+t.test("two minimizes still waiting on their reports are both tilemo's", function()
     local a, wm = setup(1)
     a.focus_ = 1
     wm:act("show", 2) -- minimize #1; the window reads minimized, no report yet
@@ -585,7 +585,7 @@ end)
 
 t.test("a window you send joins the end of the stack, even when new windows go to master", function()
     local cfg = {}
-    for k, v in pairs(require("timo.layout").defaults) do
+    for k, v in pairs(require("tilemo.layout").defaults) do
         cfg[k] = v
     end
     cfg.new_window = "master"

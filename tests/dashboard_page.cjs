@@ -1,6 +1,6 @@
 // Runs the dashboard's bundled script (tests/dashboard_test.lua writes it
 // to the file named on the command line) against a small fake DOM, and
-// checks timo.update() draws the bar and the clock panel.
+// checks tilemo.update() draws the bar and the clock panel.
 
 const fs = require("fs");
 const vm = require("vm");
@@ -56,13 +56,13 @@ const sandbox = {
   Set,
 };
 sandbox.window = sandbox;
-sandbox.webkit = { messageHandlers: { timo: { postMessage: (m) => sent.push(m) } } };
+sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
 const ws = [];
 for (let n = 1; n <= 9; n++) ws.push({ n, current: n === 2, elsewhere: false, occupied: n === 5, urgent: n === 5 });
-sandbox.timo.update({ workspaces: ws, title: "Chat (1)" });
+sandbox.tilemo.update({ workspaces: ws, title: "Chat (1)" });
 
 const chips = ids.workspaces.children;
 assert.strictEqual(chips.map((b) => b.textContent).join(" "), "2 5", "only showing or occupied workspaces");

@@ -1,5 +1,5 @@
 local t = require("t")
-local mouse = require("timo.mouse")
+local mouse = require("tilemo.mouse")
 
 local F = { x = 100, y = 100, w = 400, h = 300 }
 

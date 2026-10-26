@@ -1,7 +1,7 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
-local ffm_mod = require("timo.ffm")
+local wm_mod = require("tilemo.wm")
+local ffm_mod = require("tilemo.ffm")
 
 -- Two tiles: 1 on the left (x 0..1056), 2 on the right.
 local function setup(opts)
@@ -81,7 +81,7 @@ t.test("the screenshot picker keeps focus", function()
     t.eq(focuses(a), {})
 end)
 
-t.test("timo's launcher keeps the keyboard", function()
+t.test("tilemo's launcher keeps the keyboard", function()
     local a, wm, ffm = setup()
     wm.holding_keyboard = true
     ffm:move(1500, 500)
@@ -282,7 +282,7 @@ t.test("an open menu holds focus even after the pointer leaves it", function()
     t.eq(focuses(a), { "focus 2" })
 end)
 
-t.test("focusing an older float brings it to the top of timo's float order", function()
+t.test("focusing an older float brings it to the top of tilemo's float order", function()
     local a, wm, ffm = setup()
     a.add(3, { subrole = "AXDialog", pid = 300, frame = { x = 0, y = 0, w = 600, h = 400 } })
     a.add(4, { subrole = "AXDialog", pid = 400, frame = { x = 0, y = 0, w = 200, h = 100 } })

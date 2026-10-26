@@ -1,15 +1,15 @@
 #!/bin/sh
 #
-# hs-smoke.sh: install timo into a fresh Hammerspoon and run ci/hs_smoke.lua
+# hs-smoke.sh: install tilemo into a fresh Hammerspoon and run ci/hs_smoke.lua
 # inside it (macOS only; CI's macOS job). Prints the results and exits 1 if
 # any check failed or Hammerspoon never reported.
 #
-#   $TIMO_SMOKE_WAIT  seconds to wait for Hammerspoon to report (default 120)
+#   $TILEMO_SMOKE_WAIT  seconds to wait for Hammerspoon to report (default 120)
 
 set -eu
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
-wait_for=${TIMO_SMOKE_WAIT:-120}
+wait_for=${TILEMO_SMOKE_WAIT:-120}
 out=$(mktemp -d)/smoke.txt
 : >"$out"
 hs_dir=$HOME/.hammerspoon
@@ -21,10 +21,10 @@ fi
 
 make -C "$repo" install HAMMERSPOON_DIR="$hs_dir" >/dev/null
 cat >"$hs_dir/init.lua" <<LUA
-TIMO_SMOKE_OUT = "$out"
+TILEMO_SMOKE_OUT = "$out"
 local ok, err = xpcall(dofile, debug.traceback, "$repo/ci/hs_smoke.lua")
 if not ok then
-    local f = io.open(TIMO_SMOKE_OUT, "a")
+    local f = io.open(TILEMO_SMOKE_OUT, "a")
     if f then
         f:write("FAIL hs_smoke.lua: ", tostring(err), "\\nRESULT fail\\n")
         f:close()

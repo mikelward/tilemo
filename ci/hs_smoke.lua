@@ -1,17 +1,17 @@
 -- A smoke test that runs inside a real Hammerspoon, on CI's macOS runner.
--- The fake in tests/ can't tell whether an hs.* function timo calls exists
--- in the Hammerspoon people install, so this checks that, then starts timo,
+-- The fake in tests/ can't tell whether an hs.* function tilemo calls exists
+-- in the Hammerspoon people install, so this checks that, then starts tilemo,
 -- checks its bar is up, opens and closes the dashboard, and tiles a few
 -- windows below the bar. GitHub's macOS runners come with Accessibility
 -- granted, so the tiling is real.
 --
 -- ci/hs-smoke.sh points ~/.hammerspoon/init.lua at this file, with
--- TIMO_SMOKE_OUT set to where the results go.
+-- TILEMO_SMOKE_OUT set to where the results go.
 
-local bar = require("timo.bar")
-local layout = require("timo.layout")
+local bar = require("tilemo.bar")
+local layout = require("tilemo.layout")
 
-local out_path = TIMO_SMOKE_OUT
+local out_path = TILEMO_SMOKE_OUT
 local failed = false
 
 -- Each line goes out as it's made, so a hang still shows how far it got.
@@ -19,7 +19,7 @@ local function say(fmt, ...)
     local line = string.format(fmt, ...)
     local f, err = io.open(out_path, "a")
     if not f then
-        print("timo smoke: can't write " .. out_path .. ": " .. tostring(err))
+        print("tilemo smoke: can't write " .. out_path .. ": " .. tostring(err))
         return
     end
     f:write(line, "\n")
@@ -40,9 +40,9 @@ end
 
 say("Hammerspoon %s, %s", hs.processInfo.version, _VERSION)
 
--- Every hs.x.y timo names in its source, resolved here. hs loads its
+-- Every hs.x.y tilemo names in its source, resolved here. hs loads its
 -- extensions on first touch, so walking the path is the real lookup.
-local dir = hs.configdir .. "/timo"
+local dir = hs.configdir .. "/tilemo"
 local seen = {}
 for file in hs.fs.dir(dir) do
     if file:match("%.lua$") then
@@ -86,7 +86,7 @@ for _, path in ipairs(paths) do
 end
 say("checked %d hs.* names", #paths)
 
--- Open TextEdit windows and check timo tiles them where its layout says
+-- Open TextEdit windows and check tilemo tiles them where its layout says
 -- (SPEC.md §5). TextEdit, because `open` can give it several windows
 -- without asking for Automation, which a runner can't grant.
 local APP = "com.apple.TextEdit"
@@ -104,7 +104,7 @@ local function app_windows(wm)
     return out
 end
 
--- Where each tiled window is against where timo's layout puts it, or nil
+-- Where each tiled window is against where tilemo's layout puts it, or nil
 -- and why not yet.
 local function tiling_misses(wm)
     if #app_windows(wm) < WANT then
@@ -142,16 +142,16 @@ end
 -- The bar: a strip along the top of each display, its page loaded, and the
 -- tiling area starting below it.
 local function check_bar()
-    if not timo.bar then
-        fail("bar: timo started without its bar")
+    if not tilemo.bar then
+        fail("bar: tilemo started without its bar")
         return
     end
-    local frames = timo.bar.frames()
+    local frames = tilemo.bar.frames()
     local n = 0
-    for _, s in ipairs(timo.adapter.screens()) do
+    for _, s in ipairs(tilemo.adapter.screens()) do
         local want = bar.strip(s.area, bar.HEIGHT)
         local got = frames[s.uuid]
-        local v = timo.bar.views[s.uuid]
+        local v = tilemo.bar.views[s.uuid]
         if not got then
             fail("bar: none on display %s", s.uuid)
         else
@@ -169,27 +169,27 @@ local function check_bar()
             end
             n = n + 1
         end
-        local tiling = timo.wm:screen_by_uuid(s.uuid).area
+        local tiling = tilemo.wm:screen_by_uuid(s.uuid).area
         if tiling.y ~= want.y + want.h then
             fail("bar: tiling starts at y=%d, want %d", tiling.y, want.y + want.h)
         end
     end
     -- Which status items this Mac has; the network one is always drawn.
     local items = {}
-    for k in pairs(timo.bar.icons) do
+    for k in pairs(tilemo.bar.icons) do
         items[#items + 1] = k
     end
     table.sort(items)
-    if not timo.bar.icons.network then
+    if not tilemo.bar.icons.network then
         fail("bar: no network status item")
     end
     -- A chip's app icon, from a bundle every Mac has.
-    local finder = timo.bar.icon_of("com.apple.finder")
+    local finder = tilemo.bar.icon_of("com.apple.finder")
     if type(finder) ~= "string" or not finder:find("^data:image/png;base64,") then
         fail("bar: no icon for Finder (got %s)", tostring(finder))
     end
     -- Anything a page reported: a script error or a failed load.
-    for _, e in ipairs(timo.bar.errors) do
+    for _, e in ipairs(tilemo.bar.errors) do
         fail("bar: %s", e)
     end
     say("bar up on %d display(s), with %s", n, table.concat(items, ", "))
@@ -203,8 +203,8 @@ local function wait_for_bar(next)
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_bar_poll = hs.timer.doEvery(0.5, function()
-        local ready = timo.bar ~= nil
-        for _, v in pairs(timo.bar and timo.bar.views or {}) do
+        local ready = tilemo.bar ~= nil
+        for _, v in pairs(tilemo.bar and tilemo.bar.views or {}) do
             ready = ready and v.ready
         end
         if ready or hs.timer.secondsSinceEpoch() - started > BAR_WAIT then
@@ -224,7 +224,7 @@ local function check_tiling()
     local dir = os.getenv("TMPDIR") or "/tmp"
     local files = {}
     for i = 1, WANT do
-        local path = string.format("%s/timo-smoke-%d.txt", dir, i)
+        local path = string.format("%s/tilemo-smoke-%d.txt", dir, i)
         local f, err = io.open(path, "w")
         if not f then
             fail("tiling: can't write %s: %s", path, tostring(err))
@@ -240,12 +240,12 @@ local function check_tiling()
         finish()
         return
     end
-    -- TextEdit and timo's watchers take a moment; wait for them, up to a
+    -- TextEdit and tilemo's watchers take a moment; wait for them, up to a
     -- deadline, rather than a fixed time.
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_poll = hs.timer.doEvery(0.5, function()
-        local misses, why = tiling_misses(timo.wm)
+        local misses, why = tiling_misses(tilemo.wm)
         local done = misses and #misses == 0
         if done or hs.timer.secondsSinceEpoch() - started > TILE_WAIT then
             smoke_poll:stop()
@@ -263,20 +263,31 @@ local function check_tiling()
     end)
 end
 
--- Start timo as init.lua would, then open and close the dashboard.
+-- Start tilemo as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
-    timo = require("timo")
-    timo.start({})
+    tilemo = require("tilemo")
+    tilemo.start({})
 end, debug.traceback)
 if not ok then
-    fail("timo.start: %s", err)
+    fail("tilemo.start: %s", err)
     finish()
     return
 end
-say("timo started")
+say("tilemo started")
+
+-- An init.lua from before the rename still gets tilemo, through the shim
+-- make install puts in ~/.hammerspoon/timo.
+ok, err = pcall(require, "timo")
+if not ok then
+    fail('require("timo"): %s', err)
+elseif err ~= tilemo then
+    fail('require("timo") returned something other than tilemo')
+else
+    say('require("timo") is tilemo')
+end
 
 ok, err = xpcall(function()
-    timo.dashboard.show()
+    tilemo.dashboard.show()
 end, debug.traceback)
 if not ok then
     fail("dashboard: %s", err)
@@ -288,7 +299,7 @@ say("dashboard shown")
 -- Hammerspoon stops a timer that's garbage collected.
 smoke_timer = hs.timer.doAfter(3, function()
     local closed, close_err = xpcall(function()
-        timo.dashboard.show()
+        tilemo.dashboard.show()
     end, debug.traceback)
     if not closed then
         fail("closing the dashboard: %s", close_err)

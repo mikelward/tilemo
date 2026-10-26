@@ -1,9 +1,9 @@
-# timo: tide and tico on macOS
+# tilemo: tide and tileco on macOS
 
 **Status: exploration.** This explores what macOS allows. It doesn't
-yet decide what timo is. It takes everything tide does on Linux
-([mikelward/tide](https://github.com/mikelward/tide)) and tico does on
-chromeOS ([mikelward/tico](https://github.com/mikelward/tico)), and says, for
+yet decide what tilemo is. It takes everything tide does on Linux
+([mikelward/tide](https://github.com/mikelward/tide)) and tileco does on
+chromeOS ([mikelward/tileco](https://github.com/mikelward/tileco)), and says, for
 each one, how a Mac can do it, how well, and at what cost.
 
 The setup this would replace already exists: `setup-macos` in
@@ -17,17 +17,17 @@ checked against a source or a Mac is marked *(unverified)*.
 
 ## 1. Goals
 
-- **Everything tide and tico do,** where macOS allows it:
+- **Everything tide and tileco do,** where macOS allows it:
   - window management: layouts, workspaces and the dim;
   - keys: one key map across the three desktops;
   - a launcher and dashboard: tab search, clocks, a calendar;
   - attention, focus, idle, theme, and the setup checklist.
-- **The same key map and layouts** as tide and tico, so a hand moving
+- **The same key map and layouts** as tide and tileco, so a hand moving
   between Linux, chromeOS and a Mac doesn't notice. Where those two
-  differ, timo follows tide, since macOS can bind all of its keys (§7).
+  differ, tilemo follows tide, since macOS can bind all of its keys (§7).
 - **No SIP changes.** A managed work Mac can't lower its security, and a
   personal one shouldn't have to.
-- **Say what can't be done,** as tico §2 does for chromeOS, so nobody spends
+- **Say what can't be done,** as tileco §2 does for chromeOS, so nobody spends
   a week finding out (§13).
 
 ## 2. What macOS allows
@@ -53,7 +53,7 @@ checked against a source or a Mac is marked *(unverified)*.
   - Title bars and rounded corners stay. No public API removes another
     app's frame.
 - **Not allowed in the Mac App Store:** the sandbox can't control other
-  apps, so timo ships outside the store (§12).
+  apps, so tilemo ships outside the store (§12).
 
 ### 2.2 Global keys
 
@@ -69,7 +69,7 @@ checked against a source or a Mac is marked *(unverified)*.
   already does that (scripts `docs/MACOS.md`, "How desktop switching
   works").
 - **So unlike chromeOS,** where an extension's keys work only while Chrome
-  has focus (tico §2.2), every tide key can work everywhere on a Mac.
+  has focus (tileco §2.2), every tide key can work everywhere on a Mac.
 
 ### 2.3 Spaces: no public API
 
@@ -93,7 +93,7 @@ checked against a source or a Mac is marked *(unverified)*.
   - It switches instantly, and the workspace count is just config.
   - But Cmd+Tab and Mission Control show every workspace's windows, and
     native full-screen apps misbehave (scripts `docs/MACOS.md`).
-- **Minimizing (tico's way):** hide a workspace by minimizing its windows.
+- **Minimizing (tileco's way):** hide a workspace by minimizing its windows.
   It's public API, but every switch plays the Genie animation, and minimized
   windows pile up in the Dock *(unverified at scale)*.
 
@@ -106,7 +106,7 @@ checked against a source or a Mac is marked *(unverified)*.
   use, rather than shading each other window
   ([HazeOver help](https://hazeover.com/help.html)). It needs
   Accessibility to follow focus reliably. That one-layer approach is what
-  timo would copy. How HazeOver keeps the layer ordered just below another
+  tilemo would copy. How HazeOver keeps the layer ordered just below another
   app's window is *(unverified)*.
 - **A bar:** SketchyBar is a free, open-source menu bar replacement that also
   shows the system's own menu bar items
@@ -121,7 +121,7 @@ checked against a source or a Mac is marked *(unverified)*.
   owner. Its window names need the **Screen Recording** permission
   *(unverified on macOS 26)*. Accessibility's `AXTitle` gives the same
   titles with the Accessibility grant alone, which is how yabai and
-  Amethyst read them *(unverified on macOS 26)*. So timo shouldn't need
+  Amethyst read them *(unverified on macOS 26)*. So tilemo shouldn't need
   Screen Recording at all.
 - **Unread counts:** an app can't read other apps' notifications. It can read
   the Dock badges, which carry the same counts:
@@ -133,7 +133,7 @@ checked against a source or a Mac is marked *(unverified)*.
 - **Browser tabs:** Chrome and Safari list their tabs, with titles and
   addresses, to AppleScript or JavaScript for Automation. The user grants
   **Automation** per browser the first time *(unverified on macOS 26)*. That
-  gives tico's tab search without an extension.
+  gives tileco's tab search without an extension.
 
 ### 2.6 What macOS does natively
 
@@ -151,7 +151,7 @@ checked against a source or a Mac is marked *(unverified)*.
   and clipboard history
   ([MacMost](https://macmost.com/how-to-use-spotlight-actions-in-macos-tahoe.html),
   [iThinkDiff](https://www.ithinkdiff.com/spotlight-macos-tahoe-quick-keys-clipboard/)).
-  timo's commands could appear there as App Intents, beside its own
+  tilemo's commands could appear there as App Intents, beside its own
   launcher.
 - **Pointer acceleration:** Sonoma added an on/off switch, under System
   Settings › Mouse › Advanced. `defaults write -g com.apple.mouse.scaling`
@@ -163,14 +163,14 @@ checked against a source or a Mac is marked *(unverified)*.
 
 ## 3. Three ways to build it
 
-| | A. Configure existing tools | B. Hammerspoon config | C. A native timo app |
+| | A. Configure existing tools | B. Hammerspoon config | C. A native tilemo app |
 |---|---|---|---|
 | What | Amethyst, Karabiner, Spotlight or Raycast, SketchyBar, JankyBorders or HazeOver, as `setup-macos` does now | One Lua config on [Hammerspoon](https://www.hammerspoon.org), which wraps windows (`hs.window`), keys (`hs.hotkey`), drawing (`hs.canvas`) and a picker (`hs.chooser`) | One Swift app: window manager, keys, launcher, bar and dim |
-| Layouts | Amethyst's built-ins match Krohnkite's. JavaScript layouts are possible | **tide's own Lua layout**, which is pure Lua by design (tide AGENTS: "keep geometry free of the `hl` API") | Port tide's or tico's geometry |
+| Layouts | Amethyst's built-ins match Krohnkite's. JavaScript layouts are possible | **tide's own Lua layout**, which is pure Lua by design (tide AGENTS: "keep geometry free of the `hl` API") | Port tide's or tileco's geometry |
 | Workspaces | Native Spaces, via symbolichotkeys | Minimizing (§6), or native Spaces through community modules, or emulated | Any of §2.3 |
-| Launcher and dashboard | Spotlight, or Raycast (free, with a paid tier) | `hs.chooser` plus canvases. Basic, but enough for tab search | Full control, like tico's dashboard |
+| Launcher and dashboard | Spotlight, or Raycast (free, with a paid tier) | `hs.chooser` plus canvases. Basic, but enough for tab search | Full control, like tileco's dashboard |
 | Dim | HazeOver ($5) or borders | A canvas layer *(ordering unverified)* | Own layer, as HazeOver does |
-| Focus follows mouse | Off: Amethyst's breaks popovers (Amethyst#337) | timo's own (§5.2) | Same |
+| Focus follows mouse | Off: Amethyst's breaks popovers (Amethyst#337) | tilemo's own (§5.2) | Same |
 | Cost to build | Done | Days to a first version | Weeks |
 | Breakage risk | Amethyst's throw-to-space on private API | Hammerspoon's community `spaces` modules | Ours to fix |
 
@@ -182,35 +182,35 @@ is *(unverified)*: tide's layout targets 5.4 and 5.5.
 
 ## 4. Feature map
 
-Status: **yes** = timo or macOS meets the tide or tico behavior;
+Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 **partial** = close, with the gap named; **no** = not reachable.
 
-| tide / tico | On macOS | Status |
+| tide / tileco | On macOS | Status |
 |---|---|---|
 | Tile, three-column, two columns + stack, monocle (tide §6.1) | tide's Lua layout over Accessibility moves (§5) | **yes**, with apps' own size limits |
 | Lone window 80% on ultrawide, 60% from 32:9 | same layout, per display (§5) | **yes** |
-| New windows join the end of the stack, with a setting for elsewhere (tide §6.1) | timo state (§5) | **yes** |
-| Layout, `mfact`, master count per workspace | timo state | **yes** |
-| 9 workspaces, Super+1…9, Shift to send | minimized windows, as tico does (§6) | **partial**: each switch animates |
-| One workspace per monitor from a shared pool (tide §6.5) | timo tracks which display shows each workspace, as tico does (§6) | **yes** |
+| New windows join the end of the stack, with a setting for elsewhere (tide §6.1) | tilemo state (§5) | **yes** |
+| Layout, `mfact`, master count per workspace | tilemo state | **yes** |
+| 9 workspaces, Super+1…9, Shift to send | minimized windows, as tileco does (§6) | **partial**: each switch animates |
+| One workspace per monitor from a shared pool (tide §6.5) | tilemo tracks which display shows each workspace, as tileco does (§6) | **yes** |
 | Dim inactive, 0.07, not a lone window or video (tide §6.2) | one dark layer behind the focused window (§5.6) | **partial**: dims the desktop too, as HazeOver does *(unverified)* |
 | No borders, no gaps | gaps 0; title bars stay | **partial** |
-| Maximize, fullscreen, restore (tide §6.3) | timo's own, on the same workspace (§5.4) | **yes**; native full screen is its own Space (§13) |
+| Maximize, fullscreen, restore (tide §6.3) | tilemo's own, on the same workspace (§5.4) | **yes**; native full screen is its own Space (§13) |
 | Picture-in-picture pinned bottom-right on every workspace (tide §6.4) | left alone and never minimized (§5.5) | **partial**: its place is the app's |
 | Dialogs float, centered | rules, subrole, fixed size and modality (§5.1) | **yes** *(unverified per app)* |
 | Super+drag moves, Super+right-drag resizes (conf `hyprland.lua`) | an event tap on mouse buttons with Super held (§5.3) | **yes**, with Accessibility |
-| Drag a tiled window's edge to set the split (tico §5.3) | Accessibility's resize notification (§5.3) | **yes** |
-| Drop a dragged tile on another to swap them (tico §5.3) | Accessibility's move notification (§5.3) | **yes** |
+| Drag a tiled window's edge to set the split (tileco §5.3) | Accessibility's resize notification (§5.3) | **yes** |
+| Drop a dragged tile on another to swap them (tileco §5.3) | Accessibility's move notification (§5.3) | **yes** |
 | Super+middle-click maximizes the window under the pointer (tide §6.6) | the same event tap (§5.3) | **yes** |
-| Resize mode for floats, Super+Shift+R (tide §6.6) | a timo key mode (§5.3) | **yes** |
-| Focus follows mouse (KDE) | timo's own (§5.2) | **yes**, but focusing raises (§13) |
-| Nothing steals focus (tide §14) | macOS activation rules, plus timo's focus guard (§14) | **partial**: apps can still activate themselves |
-| Super+Tab to the window wanting attention (tide §14.3, tico §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
-| Full-width bar with workspaces and urgency (tide §7) | timo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
-| SYD / LAX / NYC / LON clocks (tico `src/clocks.js`) | bar clocks, and tico's clock panel in the dashboard | **yes** |
-| Launcher on a Super tap (tide §8) | timo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
-| Tab search (tico §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
-| App keys (tide `hyprland.lua`, tico §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
+| Resize mode for floats, Super+Shift+R (tide §6.6) | a tilemo key mode (§5.3) | **yes** |
+| Focus follows mouse (KDE) | tilemo's own (§5.2) | **yes**, but focusing raises (§13) |
+| Nothing steals focus (tide §14) | macOS activation rules, plus tilemo's focus guard (§14) | **partial**: apps can still activate themselves |
+| Super+Tab to the window wanting attention (tide §14.3, tileco §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
+| Full-width bar with workspaces and urgency (tide §7) | tilemo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
+| SYD / LAX / NYC / LON clocks (tileco `src/clocks.js`) | bar clocks, and tileco's clock panel in the dashboard | **yes** |
+| Launcher on a Super tap (tide §8) | tilemo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
+| Tab search (tileco §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
+| App keys (tide `hyprland.lua`, tileco §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
 | Second and third Chrome profiles (`browser2`, `browser3`) | separate `--user-data-dir`s, as tide runs them (§7) | **yes** |
 | Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
 | Idle: dim, lock, off, suspend (tide §10) | Energy and Lock Screen settings; `caffeinate` or an IOPM assertion to keep awake | **partial**: system timings |
@@ -223,15 +223,15 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
 | Touchpad: natural scroll, tap to click; mouse not natural | Trackpad settings (§10) | **partial**: one natural-scroll switch for both *(unverified)* |
 | Key repeat: 600 ms, 25 a second | `InitialKeyRepeat` and `KeyRepeat` (§10) | **partial**: macOS's steps |
 | Caps Lock as Compose | no Compose; Karabiner can map key sequences | **partial** |
-| Setup checklist (tico §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
-| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | timo reads the same files (§15) | **yes** |
-| `tide doctor` (tide §5.4) | `timo doctor` (§15) | **yes** |
+| Setup checklist (tileco §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
+| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | tilemo reads the same files (§15) | **yes** |
+| `tide doctor` (tide §5.4) | `tilemo doctor` (§15) | **yes** |
 | Workspace swipe, three fingers (conf `hyprland.lua`) | no public gesture API (§13) | **no** |
 | kitty, Ubuntu Mono, shell config | native, through `setup` and `conf` | **yes** |
 
 ## 5. Windows and layouts
 
-- **Geometry:** tide's layout is pure Lua, and tico's
+- **Geometry:** tide's layout is pure Lua, and tileco's
   `src/geometry.js` is a tested port of it. The four layouts, the
   single-window rule and the share bounds carry over as they are:
   - tile, three-column, two columns plus a stack, and monocle (tide §6.1);
@@ -247,13 +247,13 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
   tiled again after floating, counts as new. Amethyst's
   `new-windows-to-main: false` in conf agrees.
 - **Applying a layout:** set position, then size, through Accessibility, and
-  read the frame back. tico reads its windows' bounds back the same way
-  (tico §5.3), and stores the difference per app, so the next layout
+  read the frame back. tileco reads its windows' bounds back the same way
+  (tileco §5.3), and stores the difference per app, so the next layout
   allows for it. An app that refuses a size gets its own frame, and the
   rest tile around what it took *(design to settle)*.
 - **When to retile:** when a window opens, closes, minimizes or comes back;
   when an app launches, quits or hides; when a display changes; and after
-  any layout key. timo waits 50 ms after the last of a burst, as tico does,
+  any layout key. tilemo waits 50 ms after the last of a burst, as tileco does,
   since one window opening sends several notifications.
 - **The mouse** can move and resize windows too (§5.3).
 
@@ -261,12 +261,12 @@ Status: **yes** = timo or macOS meets the tide or tico behavior;
 
 Dialogs must float, and stay in front of the window that opened them.
 Amethyst gets this wrong: it tiles some dialogs, such as autocomplete lists
-(Amethyst#883), and hides others behind their parent (§5.2). timo decides
+(Amethyst#883), and hides others behind their parent (§5.2). tilemo decides
 each new window once, in this order, and the first rule that matches wins:
 
 1. **Not a window: ignore it.** Sheets (`AXSheet`) are attached to their
    window. Popovers, menus, tooltips and the menu bar aren't `AXWindow`s.
-   timo never moves, focuses or counts any of them.
+   tilemo never moves, focuses or counts any of them.
 2. **A user rule** by app bundle ID and, optionally, title, as tide's float
    rules (tide §6.4). Rules come first so a misbehaving app can always be
    fixed.
@@ -291,21 +291,21 @@ Placing and keeping floats:
   like a palette remembering its spot, keeps its place.
 - **Floats stay above the tiles.** macOS has no public way to set another
   app's window level. Tiles never overlap, though, so the only thing that
-  can cover a float is a tile being raised. When timo raises a tile, it
+  can cover a float is a tile being raised. When tilemo raises a tile, it
   raises that workspace's visible floats after it *(raising without focus
   unverified)*.
 - **A float's size** is what it asks for, capped at 80% of its display
-  (tide §6.4). timo remembers each app's float size and position until you
+  (tide §6.4). tilemo remembers each app's float size and position until you
   log out.
-- **Floats move with their workspace,** as tico's do (tico §6.1), and are
+- **Floats move with their workspace,** as tileco's do (tileco §6.1), and are
   minimized and restored with it. A dialog moves with its parent's
   workspace.
 - **A dialog from the app you're in takes focus.** One from any other app
   opens unfocused and is marked for attention (§14).
 - **Super+Shift+F toggles** a window between tiled and floating, as on tide
-  and tico.
+  and tileco.
 
-Chrome's windows, from tico §5.4 and tide §6.4:
+Chrome's windows, from tileco §5.4 and tide §6.4:
 
 - **Popups float:** sign-in popups, extension popups and Chrome's own
   "Save as". Each reports a dialog or floating subrole, or has a fixed size
@@ -316,7 +316,7 @@ Chrome's windows, from tico §5.4 and tide §6.4:
   allowed to use Notification Center. They'd float, like any untitled small
   window. The fix is to allow Chrome's notifications, which the checklist
   asks for (§10).
-- **Chrome Remote Desktop** and tico's other URL rules can't be read from a
+- **Chrome Remote Desktop** and tileco's other URL rules can't be read from a
   window. A title rule stands in for each.
 
 **Dialog checklist on a real Mac.** Each must open floating and centered on
@@ -342,10 +342,10 @@ follows mouse:
 - The pointer never jumps.
 
 Amethyst is what `setup-macos` uses now, and its focus follows mouse had to
-be turned off. Its bugs are listed below, so timo doesn't repeat them. It
+be turned off. Its bugs are listed below, so tilemo doesn't repeat them. It
 isn't a model for anything else.
 
-#### How timo decides
+#### How tilemo decides
 
 Each step either hands on to the next, or stops with focus left where it
 is.
@@ -353,15 +353,15 @@ is.
 1. **Watch pointer moves only.** An event tap, under the Accessibility
    permission (§2.2), sees mouse-moved events.
    - Drags arrive as separate events, so a drag never moves focus.
-   - timo never moves the pointer, so it never sees a move of its own
+   - tilemo never moves the pointer, so it never sees a move of its own
      making.
 2. **Track the window under the pointer, and act only when it changes.**
-   timo remembers which window the pointer was last over.
+   tilemo remembers which window the pointer was last over.
    - Moving within that window does nothing, even if focus went elsewhere
      by a key. Hyprland's `mouse_refocus false` does the same, and tide
      uses it.
    - When a window opens, closes or moves under a still pointer (a retile,
-     a workspace switch), timo updates its record without focusing
+     a workspace switch), tilemo updates its record without focusing
      anything. A one-pixel nudge afterward isn't a crossing.
 3. **Ask the window server what's on top at that point,** the moment the
    pointer leaves the window it was over. There's no wait: focus moves on
@@ -372,15 +372,15 @@ is.
    (`CGWindowListCopyWindowInfo`) comes in front-to-back order, with each
    window's bounds and level. That's public API, and needs no Screen
    Recording permission for those fields *(unverified on macOS 26)*.
-   - **If the topmost thing isn't a window timo manages, tiled or
+   - **If the topmost thing isn't a window tilemo manages, tiled or
      floating, stop.** That includes a menu, popover, dropdown,
      autocomplete list or tooltip (these sit above the normal level
      *(unverified for every kind)*), the menu bar, the Dock,
-     notifications, Spotlight, or timo's own bar.
+     notifications, Spotlight, or tilemo's own bar.
    - This is the rule Amethyst misses. It looks only among the windows it
      tiles, so the tile under a popover gets focus and the popover closes
      (Amethyst#337, #1566, #1629, #1872).
-   - timo checks each move against the part of the last window that no
+   - tilemo checks each move against the part of the last window that no
      other known window covers: its frame, less the frames of the floats
      above it. It asks the window server only when the pointer leaves that
      part, so moving from a tile onto a float over it counts as a crossing.
@@ -392,7 +392,7 @@ is.
 5. **Focus it, then put its floats back on top.**
    - On macOS, focusing a window raises it (§13). Tiles don't overlap, so
      that's harmless, except over a float.
-   - So right after raising the window, timo raises its app's dialogs and
+   - So right after raising the window, tilemo raises its app's dialogs and
      then the workspace's other floats, in their previous order. A dialog
      can never end up behind the window that opened it, which Amethyst
      does (Amethyst#1243, #1026, #473).
@@ -414,9 +414,9 @@ Focus follows mouse pauses, and focus stays where it is:
   Spotlight, Notification Center. It also pauses during a Space-switch
   swipe and for about a second after it, as yabai does (1250 ms).
 - **While the pointer is in the menu bar's strip,** including an
-  auto-hidden menu bar's reveal edge, or over the Dock or timo's bar
+  auto-hidden menu bar's reveal edge, or over the Dock or tilemo's bar
   (Amethyst#1221).
-- **While timo's launcher or dashboard is open.** It keeps the keyboard
+- **While tilemo's launcher or dashboard is open.** It keeps the keyboard
   until it closes (tide §14.2).
 - **While an app that must keep focus is in front:** the screenshot picker
   (`com.apple.screencaptureui`) and password prompts
@@ -429,7 +429,7 @@ Focus follows mouse pauses, and focus stays where it is:
   last one used on that workspace. Something always has focus. Amethyst can
   leave nothing focused (Amethyst#1560). This is tide's
   `focus_on_close cursor`.
-- **No warping, ever.** timo has no "mouse follows focus". `Super+J`,
+- **No warping, ever.** tilemo has no "mouse follows focus". `Super+J`,
   `Super+Tab` and a new window move focus, not the pointer, as on tide
   (tide §14.2). Amethyst's warp sends a fake pointer move that its own
   focus follows mouse then reacts to (Amethyst#995, #1006).
@@ -452,7 +452,7 @@ Focus follows mouse pauses, and focus stays where it is:
 
 #### Amethyst's bugs, and the rule above that prevents each
 
-| Amethyst bug | timo's rule |
+| Amethyst bug | tilemo's rule |
 |---|---|
 | Popovers, menus, extension popups and dropdowns close as the pointer moves (#337, #1566, #1629, #1872) | Hit-test the topmost window, and stop on anything that isn't a managed window (step 3) |
 | A main window comes up over its own dialog or float, hiding it (#1243, #1026, #473) | Prefer the dialog (step 4), and re-raise floats after any raise (step 5) |
@@ -480,7 +480,7 @@ Each of these must pass before focus follows mouse is on by default:
 - Spotlight, Launchpad and the auto-hidden menu bar stay open while the
   pointer moves.
 - Cmd-Shift-4 keeps its region picker while the pointer crosses windows.
-- Typing into timo's launcher works with the pointer resting on a window,
+- Typing into tilemo's launcher works with the pointer resting on a window,
   and again after moving it across two (tide §14.2).
 - Moving onto a window focuses it at once, with no wait.
 - After `Super+J`, a small move within the old window doesn't take focus
@@ -496,10 +496,10 @@ Each of these must pass before focus follows mouse is on by default:
 
 ### 5.3 Moving and resizing with the mouse
 
-These are tide's mouse bindings (conf `hyprland.lua`) and tico's drag
-handling (tico §5.3):
+These are tide's mouse bindings (conf `hyprland.lua`) and tileco's drag
+handling (tileco §5.3):
 
-- **Dragging a window's own edge or title bar works as on any Mac.** timo
+- **Dragging a window's own edge or title bar works as on any Mac.** tilemo
   sees the result through Accessibility's `kAXMovedNotification` and
   `kAXResizedNotification`, and treats it as a request:
   - **Resizing a tile** sets the workspace's split (`mfact`), and its
@@ -514,7 +514,7 @@ handling (tico §5.3):
   - **A moved or resized float** keeps its new frame.
 - **Super+drag moves any window, and Super+right-drag resizes it,** from
   anywhere inside it, as on tide.
-  - macOS has no built-in way to do this for every app, so timo watches
+  - macOS has no built-in way to do this for every app, so tilemo watches
     mouse buttons with an event tap while Super is held (§2.2), which
     Accessibility covers.
   - A plain click passes straight through to the app. Only a press with
@@ -523,12 +523,12 @@ handling (tico §5.3):
     something in many Mac apps: Finder copies, and text editors select a
     column. With Karabiner's mapping (§7.1), Super+drag arrives with
     Ctrl+Option+Command held instead, so those stay the apps'. Without
-    Karabiner, timo takes them.
+    Karabiner, tilemo takes them.
   - A resize moves the edge or corner nearest the pointer.
   - When the drag ends, it's handled like a drag of the window's own edge
     (above). A drag on a tile sets the split or swaps tiles, and one on a
     float moves it.
-  - **While dragging,** timo shows an outline where the window will go, and
+  - **While dragging,** tilemo shows an outline where the window will go, and
     moves the real window when the button is released. Moving another
     app's window on every mouse event lags, since each move is a round
     trip to that app (§2.1). Hammerspoon's SkyRocket spoon draws the
@@ -552,20 +552,20 @@ These work as on tide (tide §6.3), on the same workspace:
   It lasts until you press it again, close the window, or focus another
   window on the workspace.
 - **Full screen** (`Super+Shift+Up`) covers the whole display, bar and all.
-  It's timo's own: a move to the display's whole frame, which works
+  It's tilemo's own: a move to the display's whole frame, which works
   over an auto-hidden menu bar *(unverified)*, not macOS's native full
   screen, which moves the window to a Space of its own (§13).
   An app's own native full screen (the green button) is left alone, and
-  that window isn't on any timo workspace while it lasts.
+  that window isn't on any tilemo workspace while it lasts.
 - **`Super+Down`** puts it back in its tile from either.
 - **macOS brings all of an app's windows forward** when the app is
   activated *(unverified for Accessibility focus)*. In monocle that could
-  shuffle the stack, so timo puts the order back after each activation.
+  shuffle the stack, so tilemo puts the order back after each activation.
 
 ### 5.5 Picture-in-picture and always-on-top windows
 
 - **Picture-in-picture** and a call's pop-out stay on every workspace.
-  timo never tiles, minimizes or dims them (tide §6.4, tico §5.4).
+  tilemo never tiles, minimizes or dims them (tide §6.4, tileco §5.4).
 - They're spotted by subrole and app: Safari's and Chrome's
   picture-in-picture windows, and Meet's pop-out by title
   *(unverified per kind)*.
@@ -579,14 +579,14 @@ These work as on tide (tide §6.3), on the same workspace:
   full screen, picture-in-picture, and a screen-share preview.
 - **How:** one dark layer just below the focused window, as HazeOver does
   (§2.4). That also dims the desktop, and the other display's windows.
-  - A layer per other display isn't possible: timo can't place a layer
+  - A layer per other display isn't possible: tilemo can't place a layer
     between two other apps' windows.
   - The alternative, an outline round the focused window instead, is
     JankyBorders' (§13).
 
 ## 6. Workspaces
 
-**Decided: minimize, as tico does.** It uses only public API, so macOS
+**Decided: minimize, as tileco does.** It uses only public API, so macOS
 updates shouldn't break it. Mission Control shows only the workspace on
 screen. Cmd+Tab still lists every app, but choosing one whose windows are
 all hidden brings their workspace along (below), so no window turns up on
@@ -604,7 +604,7 @@ than the other two choices.
 
 ### 6.1 Model
 
-This is tico's model (tico §6.1), which already solves minimizing on
+This is tileco's model (tileco §6.1), which already solves minimizing on
 chromeOS:
 
 - **Nine workspaces, shared across displays.** Each display shows one at a
@@ -638,11 +638,11 @@ then minimizes the rest, so the screen is never empty in between.
 | **Hide** an app (Cmd+H) | Nothing: hidden apps are macOS's, and come back where they were. | macOS decides |
 
 - **The current Mac setup follows a thrown window**
-  (`follow-space-thrown-windows: true` in conf's `amethyst.yml`). timo's
+  (`follow-space-thrown-windows: true` in conf's `amethyst.yml`). tilemo's
   Send doesn't, to match tide. The Carry keys follow.
 - **A window that refuses** to minimize or restore is logged and skipped,
-  so it can't stop a workspace switch. timo then stops managing it, as
-  tico does (tico §6.4).
+  so it can't stop a workspace switch. tilemo then stops managing it, as
+  tileco does (tileco §6.4).
 
 ### 6.2 Displays
 
@@ -656,19 +656,19 @@ then minimizes the rest, so the screen is never empty in between.
 ### 6.3 Restarts
 
 - **When an app quits and relaunches,** its windows come back with new IDs.
-  timo matches each to its old place by app and title, closest first, as
-  tico matches by tab addresses (tico §14.2). A window it can't match joins
+  tilemo matches each to its old place by app and title, closest first, as
+  tileco matches by tab addresses (tileco §14.2). A window it can't match joins
   the workspace showing.
-- **If timo quits,** it restores every hidden window first, so nothing is
+- **If tilemo quits,** it restores every hidden window first, so nothing is
   left stranded in the Dock.
 - **If it crashes,** the next start restores what it can't place and
-  reconciles the rest. `timo restore` does it by hand (§16).
+  reconciles the rest. `tilemo restore` does it by hand (§16).
 
 ### 6.4 Mission Control settings
 
 The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
 
-- **One Space per display.** timo doesn't use the rest.
+- **One Space per display.** tilemo doesn't use the rest.
 - **"Displays have separate Spaces"** stays on, the default.
 - **"Automatically rearrange Spaces based on most recent use"** off
   (`mru-spaces`), as `setup-macos` sets it now.
@@ -692,11 +692,11 @@ The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
      tide's model fits exactly.
    - The cost is Cmd+Tab and Mission Control showing everything. That's the
      reason `setup-macos` turned AeroSpace down.
-3. **Minimized, tico-style:** the choice above.
+3. **Minimized, tileco-style:** the choice above.
 
 Revisit if switching is too slow even with the Scale effect, if apps restore
 from minimize in the wrong place or size, or if a window refuses to
-minimize, which tico had to handle on chromeOS (tico §6.4). Native Spaces
+minimize, which tileco had to handle on chromeOS (tileco §6.4). Native Spaces
 come first then, since Cmd+Tab stays honest with them. The private call is
 the risk, and it breaks about once a year at a major macOS release *(from
 memory, not counted)*.
@@ -705,8 +705,8 @@ memory, not counted)*.
 
 ### 7.1 Where Super comes from
 
-- **tide's map, everywhere.** tide and tico differ where chromeOS can't
-  bind a key (tico §7.1), but macOS can bind all of tide's, so timo follows
+- **tide's map, everywhere.** tide and tileco differ where chromeOS can't
+  bind a key (tileco §7.1), but macOS can bind all of tide's, so tilemo follows
   tide (tide §6.6).
 - **Super is the PC keyboard's Win key.** `setup-macos`'s rotation turns it
   into Option, and Ctrl into Command, so copy and paste stay under the same
@@ -721,25 +721,25 @@ memory, not counted)*.
   - Option+`, E, I, N and U are dead keys for accents on US layouts
     *(unverified on Dvorak)*.
 - **Decided: Karabiner turns physical Win+key into a combination nothing
-  else uses** (Ctrl+Option+Command+key), and timo registers that. Karabiner
+  else uses** (Ctrl+Option+Command+key), and tilemo registers that. Karabiner
   sees the physical key before the rotation (conf
   `config/karabiner/README.md`), so Option's own meanings stay intact.
-  Depending on Karabiner is accepted, but timo must work without it.
+  Depending on Karabiner is accepted, but tilemo must work without it.
   - Karabiner needs an admin, once, and IT can block it (§11).
-- **Without Karabiner, timo falls back,** rather than leaving keys dead:
+- **Without Karabiner, tilemo falls back,** rather than leaving keys dead:
   - **How it tells:** at start, and whenever Karabiner starts or stops,
-    timo checks that Karabiner is running and has timo's rules loaded
+    tilemo checks that Karabiner is running and has tilemo's rules loaded
     *(how to check unverified: its background process, and its config
     file)*.
-  - **The keys:** timo registers the same map on plain Option instead. Every
+  - **The keys:** tilemo registers the same map on plain Option instead. Every
     key still works, at the cost of Option's text gestures above.
   - **The Super tap:** an event tap, if Input Monitoring is granted, or
     Super+Space alone if not (§7.2).
-  - **Super+drag:** on Option, so Finder's Option-drag copy goes to timo
+  - **Super+drag:** on Option, so Finder's Option-drag copy goes to tilemo
     (§5.3).
   - **It says so once,** in a notification naming what's lost and how to
-    fix it. The checklist (§10) and `timo doctor` (§15) report it too.
-  - **When Karabiner comes back,** timo moves its keys back to Karabiner's
+    fix it. The checklist (§10) and `tilemo doctor` (§15) report it too.
+  - **When Karabiner comes back,** tilemo moves its keys back to Karabiner's
     combinations, with no restart.
 - **The rotation covers every keyboard,** the MacBook's own included. If
   that's wrong for the built-in keyboard, `hidutil` can match PC keyboards
@@ -747,7 +747,7 @@ memory, not counted)*.
 
 ### 7.2 The map
 
-timo registers each with `RegisterEventHotKey`, which needs no permission
+tilemo registers each with `RegisterEventHotKey`, which needs no permission
 (§2.2). The second column is what macOS sees once Karabiner has mapped it.
 
 | Keys | Action | How |
@@ -776,7 +776,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Tab`, `Super+Home` | the next window wanting attention (§14) | hotkey, and an event tap to see Super let go |
 | `Super+Shift+N` | Notification Center | no public way to open it *(unverified)*; else the clock in the menu bar |
 | `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region, Super+Print a region too (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
-| mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | timo, through `hs.audiodevice`'s input mute on the default input device, with an on-screen sign; the bar's microphone item does the same |
+| mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | tilemo, through `hs.audiodevice`'s input mute on the default input device, with an on-screen sign; the bar's microphone item does the same |
 | media, brightness, volume keys | as macOS does them | native |
 
 - **The Super tap** must not fire after Super+T, Super+drag or
@@ -794,11 +794,11 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - Browser profiles run with their own `--user-data-dir`, as tide's
     `browser2` and `browser3` do.
   - Web apps are installed web apps, which have their own Dock icons and
-    badges (tico §3.5).
+    badges (tileco §3.5).
   - Helpers run through the login shell's environment. Apps started from a
     key inherit launchd's short `PATH`, which tide met as "PATH missing in
     keybinds" (tide §17).
-- **The Keys page** in timo's settings lists every binding live, as tide's
+- **The Keys page** in tilemo's settings lists every binding live, as tide's
   does (tide §16).
 
 ### 7.3 Taking keys from the system and the old setup
@@ -811,12 +811,12 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - 64 (Spotlight on Option+Space): Spotlight moves back to Cmd+Space,
     physical Ctrl+Space;
   - 79 and 81 (Ctrl+Option+arrows, move a Space left and right).
-- **Amethyst:** retired once timo takes over (§19, question 4), and conf's
+- **Amethyst:** retired once tilemo takes over (§19, question 4), and conf's
   `amethyst.yml` with it. Its `mod1`-`mod4` combinations go.
 - **Rectangle:** `setup` installs it too, and its defaults sit on
   Ctrl+Option+arrows *(unverified)*. It goes.
 - **Karabiner's Win+arrow rule** sends Ctrl+Option+arrow for native Spaces
-  and Win+Shift+arrow for Amethyst's throw. Both now go to timo.
+  and Win+Shift+arrow for Amethyst's throw. Both now go to tilemo.
 - **Super+Shift+N sends to workspace N.** Under the rotation that's
   Option+Shift+digit, which makes a character in typing but can still be
   registered. Hammerspoon passes Option and Shift straight to
@@ -828,18 +828,18 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 ## 8. Bar, clocks and dashboard
 
 - **The menu bar stays the system's.** Two ways to live with it:
-  - **Option 1:** the bar is a timo panel along the top, with the menu bar
+  - **Option 1:** the bar is a tilemo panel along the top, with the menu bar
     set to hide automatically. It shows the workspaces, the layout symbol,
     the title and the clocks, as tide's does (tide §7). The cost: the
     system's status items (Wi-Fi, battery, volume) and the app's menus show
     only when the pointer reaches the top edge.
   - **Option 2:** no bar. The workspaces and clocks go in the menu bar's
     right side as status items, plus a full-screen dashboard on a key, as
-    tico's is (tico §8.1).
-  - **Decided: option 1, with timo's own status icons.** The menu bar is
+    tileco's is (tileco §8.1).
+  - **Decided: option 1, with tilemo's own status icons.** The menu bar is
     set to hide automatically (System Settings › Control Center ›
     "Automatically hide and show the menu bar": Always, or
-    `defaults write NSGlobalDomain _HIHideMenuBar -bool true`). timo's bar
+    `defaults write NSGlobalDomain _HIHideMenuBar -bool true`). tilemo's bar
     takes the top 36 px of each display, and draws the common status items
     itself (below), so they don't need the menu bar revealed.
   - **What still needs the menu bar:** the app's own menus, the Apple menu,
@@ -847,7 +847,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
     the pointer reaches the top edge, over the bar, which sits below the
     menu bar's level.
   - **Option 2 stays as the fallback,** with `bar = false` in `start()`: a
-    timo menu bar item draws the workspaces as text, current, occupied,
+    tilemo menu bar item draws the workspaces as text, current, occupied,
     and wanting attention. A click switches. It sits on the right, since
     the menu bar's left side is the Apple menu and the app's menus.
   - Either way, a large number shows briefly in the middle of the screen on
@@ -863,8 +863,8 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - the clocks shrink to local time alone when the title would get narrower
     than 200 px.
 - **The bar on Hammerspoon** is built like the dashboard: one borderless
-  `hs.webview` per display, from the same copies of tico's modules and
-  stylesheet, plus timo's `bar.js`. It stays open, and timo sends it new
+  `hs.webview` per display, from the same copies of tileco's modules and
+  stylesheet, plus tilemo's `bar.js`. It stays open, and tilemo sends it new
   state as JSON on every change, on the attention poll (for titles that
   change without focus moving) and when the icons change. Each page only
   redraws when what it was sent changed.
@@ -874,18 +874,18 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
     per bundle id and sent once per app, not per window. An app with no
     icon shows as a blank square, so the count still reads.
   - Double-clicking the title maximizes the focused window, or puts it
-    back (§5.4). The message names its bar's display, and timo acts only
+    back (§5.4). The message names its bar's display, and tilemo acts only
     if the focused window is there, where the title shows.
   - Clicking the clocks opens the dashboard, with its clock panel.
   - It floats above every app's window but below the menu bar, joins every
     Space, and stays put.
   - Focus follows mouse pauses over it, as over the menu bar (§5.2).
   - The bar hides on a display while a window there is full screen, and
-    comes back after: timo's full screen (§5.4) on that display's
+    comes back after: tilemo's full screen (§5.4) on that display's
     workspace, or the focused window in macOS's own full screen on that
     display. macOS's is only known for the focused window *(unverified
-    how a swipe away from its Space shows to timo)*.
-- **timo's status items** are 16 px line drawings in the text color,
+    how a swipe away from its Space shows to tilemo)*.
+- **tilemo's status items** are 16 px line drawings in the text color,
   drawn by `bar.js` itself with no icon font or fetch, so they follow the
   bar's light and dark colors. State shows as color: muted or off in the
   muted color, active (keeping awake, a camera in use) in the accent
@@ -922,7 +922,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - The battery and network items open their System Settings panes, named
     by URL (`x-apple.systempreferences:…`) *(unverified on macOS 26)*.
 - **Not drawn:** Bluetooth and Focus (Do Not Disturb). Hammerspoon has no
-  module for either (there is no `hs.bluetooth` or `hs.focus`), and timo
+  module for either (there is no `hs.bluetooth` or `hs.focus`), and tilemo
   doesn't shell out to a helper such as `blueutil` from the bar. Their menu
   bar items show when the menu bar is revealed.
 - **The notch,** on a MacBook's own display, sits where tide centers the
@@ -932,17 +932,17 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   microphone and camera in use, which covers tide's privacy pills
   (tide §7.4). The microphone-mute state from `Super+Shift+M` shows in the
   bar, since macOS has no system-wide mute of its own.
-- **Clocks:** tico's `src/clocks.js` and `calendar.js` hold the zone,
-  daytime-strip, DST and calendar logic, all tested. A native timo would port
+- **Clocks:** tileco's `src/clocks.js` and `calendar.js` hold the zone,
+  daytime-strip, DST and calendar logic, all tested. A native tilemo would port
   them.
 - **The dashboard, on Hammerspoon,** is a borderless `hs.webview` over the
   display you're on, from `Super+Shift+Space`:
-  - It shows tico's bar (the workspace chips, the focused window's title,
-    the clocks) over tico's clock panel: each zone's day strip, the next
+  - It shows tileco's bar (the workspace chips, the focused window's title,
+    the clocks) over tileco's clock panel: each zone's day strip, the next
     DST change, and a month calendar.
-  - tico's `clocks.js`, `calendar.js`, `clockview.js` and `launcher.css` are
-    copied unchanged, and CI checks they still match tico's.
-  - A webview can't load ES modules from files, so timo joins them into one
+  - tileco's `clocks.js`, `calendar.js`, `clockview.js` and `launcher.css` are
+    copied unchanged, and CI checks they still match tileco's.
+  - A webview can't load ES modules from files, so tilemo joins them into one
     script, each module in its own scope.
   - A workspace number or a click on its chip shows it. Esc, the key again,
     or clicking away closes it.
@@ -951,24 +951,24 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 
 ## 9. Launcher
 
-- **Scopes, as tico's:** apps, timo's commands, and open tabs (tico §9.4).
+- **Scopes, as tileco's:** apps, tilemo's commands, and open tabs (tileco §9.4).
   Apps come from `/Applications` and Spotlight's index. Tabs come from
   Chrome and Safari through AppleScript (§2.5).
-- **Matching:** tico's fuzzy match and ranking (`src/launcher.js`), with
+- **Matching:** tileco's fuzzy match and ranking (`src/launcher.js`), with
   the most used and most recent first, and tide's empty-query sections
   (tide §8). Text matching nothing in a scope searches all of them.
 - **Quick actions, as tide's** (tide §8): screenshot the window, screen or
   a region; lock, log out, sleep, restart, shut down; Do Not Disturb,
-  keep awake, and dark style; timo's settings; reload timo.
+  keep awake, and dark style; tilemo's settings; reload tilemo.
 - **Cmd+Return** (physical Ctrl+Enter) runs the app on the first empty
   workspace, as Ctrl+Enter does on tide.
 - **The window before the launcher** gets focus back if you dismiss it, and
   is the window "screenshot window" captures (tide §13).
 - **Kept out of screen shares,** as tide keeps its launcher out (tide §12),
-  by marking timo's windows unshareable (`NSWindow.sharingType`)
+  by marking tilemo's windows unshareable (`NSWindow.sharingType`)
   *(unverified that screen sharing still honors it on macOS 26)*.
 - **Spotlight stays** on Cmd+Space, physical Ctrl+Space (§7.3). In macOS
-  26, timo's commands can also appear there as App Intents (§2.6).
+  26, tilemo's commands can also appear there as App Intents (§2.6).
 
 ## 10. The rest of the desktop
 
@@ -982,7 +982,7 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - Sleep on battery only: "Prevent automatic sleeping when the display is
     off" on power adapter *(unverified wording on macOS 26)*. `pmset`
     sets the rest, with an admin (§11.2).
-  - timo's keep-awake toggle holds a power assertion, as `caffeinate`
+  - tilemo's keep-awake toggle holds a power assertion, as `caffeinate`
     does. As on tide, it never times out, starts off at each login, and
     turns on by itself while the microphone is in use (Core Audio reports
     that) *(unverified)*.
@@ -997,14 +997,14 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
   - macOS's dynamic wallpapers already change with the appearance, and
     kitty can follow it with its automatic themes *(unverified version)*.
 - **Screenshots** (tide §13): macOS's own, with tide's Print keys mapped to
-  them (§7.2). timo presses macOS's screenshot keys rather than running
+  them (§7.2). tilemo presses macOS's screenshot keys rather than running
   `screencapture`, because a capture an app starts needs Screen Recording
   for that app, while macOS's own keys need nothing (§11.1):
   - screen: Ctrl+Cmd+Shift+3; region: Ctrl+Cmd+Shift+4; window: the same,
     then Space;
-  - the Ctrl variants put the shot on the clipboard, as timo's did before.
+  - the Ctrl variants put the shot on the clipboard, as tilemo's did before.
   - tide also saves each shot to `~/Pictures/Screenshots`. macOS does one or
-    the other per shot, so timo keeps the clipboard; dropping Ctrl would
+    the other per shot, so tilemo keeps the clipboard; dropping Ctrl would
     save to the folder set in Screenshot's options instead.
   - Pressing the keys is a synthetic key event, which Accessibility already
     covers *(unverified that macOS honors it for its screenshot keys)*.
@@ -1014,23 +1014,23 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
     (§2.6).
   - Left-handed: the primary button on the right, in Mouse settings.
   - Wheel scaling beyond the slider is *(unverified)*. It's the gap that
-    tico §19.2 fills on chromeOS.
+    tileco §19.2 fills on chromeOS.
 - **Trackpad:** natural scroll and tap to click, in Trackpad settings.
   macOS may tie natural scrolling for the mouse and trackpad together
   *(unverified)*; if so, LinearMouse can reverse the mouse alone (§13).
 - **Keyboard:** repeat after 600 ms at 25 a second, set as `InitialKeyRepeat`
   and `KeyRepeat` in 15 ms steps, so the nearest is 40 and 3
   *(unverified units)*. US Dvorak is a native input source.
-- **Setup checklist:** as tico's (tico §3.4). Each item links to its System
+- **Setup checklist:** as tileco's (tileco §3.4). Each item links to its System
   Settings pane with an `x-apple.systempreferences:` URL *(unverified per
   pane on macOS 26)*. It covers the Mission Control settings (§6.4), the
   minimize settings (§6), Chrome's notifications (§5.1), and each
   permission (§11).
-- **The rest of the setup:** tico's Appendix A lists the helper scripts
+- **The rest of the setup:** tileco's Appendix A lists the helper scripts
   `setup` installs (Bluetooth, the audio profile switcher, notes, IRC,
   remote desktop, the file manager on `Super+E`). Which of them run on a
   Mac, and what stands in for the rest, is for `setup-macos` to settle,
-  not timo.
+  not tilemo.
 
 ## 11. Permissions, admin rights and managed Macs
 
@@ -1040,16 +1040,16 @@ timo registers each with `RegisterEventHotKey`, which needs no permission
 |---|---|---|
 | Accessibility | first run; tiling needs it | moving windows, focus follows mouse, mouse drags (§5.3), Dock badges |
 | Input Monitoring | only for the lone Super tap, if done by an event tap (§7) *(unverified that Accessibility alone isn't enough)* | seeing Option go down and up |
-| Screen Recording | never: titles come through Accessibility (§2.5), and screenshots use macOS's own keys (§10) | nothing timo needs |
+| Screen Recording | never: titles come through Accessibility (§2.5), and screenshots use macOS's own keys (§10) | nothing tilemo needs |
 | Automation, per browser | the first tab search | tab titles and addresses |
 | none | — | global keys, the bar, clocks, the launcher's app list |
 
-Ask for each only when a feature needs it, as tico does with its extras
-(tico §14.1).
+Ask for each only when a feature needs it, as tileco does with its extras
+(tileco §14.1).
 
 ### 11.2 Admin rights
 
-A standard user can run timo once it's installed. These steps need an
+A standard user can run tilemo once it's installed. These steps need an
 administrator:
 
 | Step | Needs admin? | Workaround without admin |
@@ -1057,27 +1057,27 @@ administrator:
 | Installing Homebrew | **yes**, once, to create `/opt/homebrew` | Install apps from a downloaded copy into `~/Applications` instead *(unverified for Hammerspoon)*. |
 | Installing an app into `/Applications` | **yes**, usually | `~/Applications`. |
 | Turning on a privacy permission (§11.1) | **yes**, an admin's password unlocks the setting *(unverified on macOS 26 for standard users)* | A managed Mac's MDM can grant it instead (§11.3). |
-| Karabiner's keyboard driver | **yes**: it's a system extension, approved once | Skip Karabiner. timo then binds Option directly, which takes Option's text gestures (§7.1), and the lone Super tap needs an event tap. |
+| Karabiner's keyboard driver | **yes**: it's a system extension, approved once | Skip Karabiner. tilemo then binds Option directly, which takes Option's text gestures (§7.1), and the lone Super tap needs an event tap. |
 | `pmset` for the idle timeline (§10) | **yes**, `sudo` | Energy and Lock Screen settings, which a user can change. |
 | Everything else `setup-macos` writes: symbolichotkeys, Dock and minimize settings, mouse scaling, appearance | no: per-user `defaults` | — |
 
 ### 11.3 On a managed work Mac
 
 A Mac enrolled in MDM can grant or block most of this, so on a work machine
-it's IT's call. tico has the same section for chromeOS (tico §14.4).
+it's IT's call. tileco has the same section for chromeOS (tileco §14.4).
 
 | Feature | What MDM can do | If it's blocked |
 |---|---|---|
 | Accessibility, so all of tiling | grant it to a named app with a Privacy Preferences (PPPC) profile, or block it | **No workaround**: no tiling, no focus follows mouse, no mouse drags. Global keys and the launcher still work. |
-| Input Monitoring and Screen Recording | only let a standard user approve them, or block them; a profile can't switch them on silently *(unverified for Input Monitoring)* | Super+Space for the launcher (§7), or Karabiner's tap rule. timo shouldn't need Screen Recording (§2.5). |
+| Input Monitoring and Screen Recording | only let a standard user approve them, or block them; a profile can't switch them on silently *(unverified for Input Monitoring)* | Super+Space for the launcher (§7), or Karabiner's tap rule. tilemo shouldn't need Screen Recording (§2.5). |
 | Automation for tab search | grant it per app pair in the same profile, or block it | No tab search. Apps and commands still work. |
 | Karabiner's system extension | allow or block it by team ID, and the rotation needs it too | Skip Karabiner (§11.2). |
-| Running timo or Hammerspoon at all | block apps by name or signature, with Gatekeeper rules or a tool such as Santa | **No workaround.** Ask IT to allow it. A Developer ID build (§12) is easier for IT to allow than an unsigned one. |
-| Login items | manage background items, and hide or block them | Start timo by hand. |
-| Idle and lock timings | enforce the screen lock delay and password rules | **None.** The policy wins, and timo's keep-awake toggle may not stop the lock *(unverified)*. |
+| Running tilemo or Hammerspoon at all | block apps by name or signature, with Gatekeeper rules or a tool such as Santa | **No workaround.** Ask IT to allow it. A Developer ID build (§12) is easier for IT to allow than an unsigned one. |
+| Login items | manage background items, and hide or block them | Start tilemo by hand. |
+| Idle and lock timings | enforce the screen lock delay and password rules | **None.** The policy wins, and tilemo's keep-awake toggle may not stop the lock *(unverified)*. |
 | Spaces, Dock and Mission Control settings | lock some of these preferences | Leave the defaults; minimizing still works (§6). |
 
-Nothing in timo needs SIP lowered, which a managed Mac wouldn't allow. That
+Nothing in tilemo needs SIP lowered, which a managed Mac wouldn't allow. That
 was a goal (§1), and it's why the native-Spaces alternative avoids yabai's
 scripting addition (§6).
 
@@ -1085,7 +1085,7 @@ scripting addition (§6).
 
 - **Not the Mac App Store:** controlling other apps' windows isn't allowed
   in the sandbox (§2.1).
-- **Hammerspoon (B):** free and open source. timo would be a config
+- **Hammerspoon (B):** free and open source. tilemo would be a config
   repository plus a `setup-macos` step, with no signing.
 - **A native app (C):** needs a Developer ID and notarization, at $99 a year
   for the Apple Developer Program, or users clear Gatekeeper by hand.
@@ -1096,21 +1096,21 @@ scripting addition (§6).
   - None of this touches the network, so there's nothing to go down and no
     running cost.
 
-## 13. What timo can't have
+## 13. What tilemo can't have
 
 These are the things macOS doesn't allow, or allows only through private
 calls that break between releases or need SIP lowered, which §1 rules out.
 Each one names a workaround, or says there is none.
 
-| tide or tico has | Why a Mac can't | Workaround |
+| tide or tileco has | Why a Mac can't | Workaround |
 |---|---|---|
 | No title bars or borders | No public API removes another app's frame (§2.1). | **None** for the title bars. Gaps of 0 keep the tiles tight. |
 | Focus without raising (KDE's focus follows mouse) | Focusing a window brings it to the front (§5.2). | yabai's `autofocus` does it through a private call, with SIP on *(unverified)*. Otherwise, raise, and keep floats above tiles (§5.1). |
-| Floats always on top | No public way to set another app's window level (§5.1). | timo raises the floats again after any tile it raises. A true window level needs yabai's scripting addition, which needs SIP lowered: **none** within §1. |
-| Nothing ever steals focus (tide §14) | An app can activate itself, and macOS decides whether it may. | timo never focuses anything unasked, and hands focus back when an app takes it without a grant (§14.1) *(unverified that it can act in time)*. |
-| Dimming exactly the inactive windows | timo can't draw inside or between other apps' windows (§2.4). | One dark layer behind the focused window, which dims the desktop too, or JankyBorders' outline as the focus cue instead. |
+| Floats always on top | No public way to set another app's window level (§5.1). | tilemo raises the floats again after any tile it raises. A true window level needs yabai's scripting addition, which needs SIP lowered: **none** within §1. |
+| Nothing ever steals focus (tide §14) | An app can activate itself, and macOS decides whether it may. | tilemo never focuses anything unasked, and hands focus back when an app takes it without a grant (§14.1) *(unverified that it can act in time)*. |
+| Dimming exactly the inactive windows | tilemo can't draw inside or between other apps' windows (§2.4). | One dark layer behind the focused window, which dims the desktop too, or JankyBorders' outline as the focus cue instead. |
 | Instant workspace switches with an honest Cmd+Tab | Hiding windows off screen leaves them in Cmd+Tab; minimizing and Spaces animate (§2.3, §6). | Minimize with the Scale effect, and Reduce Motion for Spaces. **No** way to get both at once. |
-| One workspace pool shared by every monitor (tide §6.5) | Minimized windows have no display, and native Spaces are per display. | timo tracks each workspace's display itself, as tico does (tico §6.1). |
+| One workspace pool shared by every monitor (tide §6.5) | Minimized windows have no display, and native Spaces are per display. | tilemo tracks each workspace's display itself, as tileco does (tileco §6.1). |
 | Moving a window to a native Space | Only private calls can (§2.3). | Workspaces by minimizing (§6). |
 | Exact tiles for every app | Apps can refuse or round a size, such as terminals snapping to their character grid (§2.1). | The rest tile around what the app took (§5). In kitty, the grid snapping can be turned off *(unverified)*. |
 | Tiling native full-screen windows | A full-screen window lives in its own Space. | Maximize instead (§4). |
@@ -1122,9 +1122,9 @@ Each one names a workaround, or says there is none.
 | Mouse wheel speed beyond the slider | Mouse settings scale the wheel only so far *(unverified)*. | LinearMouse or Mos, free tools that use Accessibility *(unverified)*. |
 | A Compose key | macOS has none. | Option dead keys, a custom layout made with Ukelele, or Karabiner sequences. |
 | Keys and the Super tap during Secure Input | While a password field or a terminal's secure keyboard entry is active, event taps stop seeing typed keys *(unverified for hotkeys)*. | **None**, by design. Registered hotkeys keep working, if they do. |
-| Three-finger swipe between workspaces (conf `hyprland.lua`) | No public API for trackpad gestures; the native swipe switches Spaces, which timo doesn't use. | BetterTouchTool, a paid app, can bind gestures to keys *(unverified price)*. Otherwise **none**. |
+| Three-finger swipe between workspaces (conf `hyprland.lua`) | No public API for trackpad gestures; the native swipe switches Spaces, which tilemo doesn't use. | BetterTouchTool, a paid app, can bind gestures to keys *(unverified price)*. Otherwise **none**. |
 | Pinning picture-in-picture to a corner (tide §6.4) | The app places it, and moves it back. | Leave it where the app puts it (§5.5). |
-| Option's text gestures alongside Super on Option | One key can't be both. | Karabiner's mapping (§7.1). Without it, **none**: timo takes them. |
+| Option's text gestures alongside Super on Option | One key can't be both. | Karabiner's mapping (§7.1). Without it, **none**: tilemo takes them. |
 | Natural scrolling on the trackpad but not the mouse | macOS may have one switch for both *(unverified)*. | LinearMouse or Mos reverse the mouse alone *(unverified)*. |
 | Mac App Store distribution | The sandbox forbids controlling other apps (§2.1). | **None.** Ship through Homebrew, or as a Hammerspoon config (§12). |
 
@@ -1138,15 +1138,15 @@ Each one names a workaround, or says there is none.
 
 | When | Gets focus? |
 |---|---|
-| timo's launcher, dashboard or resize mode is open | It keeps it until it closes. Focus follows mouse pauses meanwhile (§5.2). |
+| tilemo's launcher, dashboard or resize mode is open | It keeps it until it closes. Focus follows mouse pauses meanwhile (§5.2). |
 | A new window from the app you're in: a dialog, a second window | **Yes**, as tide (tide §14.1). |
-| The first window of an app you launched from timo (the launcher, an app key) | **Yes**, if you haven't typed, clicked or moved focus since. The grant lasts 10 s and is used once. |
-| A window started from the focused terminal (`open .` in kitty) | **Yes**, on the same terms *(how timo learns of it unsettled; tide's shell tells its guard, tide §14.3)*. |
+| The first window of an app you launched from tilemo (the launcher, an app key) | **Yes**, if you haven't typed, clicked or moved focus since. The grant lasts 10 s and is used once. |
+| A window started from the focused terminal (`open .` in kitty) | **Yes**, on the same terms *(how tilemo learns of it unsettled; tide's shell tells its guard, tide §14.3)*. |
 | A notification you click | **Yes**: the click was yours (§10). |
 | A password prompt | **Yes** when it follows something you did in the app that asks; otherwise it's macOS's to decide. |
 | Any other app activating itself, or a window opening in the background | **No.** It's marked for attention. |
 
-- **How timo enforces "no":** macOS lets an app activate itself, so timo
+- **How tilemo enforces "no":** macOS lets an app activate itself, so tilemo
   can't refuse it. It can notice (`NSWorkspace`'s activation
   notification), and hand focus straight back to the window you were in
   when no grant covers it *(unverified that it can act before a keystroke
@@ -1161,8 +1161,8 @@ Each one names a workaround, or says there is none.
 - **What counts as wanting attention:**
   - a Dock badge appearing or rising (§2.5);
   - a window title gaining an unread count, such as `Chat (3)`, seen
-    through Accessibility's title notification, as tico reads titles
-    (tico §10.3);
+    through Accessibility's title notification, as tileco reads titles
+    (tileco §10.3);
   - a window that activated itself without a grant (§14.1);
   - a Dock icon bouncing *(unverified that it can be seen)*.
 - **A badge marks the app; a title or activation marks the window.**
@@ -1171,9 +1171,9 @@ Each one names a workaround, or says there is none.
   (tide §14.4).
 - **`Super+Tab` with nothing waiting** goes to the window you were last in.
 
-## 15. Settings and `timo doctor`
+## 15. Settings and `tilemo doctor`
 
-- **One set of files with tide.** timo reads tide's settings from
+- **One set of files with tide.** tilemo reads tide's settings from
   `~/.config/tide/` (tide §16.1): the clocks list, the layouts, and the dim
   strength. One file serves every desktop. A `.local` file beside each
   overrides it for one machine.
@@ -1182,13 +1182,13 @@ Each one names a workaround, or says there is none.
 - **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
   Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
   (§11).
-- **One owner per job** (tide §5): timo tiles, binds keys and draws the
+- **One owner per job** (tide §5): tilemo tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.
-- **`timo doctor`** checks what usually goes wrong:
+- **`tilemo doctor`** checks what usually goes wrong:
   - each permission (§11.1), and whether the event tap is still on (§16);
   - another tiler running: Amethyst, Rectangle, yabai, AeroSpace;
-  - a symbolichotkey holding one of timo's keys (§7.3), and any key that
+  - a symbolichotkey holding one of tilemo's keys (§7.3), and any key that
     failed to register;
   - Karabiner's rules loaded;
   - Stage Manager or Sequoia's tiling on (§6.4);
@@ -1196,36 +1196,36 @@ Each one names a workaround, or says there is none.
 
 ## 16. Known problems
 
-| Problem | What timo does |
+| Problem | What tilemo does |
 |---|---|
-| macOS switches off an event tap whose handler is too slow (`kCGEventTapDisabledByTimeout`), which would stop the Super tap, drags and focus follows mouse *(unverified how quickly)* | Keeps the handler short, re-enables the tap when told it was switched off, and `timo doctor` reports it. |
-| A macOS update, or a new timo build, resets Accessibility (scripts `docs/MACOS.md`) | The doctor and the checklist say so, and link the pane. |
-| Screen Recording asks again every so often since macOS 15 *(unverified on macOS 26)* | timo doesn't use it (§2.5). |
+| macOS switches off an event tap whose handler is too slow (`kCGEventTapDisabledByTimeout`), which would stop the Super tap, drags and focus follows mouse *(unverified how quickly)* | Keeps the handler short, re-enables the tap when told it was switched off, and `tilemo doctor` reports it. |
+| A macOS update, or a new tilemo build, resets Accessibility (scripts `docs/MACOS.md`) | The doctor and the checklist say so, and link the pane. |
+| Screen Recording asks again every so often since macOS 15 *(unverified on macOS 26)* | tilemo doesn't use it (§2.5). |
 | Secure Input stops event taps seeing keys (§13) | Registered hotkeys still work; the tap rules don't. |
 | A hung app stalls Accessibility calls (§2.1) | A short timeout per call, and that app is skipped (§5.2). |
-| timo quits or crashes with workspaces hidden | Restores everything on quit, and reconciles at start (§6.3). |
+| tilemo quits or crashes with workspaces hidden | Restores everything on quit, and reconciles at start (§6.3). |
 
 ## 17. Where things live
 
-- **timo** (this repo): the spec, then the code.
+- **tilemo** (this repo): the spec, then the code.
 - **conf:**
   - Karabiner's rules (`config/karabiner/`), updated for §7.1 and §7.3;
   - `amethyst.yml` retired;
-  - the Hammerspoon config, if timo starts as route B (§3).
-- **scripts:** `setup-macos`. It installs timo, frees the keys in §7.3,
+  - the Hammerspoon config, if tilemo starts as route B (§3).
+- **scripts:** `setup-macos`. It installs tilemo, frees the keys in §7.3,
   removes Amethyst and Rectangle, applies the Mission Control settings
   (§6.4), and stops making nine Spaces.
-- **tide:** the layout geometry and its test fixtures, shared so timo
+- **tide:** the layout geometry and its test fixtures, shared so tilemo
   doesn't keep its own copy.
 
 ## 18. Testing and milestones
 
-- **Tests, as tide's and tico's** (tide §20, tico §17):
+- **Tests, as tide's and tileco's** (tide §20, tileco §17):
   - the geometry against tide's own fixtures;
   - the workspace model (§6.1) and focus follows mouse's decisions (§5.2)
     against a fake Accessibility layer, with no sleeps;
   - in CI on a macOS runner, a smoke test in a real Hammerspoon
-    (`ci/hs-smoke.sh`): every `hs.*` name timo uses exists, timo starts
+    (`ci/hs-smoke.sh`): every `hs.*` name tilemo uses exists, tilemo starts
     with its bar along the top of each display, and opens its dashboard,
     then tiles three TextEdit windows and checks each lands below the bar
     where the layout puts it. GitHub's macOS runners come with
@@ -1248,9 +1248,9 @@ Each one names a workaround, or says there is none.
 1. **Workspaces:** decided, minimize (§6), with native Spaces next if it
    doesn't work out.
 2. **Build route:** Hammerspoon first (§3 B), or straight to a native app?
-3. **Bar:** decided, timo's own bar over an auto-hidden menu bar, with its
+3. **Bar:** decided, tilemo's own bar over an auto-hidden menu bar, with its
    own status items (§8). The menu bar item stays as the fallback.
-4. **Amethyst:** keep it alongside while timo grows, or replace it outright?
+4. **Amethyst:** keep it alongside while tilemo grows, or replace it outright?
    Running both would fight over the same windows.
 5. **Does HazeOver's one-layer dim** carry over to a canvas or panel, and
    can a third-party app keep it just below another app's window (§2.4)?

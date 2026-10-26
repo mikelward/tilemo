@@ -2,6 +2,8 @@
 -- touches `hs` lives here, so the rest tests against a fake (tests/fake.lua).
 -- Not runnable outside Hammerspoon.
 
+local saved = require("tilemo.saved")
+
 local M = {}
 
 local function box(r)
@@ -21,13 +23,15 @@ local NOT_A_WINDOW = {
 }
 
 -- Every Accessibility call gives up after this long, so a hung app can't
--- freeze timo (Amethyst#342).
+-- freeze tilemo (Amethyst#342).
 M.AX_TIMEOUT = 0.25
 
-M.SETTINGS_KEY = "timo.state"
+M.SETTINGS_KEY = "tilemo.state"
+-- Where timo kept it, before the rename.
+M.OLD_SETTINGS_KEY = "timo.state"
 
 function M.load()
-    return hs.settings.get(M.SETTINGS_KEY)
+    return saved.get(hs.settings, M.SETTINGS_KEY, M.OLD_SETTINGS_KEY)
 end
 
 function M.new()
@@ -57,7 +61,7 @@ function M.new()
 
     -- Every Space, not just the current one: a window in native full screen
     -- sits on a Space of its own, and hs.window.allWindows() would leave it
-    -- out, so timo would forget its place in the layout. A window filter
+    -- out, so tilemo would forget its place in the layout. A window filter
     -- with no current-Space setting covers them all.
     local every = hs.window.filter.new(false)
     every:setDefaultFilter({ allowRoles = "*" })
@@ -378,7 +382,7 @@ function M.new()
     -- Press macOS's own screenshot keys (keys.SCREENSHOT). The picker takes
     -- a moment to come up before it will hear Space.
     function a.screenshot(kind)
-        local k = require("timo.keys").SCREENSHOT[kind]
+        local k = require("tilemo.keys").SCREENSHOT[kind]
         if not k then
             a.log("no screenshot kind " .. tostring(kind))
             return
@@ -418,7 +422,7 @@ function M.new()
     end
 
     function a.notify(text)
-        hs.notify.new({ title = "timo", informativeText = text }):send()
+        hs.notify.new({ title = "tilemo", informativeText = text }):send()
     end
 
     function a.now()
@@ -429,7 +433,7 @@ function M.new()
         return pid ~= nil and hs.application.applicationForPID(pid) ~= nil
     end
 
-    local log = hs.logger.new("timo", "info")
+    local log = hs.logger.new("tilemo", "info")
     function a.log(text)
         log.i(text)
     end

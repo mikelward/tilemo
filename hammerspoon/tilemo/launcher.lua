@@ -1,5 +1,5 @@
--- The launcher's matching and ranking (SPEC.md §9), a port of tico's
--- src/launcher.js: apps, timo's commands and open tabs, filtered by a fuzzy
+-- The launcher's matching and ranking (SPEC.md §9), a port of tileco's
+-- src/launcher.js: apps, tilemo's commands and open tabs, filtered by a fuzzy
 -- match and ordered by how well they match, then by how recently you used
 -- them. Pure Lua; launcher_hs.lua draws it with hs.chooser.
 
@@ -148,7 +148,7 @@ function M.items(apps, tabs, commands)
     return out
 end
 
--- timo's commands, as the launcher lists them. `action` names a window
+-- tilemo's commands, as the launcher lists them. `action` names a window
 -- manager action; `quick` names one of the adapter's quick actions
 -- (tide SPEC.md §8).
 M.COMMANDS = {
@@ -172,7 +172,7 @@ M.COMMANDS = {
     { title = "Keep awake", quick = "keep_awake" },
     { title = "Dark style", quick = "dark" },
     { title = "Focus follows mouse on or off", quick = "toggle_ffm" },
-    { title = "Reload timo", quick = "reload" },
+    { title = "Reload tilemo", quick = "reload" },
 }
 for n = 1, 9 do
     M.COMMANDS[#M.COMMANDS + 1] = { title = "Workspace " .. n, action = "show", arg = n }

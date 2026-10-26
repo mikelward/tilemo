@@ -1,9 +1,9 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
-local dashboard = require("timo.dashboard")
+local wm_mod = require("tilemo.wm")
+local dashboard = require("tilemo.dashboard")
 
-local DIR = "hammerspoon/timo/dashboard/"
+local DIR = "hammerspoon/tilemo/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -49,18 +49,18 @@ t.test("a missing module or an import it can't read is an error at load", functi
     t.eq(tostring(err):find("dashboard.js", 1, true) ~= nil, true)
 end)
 
-t.test("the page carries tico's stylesheet and the script", function()
+t.test("the page carries tileco's stylesheet and the script", function()
     local html = dashboard.page(read("dashboard.html"), read("launcher.css"), sources())
-    t.eq(html:find("TIMO_", 1, true), nil)
+    t.eq(html:find("TILEMO_", 1, true), nil)
     t.eq(html:find("#clock-detail", 1, true) ~= nil, true)
-    t.eq(html:find("window.timo = {", 1, true) ~= nil, true)
+    t.eq(html:find("window.tilemo = {", 1, true) ~= nil, true)
 end)
 
 t.test("the page draws the bar and the clock panel", function()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        -- CI sets TIMO_NEED_NODE, so this only skips on a machine without it.
-        if os.getenv("TIMO_NEED_NODE") then
+        -- CI sets TILEMO_NEED_NODE, so this only skips on a machine without it.
+        if os.getenv("TILEMO_NEED_NODE") then
             error("node is needed to check the dashboard page")
         end
         print("SKIP the page draws the bar and the clock panel: no node")

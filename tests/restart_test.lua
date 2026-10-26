@@ -1,10 +1,10 @@
--- Restarts (SPEC.md §6.3): windows that come back with new ids, after timo
+-- Restarts (SPEC.md §6.3): windows that come back with new ids, after tilemo
 -- restarts or their app relaunches, go back to their places by app and
 -- title.
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
+local wm_mod = require("tilemo.wm")
 
 local function start(a, saved)
     local wm = wm_mod.new(a, { saved = saved })
@@ -170,7 +170,7 @@ t.test("a relaunched app already running again at the next sync gets its places"
     local wm = start(a, {})
     a.focus_ = 1
     wm:act("send", 3)
-    -- It quits and is back, as a new process, before timo looks again.
+    -- It quits and is back, as a new process, before tilemo looks again.
     a.drop(1)
     a.add(5, { app = "docs", pid = 11, title = "Plan" })
     wm:schedule()
@@ -311,7 +311,7 @@ t.test("places not yet taken survive another restart", function()
     a.drop(1)
     wm:schedule()
     a.tick()
-    -- timo restarts before the app comes back...
+    -- tilemo restarts before the app comes back...
     local snap = a.saved
     t.eq(#snap.gone, 1, "saved")
     wm = start(a, snap)

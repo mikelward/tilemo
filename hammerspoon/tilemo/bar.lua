@@ -130,10 +130,10 @@ local function holds(box, frame)
 end
 
 -- Whether display `uuid`'s bar hides, as tide's does under a full-screen
--- window (tide §7.1): its workspace has a window in timo's full screen, or
+-- window (tide §7.1): its workspace has a window in tilemo's full screen, or
 -- the focused window is in macOS's own full screen there. macOS's is only
 -- known for the focused window: one left in its own Space may be swiped
--- away from without timo hearing *(unverified)*.
+-- away from without tilemo hearing *(unverified)*.
 function M.hidden(wm, uuid)
     local n = wm.screen_ws[uuid]
     for id, w in pairs(wm.windows) do

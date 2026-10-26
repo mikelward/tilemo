@@ -1,8 +1,8 @@
--- Writes the bar's page, as timo builds it, to stdout, for mocks/render.cjs.
+-- Writes the bar's page, as tilemo builds it, to stdout, for mocks/render.cjs.
 
-local dashboard = require("timo.dashboard")
+local dashboard = require("tilemo.dashboard")
 
-local DIR = "hammerspoon/timo/dashboard/"
+local DIR = "hammerspoon/tilemo/dashboard/"
 
 local function read(name)
     local f, err = io.open(DIR .. name)

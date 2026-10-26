@@ -7,12 +7,12 @@
 --   over does nothing, even after a key moved focus elsewhere, and a window
 --   moving under a still pointer is recorded without focusing it.
 -- - What's under the pointer comes from Accessibility's hit test, so a
---   menu, popover or anything timo doesn't manage stops the lookup and
+--   menu, popover or anything tilemo doesn't manage stops the lookup and
 --   focus stays put.
 -- - A window's own dialog wins over the window.
 -- - It pauses while a menu is open, while a button is held, while Super is
 --   held, outside every
---   display's work area (the menu bar and the Dock), while timo's own
+--   display's work area (the menu bar and the Dock), while tilemo's own
 --   launcher is open, and while an app that must keep focus is in front.
 
 local M = {}
@@ -60,7 +60,7 @@ function M.new(wm, adapter, opts)
     }, M)
 end
 
--- Paused wherever the pointer is: turned off, timo holding the keyboard
+-- Paused wherever the pointer is: turned off, tilemo holding the keyboard
 -- (the launcher, resize mode), an app in front that must keep focus, a
 -- mouse button held, or a menu open. An open menu keeps focus where it is
 -- until it closes, even once the pointer leaves it: focusing another window
@@ -74,7 +74,7 @@ function M:paused(x, y, super_held)
     if super_held or self:blocked() then
         return true
     end
-    -- Outside every work area is the menu bar, timo's bar or the Dock.
+    -- Outside every work area is the menu bar, tilemo's bar or the Dock.
     for _, s in ipairs(self.wm:screens()) do
         if inside(s.area, x, y) then
             return false
@@ -100,7 +100,7 @@ end
 -- Record `id` as the window under the pointer, with the visible floats in
 -- front of it as holes, whatever their workspace: a float dragged across a
 -- display edge covers a tile on the other display too. In front means macOS's own stacking order,
--- read fresh each time: anything that raises a window, timo or an app,
+-- read fresh each time: anything that raises a window, tilemo or an app,
 -- changes it, and a copy kept here would go stale. This runs on crossings
 -- and resyncs, not on every move.
 function M:remember(id)

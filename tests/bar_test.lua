@@ -1,9 +1,9 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("timo.wm")
-local ffm_mod = require("timo.ffm")
-local dashboard = require("timo.dashboard")
-local bar = require("timo.bar")
+local wm_mod = require("tilemo.wm")
+local ffm_mod = require("tilemo.ffm")
+local dashboard = require("tilemo.dashboard")
+local bar = require("tilemo.bar")
 
 local function ws(spec)
     local out = {}
@@ -179,7 +179,7 @@ t.test("floats follow a workspace's tiles in its chip", function()
     t.eq(bar.state(wm, "A", "", {}).workspaces[1].apps, { "com.example.app", "float" })
 end)
 
-t.test("the bar hides on a display while a window there is in timo's full screen", function()
+t.test("the bar hides on a display while a window there is in tilemo's full screen", function()
     local a, wm = two_displays()
     a.focus_ = 1
     t.eq(bar.hidden(wm, "A"), false)
@@ -324,7 +324,7 @@ t.test("scrolling on the speaker steps the volume 5%, and up unmutes", function(
 end)
 
 t.test("Super+Shift+M mutes the microphone", function()
-    local keys = require("timo.keys")
+    local keys = require("tilemo.keys")
     local found
     for _, b in ipairs(keys.map) do
         if b.key == "m" and b.shift then
@@ -362,7 +362,7 @@ t.test("every icon opens a settings pane", function()
     end
 end)
 
-local DIR = "hammerspoon/timo/dashboard/"
+local DIR = "hammerspoon/tilemo/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -371,13 +371,13 @@ local function read(name)
     return s
 end
 
-t.test("the bar's page carries tico's stylesheet and its own script", function()
+t.test("the bar's page carries tileco's stylesheet and its own script", function()
     local sources = {}
     for _, name in ipairs(dashboard.BAR_MODULES) do
         sources[name] = read(name)
     end
     local html = dashboard.page(read("bar.html"), read("launcher.css"), sources, dashboard.BAR_MODULES)
-    t.eq(html:find("TIMO_", 1, true), nil)
+    t.eq(html:find("TILEMO_", 1, true), nil)
     t.eq(html:find('modules["./bar.js"]', 1, true) ~= nil, true)
     t.eq(html:find('modules["./dashboard.js"]', 1, true), nil)
     -- The page reports its own errors, from a script that runs first.
@@ -388,7 +388,7 @@ end)
 t.test("the bar's page draws the chips, title, clocks and icons", function()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TIMO_NEED_NODE") then
+        if os.getenv("TILEMO_NEED_NODE") then
             error("node is needed to check the bar's page")
         end
         print("SKIP the bar's page draws the chips, title, clocks and icons: no node")

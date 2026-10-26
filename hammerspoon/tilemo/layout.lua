@@ -2,7 +2,7 @@
 -- each mode's mfact and master count. Pure Lua, so it tests without
 -- Hammerspoon. The geometry itself is tide's, unchanged (geometry.lua).
 
-local geometry = require("timo.geometry")
+local geometry = require("tilemo.geometry")
 
 local M = { geometry = geometry }
 

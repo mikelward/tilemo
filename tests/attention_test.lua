@@ -1,5 +1,5 @@
 local t = require("t")
-local attention = require("timo.attention")
+local attention = require("tilemo.attention")
 
 t.test("a title's unread count is read from parentheses", function()
     t.eq(attention.count("Chat (3)"), 3)
