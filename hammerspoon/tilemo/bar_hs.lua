@@ -150,24 +150,7 @@ function M.new(tilemo)
         end)
     end
 
-    -- hs.urlevent.openURL refuses a URL without "://", which a System
-    -- Settings pane's lacks, so open(1) opens it. Each task is held until
-    -- it exits: Hammerspoon may stop one that's collected.
-    local opening = {}
-    local function open_url(url)
-        local task
-        task = hs.task.new("/usr/bin/open", function(code, _, err)
-            opening[task] = nil
-            if code ~= 0 then
-                log("bar: couldn't open " .. url .. ": " .. tostring(err))
-            end
-        end, { url })
-        if task and task:start() then
-            opening[task] = true
-        else
-            log("bar: couldn't run open for " .. url)
-        end
-    end
+    local open_url = tilemo.adapter.open_url
 
     function self.refresh()
         read_icons()

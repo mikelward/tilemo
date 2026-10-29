@@ -1,7 +1,8 @@
 -- The launcher's matching and ranking (SPEC.md §9), a port of tileco's
--- src/launcher.js: apps, tilemo's commands and open tabs, filtered by a fuzzy
--- match and ordered by how well they match, then by how recently you used
--- them. Pure Lua; launcher_hs.lua draws it with hs.chooser.
+-- src/launcher.js: apps, System Settings' panes, tilemo's commands and open
+-- tabs, filtered by a fuzzy match and ordered by how well they match, then by
+-- how recently you used them. Also where the apps and panes are found. Pure
+-- Lua; launcher_hs.lua draws it with hs.chooser.
 
 local M = {}
 
@@ -50,9 +51,9 @@ local function item_score(query, item)
     return math.max(title or -math.huge, extra and extra - 2 or -math.huge)
 end
 
-M.SCOPES = { launch = { app = true, command = true }, tabs = { tab = true } }
+M.SCOPES = { launch = { app = true, setting = true, command = true }, tabs = { tab = true } }
 
-local KIND_ORDER = { tab = 1, app = 2, command = 3 }
+local KIND_ORDER = { tab = 1, app = 2, setting = 3, command = 4 }
 
 local function rank_all(query, items, limit, recency)
     local q = query:match("^%s*(.-)%s*$")
@@ -111,14 +112,24 @@ local function host(url)
 end
 
 -- Items from what the adapter found: apps { name, path }, tabs { title, url,
--- browser, window, tab } and commands { title, action, arg, quick }. Each
--- gets a stable key, for remembering when it was used, and an id that's
--- unique among the items, for choosing it: two tabs on the same page share
--- a key but not an id.
-function M.items(apps, tabs, commands)
+-- browser, window, tab }, commands { title, action, arg, quick } and System
+-- Settings' panes { name, id }. Each gets a stable key, for remembering when
+-- it was used, and an id that's unique among the items, for choosing it: two
+-- tabs on the same page share a key but not an id.
+function M.items(apps, tabs, commands, settings)
     local out = {}
     for _, a in ipairs(apps or {}) do
         out[#out + 1] = { kind = "app", title = a.name, path = a.path, key = "app:" .. a.path }
+    end
+    -- "Mouse settings", so "mouse settings" finds it as well as "mouse".
+    for _, p in ipairs(settings or {}) do
+        local title = p.name:lower():match(" settings$") and p.name or p.name .. " settings"
+        out[#out + 1] = {
+            kind = "setting",
+            title = title,
+            url = "x-apple.systempreferences:" .. p.id,
+            key = "setting:" .. p.id,
+        }
     end
     for _, t in ipairs(tabs or {}) do
         out[#out + 1] = {
@@ -146,6 +157,102 @@ function M.items(apps, tabs, commands)
         item.id = item.id or item.key
     end
     return out
+end
+
+-- Where apps are: each folder, and the folders in it to `depth` levels
+-- down, for vendor folders, Utilities and Chrome's web apps. An app is a
+-- folder too, so the search stops at one. `~` is the home folder.
+M.APP_DIRS = {
+    { path = "/Applications", depth = 2 },
+    { path = "/System/Applications", depth = 1 },
+    { path = "/System/Library/CoreServices/Applications", depth = 0 },
+    { path = "~/Applications", depth = 2 },
+}
+
+-- Apps that sit among things that aren't, listed one by one.
+M.LONE_APPS = { "/System/Library/CoreServices/Finder.app" }
+
+-- The apps, as { name, path }, in M.APP_DIRS and M.LONE_APPS. `list(dir)`
+-- gives a folder's entries as { name, dir }, or nil if it can't be read.
+function M.scan_apps(list, home)
+    local apps = {}
+    local function walk(dir, depth)
+        for _, e in ipairs(list(dir) or {}) do
+            local path = dir .. "/" .. e.name
+            local name = e.name:match("^(.*)%.app$")
+            if name then
+                apps[#apps + 1] = { name = name, path = path }
+            elseif e.dir and depth > 0 and e.name:sub(1, 1) ~= "." then
+                walk(path, depth - 1)
+            end
+        end
+    end
+    for _, d in ipairs(M.APP_DIRS) do
+        walk((d.path:gsub("^~", home)), d.depth)
+    end
+    for _, path in ipairs(M.LONE_APPS) do
+        local dir, file = path:match("^(.*)/([^/]+)$")
+        for _, e in ipairs(list(dir) or {}) do
+            if e.name == file then
+                apps[#apps + 1] = { name = file:match("^(.*)%.app$"), path = path }
+            end
+        end
+    end
+    return apps
+end
+
+-- System Settings' panes are app extensions that plug into it.
+M.SETTINGS_DIR = "/System/Library/ExtensionKit/Extensions"
+M.SETTINGS_POINT = "com.apple.Settings.extension.ui"
+
+-- Where a pane keeps its English name, as System Settings shows it: a
+-- table of every language, or the English strings alone.
+local LOCALIZED = {
+    { path = "Resources/InfoPlist.loctable", lang = "en" },
+    { path = "Resources/en.lproj/InfoPlist.strings" },
+    { path = "Resources/English.lproj/InfoPlist.strings" },
+    { path = "Resources/Base.lproj/InfoPlist.strings" },
+}
+
+-- An internal name ("TrackpadExtension", "CDs & DVDs Settings Extension",
+-- "PowerPreferences") without the words that only say what it is.
+local function tidy(name)
+    local before
+    repeat
+        before = name
+        name = name:gsub("%s*Extension$", ""):gsub("%s*Settings$", ""):gsub("%s*Preferences$", "")
+            :gsub("%s*SettingPane_macOS$", "")
+    until name == before
+    return name
+end
+
+local function pane_name(read, contents, info, base)
+    for _, l in ipairs(LOCALIZED) do
+        local t = read(contents .. "/" .. l.path)
+        if t and l.lang then
+            t = t[l.lang]
+        end
+        local name = type(t) == "table" and (t.CFBundleDisplayName or t.CFBundleName)
+        if type(name) == "string" and name ~= "" then
+            return name
+        end
+    end
+    return tidy(info.CFBundleDisplayName or info.CFBundleName or base)
+end
+
+-- The panes, as { name, id }. `read(path)` gives a plist as a table, or nil.
+function M.scan_settings(list, read)
+    local panes = {}
+    for _, e in ipairs(list(M.SETTINGS_DIR) or {}) do
+        local base = e.name:match("^(.*)%.appex$")
+        local contents = M.SETTINGS_DIR .. "/" .. e.name .. "/Contents"
+        local info = base and read(contents .. "/Info.plist")
+        local attrs = info and info.EXAppExtensionAttributes
+        if attrs and attrs.EXExtensionPointIdentifier == M.SETTINGS_POINT and info.CFBundleIdentifier then
+            panes[#panes + 1] = { name = pane_name(read, contents, info, base), id = info.CFBundleIdentifier }
+        end
+    end
+    return panes
 end
 
 -- tilemo's commands, as the launcher lists them. `action` names a window

@@ -1,7 +1,9 @@
 -- The launcher on Hammerspoon: an hs.chooser over launcher.lua's ranking
--- (SPEC.md §9). Apps come from the Applications folders, tabs from Chrome
--- and Safari through AppleScript (Automation, asked for the first time),
--- and commands from launcher.COMMANDS. Not runnable outside Hammerspoon.
+-- (SPEC.md §9). Apps come from the Applications folders and System
+-- Settings' panes from its extensions (launcher.scan_apps and
+-- scan_settings), tabs from Chrome and Safari through AppleScript
+-- (Automation, asked for the first time), and commands from
+-- launcher.COMMANDS. Not runnable outside Hammerspoon.
 
 local launcher = require("tilemo.launcher")
 local saved = require("tilemo.saved")
@@ -12,25 +14,41 @@ M.RECENCY_KEY = "tilemo.launcher.recency"
 -- Where timo kept it, before the rename.
 M.OLD_RECENCY_KEY = "timo.launcher.recency"
 
-local APP_DIRS = { "/Applications", "/System/Applications", "/System/Applications/Utilities" }
-
-local function scan_apps()
-    local apps = {}
-    local dirs = { table.unpack(APP_DIRS) }
-    dirs[#dirs + 1] = (os.getenv("HOME") or "") .. "/Applications"
-    for _, dir in ipairs(dirs) do
-        local ok, iter, obj = pcall(hs.fs.dir, dir)
-        if ok and iter then
-            for name in iter, obj do
-                local base = name:match("^(.*)%.app$")
-                if base then
-                    apps[#apps + 1] = { name = base, path = dir .. "/" .. name }
-                end
-            end
+-- A folder's entries as { name, dir }, or nil if it can't be read. `dir`
+-- follows symlinks, as /Applications/Safari.app is one.
+local function list_dir(dir)
+    local ok, iter, obj = pcall(hs.fs.dir, dir)
+    if not ok or not iter then
+        return nil
+    end
+    local out = {}
+    for name in iter, obj do
+        if name ~= "." and name ~= ".." then
+            out[#out + 1] = { name = name, dir = hs.fs.attributes(dir .. "/" .. name, "mode") == "directory" }
         end
     end
-    return apps
+    return out
 end
+
+-- System Settings' panes change only with macOS, so they're read once.
+local panes
+
+-- What the launcher lists from disk: the apps, read afresh each time, and
+-- System Settings' panes.
+function M.scan()
+    if not panes then
+        panes = launcher.scan_settings(list_dir, function(path)
+            local ok, t = pcall(hs.plist.read, path)
+            return ok and t or nil
+        end)
+        if #panes == 0 then
+            print("tilemo: found no System Settings panes in " .. launcher.SETTINGS_DIR)
+        end
+    end
+    return launcher.scan_apps(list_dir, os.getenv("HOME") or ""), panes
+end
+
+local SETTINGS_BUNDLE = "com.apple.systempreferences"
 
 -- Each browser's tabs, as { title, url, browser, window, tab }. A browser
 -- that isn't running, or that Automation hasn't been granted for, gives
@@ -162,7 +180,9 @@ function M.new(tilemo)
         for _, item in ipairs(found) do
             out[#out + 1] = {
                 text = item.title,
-                subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or "")) or item.kind,
+                subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or ""))
+                    or item.kind == "setting" and "System Settings"
+                    or item.kind,
                 id = item.id,
             }
         end
@@ -192,6 +212,10 @@ function M.new(tilemo)
                 tilemo.wm:grant(nil)
                 hs.application.launchOrFocus(item.path)
             end
+        elseif item.kind == "setting" then
+            -- System Settings, at the pane; its window may take focus.
+            tilemo.wm:grant(SETTINGS_BUNDLE)
+            tilemo.adapter.open_url(item.url)
         elseif item.kind == "tab" then
             open_tab(tilemo, item)
         elseif item.quick then
@@ -239,7 +263,8 @@ function M.new(tilemo)
             return
         end
         before = tilemo.adapter.focused()
-        items = launcher.items(scan_apps(), tabs(), launcher.COMMANDS)
+        local apps, settings = M.scan()
+        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings)
         by_id = {}
         for _, item in ipairs(items) do
             by_id[item.id] = item
