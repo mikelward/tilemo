@@ -379,6 +379,27 @@ function M.new()
         }
     end
 
+    -- hs.urlevent.openURL refuses a URL without "://", which a System
+    -- Settings pane's lacks, so open(1) opens it. Each task is held until
+    -- it exits: Hammerspoon may stop one that's collected.
+    local opening = {}
+    function a.open_url(url)
+        local task
+        task = hs.task.new("/usr/bin/open", function(code, _, err)
+            opening[task] = nil
+            if code ~= 0 then
+                a.log("couldn't open " .. url .. ": " .. tostring(err))
+                a.notify("Couldn't open " .. url)
+            end
+        end, { url })
+        if task and task:start() then
+            opening[task] = true
+        else
+            a.log("couldn't run open for " .. url)
+            a.notify("Couldn't open " .. url)
+        end
+    end
+
     -- Press macOS's own screenshot keys (keys.SCREENSHOT). The picker takes
     -- a moment to come up before it will hear Space.
     function a.screenshot(kind)

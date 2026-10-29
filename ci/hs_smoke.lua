@@ -286,6 +286,41 @@ else
     say('require("timo") is tilemo')
 end
 
+-- What the launcher lists from this Mac's disk: apps every Mac has, and
+-- System Settings' panes, named as the launcher shows them.
+ok, err = xpcall(function()
+    local apps, panes = require("tilemo.launcher_hs").scan()
+    local have = {}
+    for _, a in ipairs(apps) do
+        have[a.name] = true
+    end
+    for _, name in ipairs({ "Finder", "TextEdit", "Terminal", "Archive Utility" }) do
+        if not have[name] then
+            fail("launcher: no %s among %d apps", name, #apps)
+        end
+    end
+    local names = {}
+    for _, p in ipairs(panes) do
+        names[#names + 1] = p.name
+        have["pane:" .. p.name] = true
+    end
+    table.sort(names)
+    for _, name in ipairs({ "Keyboard", "Displays", "Mouse", "Trackpad" }) do
+        if not have["pane:" .. name] then
+            fail("launcher: no %s settings pane", name)
+        end
+    end
+    for _, name in ipairs(names) do
+        if name:find("Extension") then
+            fail("launcher: a pane named %s, not as System Settings names it", name)
+        end
+    end
+    say("launcher: %d apps; %d settings panes: %s", #apps, #panes, table.concat(names, ", "))
+end, debug.traceback)
+if not ok then
+    fail("launcher: %s", err)
+end
+
 ok, err = xpcall(function()
     tilemo.dashboard.show()
 end, debug.traceback)

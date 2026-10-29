@@ -954,9 +954,19 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 
 ## 9. Launcher
 
-- **Scopes, as tileco's:** apps, tilemo's commands, and open tabs (tileco §9.4).
-  Apps come from `/Applications` and Spotlight's index. Tabs come from
-  Chrome and Safari through AppleScript (§2.5).
+- **Scopes, as tileco's:** apps, System Settings' panes, tilemo's commands,
+  and open tabs (tileco §9.4).
+  - **Apps** come from `/Applications` and `~/Applications`, with the folders
+    in them (vendor folders, Chrome's web apps), `/System/Applications` and
+    its Utilities, `/System/Library/CoreServices/Applications` (Archive
+    Utility, Screen Sharing, …) and Finder. Not Spotlight's index, which
+    would also bring installers and the helper apps inside other apps.
+  - **Settings panes** are the app extensions in
+    `/System/Library/ExtensionKit/Extensions` that plug into System Settings
+    (`com.apple.Settings.extension.ui`), listed as "Mouse settings" and so on,
+    and opened with their `x-apple.systempreferences:` URL. Read once a start,
+    since only a macOS update changes them.
+  - **Tabs** come from Chrome and Safari through AppleScript (§2.5).
 - **Matching:** tileco's fuzzy match and ranking (`src/launcher.js`), with
   the most used and most recent first, and tide's empty-query sections
   (tide §8). Text matching nothing in a scope searches all of them.
