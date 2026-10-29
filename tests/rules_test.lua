@@ -75,4 +75,15 @@ t.test("Hammerspoon's console floats, and tilemo's own windows are left alone", 
     t.eq(rules.decide(hs), "ignore")
 end)
 
+-- Its window is a fixed width, though its height can change, so a tile
+-- would leave a gap beside it.
+t.test("System Settings floats, though its size is settable", function()
+    t.eq(rules.decide(std({ app = "com.apple.systempreferences", title = "Mouse", size_settable = true })), "float")
+end)
+
+t.test("a user rule can still tile System Settings", function()
+    local user = { { app = "com.apple.systempreferences", action = "tile" } }
+    t.eq(rules.decide(std({ app = "com.apple.systempreferences" }), user), "tile")
+end)
+
 t.done("rules")

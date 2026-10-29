@@ -16,6 +16,9 @@ M.defaults = {
     { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Console$", action = "float" },
     { app = "org.hammerspoon.Hammerspoon", title = "^Hammerspoon Preferences$", action = "float" },
     { app = "org.hammerspoon.Hammerspoon", action = "ignore" },
+    -- System Settings is a fixed width, though its height can change, so a
+    -- tile would leave a gap beside it.
+    { app = "com.apple.systempreferences", action = "float" },
 }
 
 M.actions = { tile = true, float = true, ignore = true }

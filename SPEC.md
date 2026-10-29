@@ -269,7 +269,9 @@ each new window once, in this order, and the first rule that matches wins:
    tilemo never moves, focuses or counts any of them.
 2. **A user rule** by app bundle ID and, optionally, title, as tide's float
    rules (tide §6.4). Rules come first so a misbehaving app can always be
-   fixed.
+   fixed. tilemo's own rules follow the user's: System Settings floats,
+   since its width is fixed though its height isn't, so step 3 misses it
+   and a tile would leave a gap beside it.
 3. **A window whose size can't be changed floats.** Accessibility says
    whether `AXSize` is settable, which catches fixed-size dialogs whose apps
    report them as standard windows.
