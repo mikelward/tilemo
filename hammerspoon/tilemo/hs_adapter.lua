@@ -400,6 +400,17 @@ function M.new()
         end
     end
 
+    function a.lock()
+        hs.caffeinate.lockScreen()
+    end
+
+    function a.logout()
+        local ok, _, err = hs.osascript.applescript('tell application "System Events" to log out')
+        if not ok then
+            a.notify("Couldn't log out: " .. hs.inspect(err))
+        end
+    end
+
     -- Press macOS's own screenshot keys (keys.SCREENSHOT). The picker takes
     -- a moment to come up before it will hear Space.
     function a.screenshot(kind)

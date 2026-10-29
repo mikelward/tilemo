@@ -246,6 +246,15 @@ function M.new()
         return false
     end
 
+    -- Lock and log out, in the order asked for.
+    a.system = {}
+    function a.lock()
+        a.system[#a.system + 1] = "lock"
+    end
+    function a.logout()
+        a.system[#a.system + 1] = "logout"
+    end
+
     a.shots = {}
     function a.screenshot(kind)
         a.shots[#a.shots + 1] = kind

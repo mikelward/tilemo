@@ -548,6 +548,23 @@ t.test("Super+T opens a new terminal window every time, on this workspace, as ti
     t.eq(wm:current_ws(), 1)
 end)
 
+t.test("Super+L locks the screen and Super+Shift+E logs out, as on tide", function()
+    local a, wm = setup(1)
+    local function act(key, shift)
+        for _, b in ipairs(keys.map) do
+            if b.key == key and (b.shift or false) == shift then
+                wm:act(b.action, b.arg)
+                return
+            end
+        end
+        error("no binding for Super+" .. (shift and "Shift+" or "") .. key)
+    end
+    act("l", false)
+    t.eq(a.system, { "lock" })
+    act("e", true)
+    t.eq(a.system, { "lock", "logout" })
+end)
+
 t.test("an app key launches the app when it has no window", function()
     local a, wm = setup(1)
     wm:act("app", { bundle = "com.example.other" })

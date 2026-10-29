@@ -760,8 +760,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
 | `Super+T` / `W` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
-| `Super+L` | lock | macOS's lock (Ctrl+Cmd+Q) |
-| `Super+Shift+E` | log out | System Events |
+| `Super+L` | lock | hotkey; macOS's lock screen |
+| `Super+Shift+E` | log out | hotkey; System Events, which asks first |
 | `Super+1…9` / `Super+Shift+1…9` | show / send to workspace | hotkey |
 | `Super+Left` / `Right`, `Super+PgUp` / `PgDn` | previous / next workspace | hotkey |
 | `Super+Shift+Left` / `Right` | carry the window to the previous / next workspace | hotkey |
