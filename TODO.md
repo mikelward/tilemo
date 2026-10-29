@@ -105,7 +105,8 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **App keys run tide's helpers** (`browser1`, `google-calendar`, …)
   through `runenv`, as tide does, but those are Linux scripts today, so on
   a Mac most app keys need either macOS support in scripts or a `bundle`
-  override. Super+T opens kitty by bundle ID. Reversible: `keys.APPS`.
+  override. Super+T opens a new kitty window, by bundle ID. Reversible:
+  `keys.APPS`.
 - **Screenshots go to the clipboard only.** They press macOS's own
   screenshot keys, so tilemo needs no Screen Recording permission; tide also
   saves each to `~/Pictures/Screenshots` (SPEC.md §10), and macOS does one
