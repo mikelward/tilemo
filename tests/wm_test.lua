@@ -1,6 +1,7 @@
 local t = require("t")
 local fake = require("fake")
 local wm_mod = require("tilemo.wm")
+local keys = require("tilemo.keys")
 
 local function setup(n)
     local a = fake.new()
@@ -527,6 +528,24 @@ t.test("Cmd+Return asks for a new window on an empty workspace, even when the ap
     wm.actions.app(wm, { bundle = "net.kovidgoyal.kitty" }, true)
     t.eq(a.fresh[1], true)
     t.eq(wm:shown(2) ~= nil, true)
+end)
+
+t.test("Super+T opens a new terminal window every time, on this workspace, as tide's does", function()
+    local a, wm = setup(1)
+    a.wins[1].app = "net.kovidgoyal.kitty"
+    wm.windows[1].app = "net.kovidgoyal.kitty"
+    local spec
+    for _, b in ipairs(keys.map) do
+        if b.key == "t" and not b.shift then
+            spec = b.arg
+        end
+    end
+    wm:act("app", spec)
+    wm:act("app", spec)
+    t.eq(#a.launched, 2)
+    t.eq(a.launched[1].bundle, "net.kovidgoyal.kitty")
+    t.eq(a.fresh, { true, true })
+    t.eq(wm:current_ws(), 1)
 end)
 
 t.test("an app key launches the app when it has no window", function()

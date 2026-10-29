@@ -46,8 +46,9 @@ M.map = {
 -- its workspace, forward; with none, it launches the app. `bundle` finds
 -- the app's windows and launches it by bundle ID; `run` is one of tide's
 -- helpers, run through runenv for the login environment (SPEC.md §7.2).
+-- `new` opens a new window every time instead, as tide's terminal key does.
 M.APPS = {
-    { key = "t", spec = { bundle = "net.kovidgoyal.kitty" } },
+    { key = "t", spec = { bundle = "net.kovidgoyal.kitty", new = true } },
     { key = "w", spec = { run = "terminal_on_workstation" } },
     { key = "g", spec = { run = "browser1" } },
     { key = "g", shift = true, spec = { run = "browser3" } },

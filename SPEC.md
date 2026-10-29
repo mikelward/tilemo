@@ -791,6 +791,9 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 - **App keys** are tide's (conf `hyprland.lua`). Each brings the app's
   window forward, launching the app if it has none, and brings its
   workspace with it (Activate, §6.1).
+  - **Super+T opens a new kitty window every time,** on the workspace
+    you're on, as tide's terminal key does: Cmd+N to a running kitty, or a
+    launch.
   - Browser profiles run with their own `--user-data-dir`, as tide's
     `browser2` and `browser3` do.
   - Web apps are installed web apps, which have their own Dock icons and

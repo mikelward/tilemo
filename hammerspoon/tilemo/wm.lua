@@ -1689,10 +1689,12 @@ end
 
 -- An app key: bring the app's window forward, with its workspace, or
 -- launch it. `fresh` opens a new window on the first empty workspace
--- instead (Cmd+Return in the launcher), even if the app is running.
+-- instead (Cmd+Return in the launcher), even if the app is running. A spec
+-- marked `new` opens a new window every time, on this workspace, as tide's
+-- terminal key does.
 function A.app(self, spec, fresh)
-    if fresh then
-        local n = self:first_empty()
+    if fresh or spec.new then
+        local n = fresh and self:first_empty()
         if n then
             self:show(n)
         end
