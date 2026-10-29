@@ -1790,6 +1790,15 @@ function A.mic_mute(self)
     end
 end
 
+-- Super+L and Super+Shift+E, and the launcher's Lock and Log out.
+function A.lock(self)
+    self.a.lock()
+end
+
+function A.logout(self)
+    self.a.logout()
+end
+
 -- The Print keys and the launcher's screenshot actions (SPEC.md §10).
 function A.screenshot(self, kind)
     self.a.screenshot(kind)

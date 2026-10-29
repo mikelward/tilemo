@@ -67,6 +67,10 @@ for _, a in ipairs(M.APPS) do
     M.map[#M.map + 1] = { key = a.key, shift = a.shift, action = "app", arg = a.spec }
 end
 
+-- tide's session keys: lock, and log out.
+M.map[#M.map + 1] = { key = "l", action = "lock" }
+M.map[#M.map + 1] = { key = "e", shift = true, action = "logout" }
+
 M.map[#M.map + 1] = { key = "space", action = "launcher" }
 M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
 M.map[#M.map + 1] = { key = "tab", action = "attention" }

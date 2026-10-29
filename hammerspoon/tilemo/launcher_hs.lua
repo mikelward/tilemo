@@ -134,14 +134,8 @@ end
 function QUICK.screenshot_region(tilemo)
     tilemo.wm:act("screenshot", "region")
 end
-function QUICK.lock()
-    hs.caffeinate.lockScreen()
-end
 function QUICK.sleep()
     hs.caffeinate.systemSleep()
-end
-function QUICK.logout()
-    hs.osascript.applescript('tell application "System Events" to log out')
 end
 function QUICK.restart()
     hs.osascript.applescript('tell application "System Events" to restart')
