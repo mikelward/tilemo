@@ -1,7 +1,8 @@
 -- The launcher's matching and ranking (SPEC.md §9), a port of tileco's
--- src/launcher.js: apps, System Settings' panes, tilemo's commands and open
--- tabs, filtered by a fuzzy match and ordered by how well they match, then by
--- how recently you used them. Also where the apps and panes are found. Pure
+-- src/launcher.js: apps, System Settings' panes, tilemo's commands, open
+-- tabs and the windows wanting attention, in scopes Tab moves between,
+-- filtered by a fuzzy match and ordered by how well they match, then by how
+-- recently you used them. Also where the apps and panes are found. Pure
 -- Lua; launcher_hs.lua draws it with hs.chooser.
 
 local M = {}
@@ -51,9 +52,46 @@ local function item_score(query, item)
     return math.max(title or -math.huge, extra and extra - 2 or -math.huge)
 end
 
-M.SCOPES = { launch = { app = true, setting = true, command = true }, tabs = { tab = true } }
+M.SCOPES = {
+    launch = { app = true, setting = true, command = true },
+    tabs = { tab = true },
+    attention = { attention = true },
+}
 
-local KIND_ORDER = { tab = 1, app = 2, setting = 3, command = 4 }
+-- The order Tab moves through them, and what each lists. The launcher
+-- opens on the first.
+M.SCOPE_ORDER = { "launch", "tabs", "attention" }
+M.SCOPE_NAMES = { launch = "Launch", tabs = "Tabs", attention = "Attention" }
+M.SCOPE_LISTS = {
+    launch = "apps, settings and commands",
+    tabs = "Chrome and Safari tabs",
+    attention = "windows wanting attention",
+}
+-- What an empty scope shows instead.
+M.SCOPE_EMPTY = {
+    launch = "Nothing to launch",
+    tabs = "No Chrome or Safari tabs, or no Automation access to them",
+    attention = "Nothing wants attention",
+}
+
+-- The scope after `scope`, or before it when `back`, round in a circle.
+function M.next_scope(scope, back)
+    local n = #M.SCOPE_ORDER
+    for i, s in ipairs(M.SCOPE_ORDER) do
+        if s == scope then
+            return M.SCOPE_ORDER[(i - 1 + (back and -1 or 1)) % n + 1]
+        end
+    end
+    return M.SCOPE_ORDER[1]
+end
+
+-- The search field's hint: the scope, what it lists, and where Tab goes.
+function M.placeholder(scope)
+    return string.format("%s: %s (Tab: %s)", M.SCOPE_NAMES[scope], M.SCOPE_LISTS[scope],
+        M.SCOPE_NAMES[M.next_scope(scope)])
+end
+
+local KIND_ORDER = { attention = 0, tab = 1, app = 2, setting = 3, command = 4 }
 
 local function rank_all(query, items, limit, recency)
     local q = query:match("^%s*(.-)%s*$")
@@ -61,7 +99,11 @@ local function rank_all(query, items, limit, recency)
     for _, item in ipairs(items) do
         local s = q == "" and 0 or item_score(q, item)
         if s then
-            scored[#scored + 1] = { item = item, score = s, seen = recency[item.key] or 0 }
+            -- Items that come in an order of their own keep it, as the
+            -- windows wanting attention do, newest first: as if used before
+            -- anything else, so one key orders every kind alike.
+            local seen = item.order and -item.order or recency[item.key] or 0
+            scored[#scored + 1] = { item = item, score = s, seen = seen }
         end
     end
     table.sort(scored, function(a, b)
@@ -112,11 +154,12 @@ local function host(url)
 end
 
 -- Items from what the adapter found: apps { name, path }, tabs { title, url,
--- browser, window, tab }, commands { title, action, arg, quick } and System
--- Settings' panes { name, id }. Each gets a stable key, for remembering when
--- it was used, and an id that's unique among the items, for choosing it: two
--- tabs on the same page share a key but not an id.
-function M.items(apps, tabs, commands, settings)
+-- browser, window, tab }, commands { title, action, arg, quick }, System
+-- Settings' panes { name, id } and the windows wanting attention { window,
+-- title, app, ws }, newest first. Each gets a stable key, for remembering
+-- when it was used, and an id that's unique among the items, for choosing
+-- it: two tabs on the same page share a key but not an id.
+function M.items(apps, tabs, commands, settings, attention)
     local out = {}
     for _, a in ipairs(apps or {}) do
         out[#out + 1] = { kind = "app", title = a.name, path = a.path, key = "app:" .. a.path }
@@ -141,6 +184,18 @@ function M.items(apps, tabs, commands, settings)
             tab = t.tab,
             key = "tab:" .. (t.url or t.title or ""),
             id = string.format("tab:%s:%s:%s", t.browser, t.window, t.tab),
+        }
+    end
+    for i, w in ipairs(attention or {}) do
+        out[#out + 1] = {
+            kind = "attention",
+            title = (w.title or "") ~= "" and w.title or (w.app or ""),
+            extra = w.app,
+            app = w.app,
+            window = w.window,
+            ws = w.ws,
+            order = i,
+            key = "attention:" .. tostring(w.window),
         }
     end
     for _, c in ipairs(commands or {}) do

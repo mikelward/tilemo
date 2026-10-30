@@ -16,7 +16,8 @@ It brings tide's desktop to macOS:
 - the mouse: edge drags, Super+drag and resize mode;
 - focus follows mouse;
 - nine workspaces shared across displays (§6);
-- the launcher and app keys (§9);
+- the launcher, with Tab moving between apps and commands, open tabs, and
+  the windows wanting attention, and app keys (§9);
 - tide's bar along the top: the workspaces, the window's title, the clocks
   and tilemo's own status items (input source, keep awake, camera,
   microphone, speaker, network, battery), with Super+Tab to what wants

@@ -23,6 +23,15 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    `setup-macos --wm tilemo` in scripts installs Hammerspoon and tilemo, frees
    the keys in SPEC.md §7.3, and hides the menu bar for tilemo's bar.
 
+## Launcher looks
+
+- **Try tileco's launcher page.** The launcher is `hs.chooser` with
+  tileco's scopes, which Tab moves between (SPEC.md §9). tileco's own page,
+  with its scope chips over the bar and clocks, may look nicer. Try it in the
+  dashboard's webview: tileco's `launcherview.js` with a stand-in for the
+  Chrome APIs it calls, fed by `launcher.lua`'s items. Then compare the two
+  on the Mac.
+
 ## Decisions needing review
 
 - **The bar floats at the floating window level,** above every app's
@@ -171,6 +180,7 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   tide's `hour24` and `dedupeLocal` aren't followed, since tileco's view is
   always 24-hour and always hides local. Reversible: `DEFAULT_FILE` in
   `dashboard/settings.js`.
-- **The dashboard has no search;** the launcher stays `hs.chooser`. The
+- **The dashboard has no search;** the launcher stays `hs.chooser`, with
+  tileco's scopes (Launch, Tabs, Attention) moved between with Tab. The
   alternative is tileco's whole launcher page in the webview, which needs a
   stand-in for the Chrome APIs it calls. Reversible: add the page later.

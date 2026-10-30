@@ -967,8 +967,16 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 
 ## 9. Launcher
 
-- **Scopes, as tileco's:** apps, System Settings' panes, tilemo's commands,
-  and open tabs (tileco §9.4).
+- **Scopes, as tileco's** (tileco §9.4), which Tab moves through and
+  Shift+Tab moves back through, the search field naming the one you're in.
+  It opens on the first:
+  - **Launch:** apps, System Settings' panes and tilemo's commands;
+  - **Tabs:** open Chrome and Safari tabs;
+  - **Attention:** the windows wanting attention (§14.2), newest first, by
+    title, with their app and workspace. Return goes there with its
+    workspace, as Super+Tab does.
+
+  An empty scope says so, in a row that can't be chosen.
   - **Apps** come from `/Applications` and `~/Applications`, with the folders
     in them (vendor folders, Chrome's web apps), `/System/Applications` and
     its Utilities, `/System/Library/CoreServices/Applications` (Archive
@@ -982,7 +990,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - **Tabs** come from Chrome and Safari through AppleScript (§2.5).
 - **Matching:** tileco's fuzzy match and ranking (`src/launcher.js`), with
   the most used and most recent first, and tide's empty-query sections
-  (tide §8). Text matching nothing in a scope searches all of them.
+  (tide §8). Text matching nothing in a scope searches all of them, so a
+  tab still turns up from Launch.
 - **Quick actions, as tide's** (tide §8): screenshot the window, screen or
   a region; lock, log out, sleep, restart, shut down; Do Not Disturb,
   keep awake, and dark style; tilemo's settings; reload tilemo.

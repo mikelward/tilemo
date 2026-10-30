@@ -215,6 +215,42 @@ local function wait_for_bar(next)
     end)
 end
 
+-- The launcher's Attention scope lists a window marked for attention, by
+-- its title, with its app and workspace (SPEC.md §9).
+local function check_launcher_attention()
+    local wm = tilemo.wm
+    local id
+    for _, w in ipairs(app_windows(wm)) do
+        if w ~= tilemo.adapter.focused() then
+            id = w
+        end
+    end
+    if not id then
+        fail("launcher: no TextEdit window to mark for attention")
+        return
+    end
+    wm.attention:activated(id, wm.windows[id].app)
+    local ok, err = xpcall(function()
+        tilemo.launcher.show()
+        local scope = "launch"
+        repeat
+            scope = require("tilemo.launcher").next_scope(scope)
+            tilemo.launcher.set_scope(scope)
+        until scope == "attention"
+        local row = tilemo.launcher.row(1) or {}
+        tilemo.launcher.cancel()
+        local want = tilemo.adapter.title(id)
+        if row.text ~= want or not tostring(row.subText):find("TextEdit", 1, true) then
+            fail("launcher: Attention shows %s (%s), not %s", tostring(row.text), tostring(row.subText), want)
+        else
+            say("launcher: Attention lists %s (%s)", row.text, row.subText)
+        end
+    end, debug.traceback)
+    if not ok then
+        fail("launcher: %s", err)
+    end
+end
+
 local function check_tiling()
     if not hs.accessibilityState() then
         fail("tiling: Hammerspoon doesn't have Accessibility on this runner")
@@ -251,6 +287,7 @@ local function check_tiling()
             smoke_poll:stop()
             if done then
                 say("%d TextEdit windows tiled", WANT)
+                check_launcher_attention()
             elseif not misses then
                 fail("tiling: %s after %ds", why, TILE_WAIT)
             else
