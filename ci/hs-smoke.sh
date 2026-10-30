@@ -20,6 +20,20 @@ if test -e "$hs_dir/init.lua"; then
 fi
 
 make -C "$repo" install HAMMERSPOON_DIR="$hs_dir" >/dev/null
+
+# App keys run tide's helpers through ~/scripts/runenv. A stand-in that runs
+# its command from ~/scripts, and a helper that fails once the smoke test
+# lets it go through a FIFO, check a failing key is reported, and that its
+# task outlives a garbage collection while it runs.
+if test -e "$HOME/scripts"; then
+    echo "hs-smoke: $HOME/scripts exists; this is for a fresh runner" >&2
+    exit 1
+fi
+mkdir -p "$HOME/scripts"
+printf '#!/bin/sh\nPATH="$HOME/scripts:$PATH" exec "$@"\n' >"$HOME/scripts/runenv"
+mkfifo "$HOME/scripts/tilemo-smoke-go"
+printf '#!/bin/sh\nread -r _ <"$HOME/scripts/tilemo-smoke-go"\necho "no such app" >&2\nexit 3\n' >"$HOME/scripts/tilemo-smoke-fail"
+chmod +x "$HOME/scripts/runenv" "$HOME/scripts/tilemo-smoke-fail"
 cat >"$hs_dir/init.lua" <<LUA
 TILEMO_SMOKE_OUT = "$out"
 local ok, err = xpcall(dofile, debug.traceback, "$repo/ci/hs_smoke.lua")

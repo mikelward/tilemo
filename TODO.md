@@ -103,9 +103,12 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **A display that goes away hides its workspace;** Super+N brings it back
   on the display that's left. Reversible: `wm.map_screens`.
 - **App keys run tide's helpers** (`browser1`, `google-calendar`, …)
-  through `runenv`, as tide does, but those are Linux scripts today, so on
-  a Mac most app keys need either macOS support in scripts or a `bundle`
-  override. Super+T opens a new kitty window, by bundle ID. Reversible:
+  through `runenv`, as tide does. Each has a macOS branch in scripts:
+  `chrome` opens Google Chrome with `open -na`, so the browsers and web apps
+  work, `home` opens Finder, `notepad` TextEdit and `irc` HexChat
+  *(unverified per key on a Mac)*. Each press starts its helper, so a web
+  app key opens another window, as on tide. A helper that fails says so in a
+  notification. Super+T opens a new kitty window, by bundle ID. Reversible:
   `keys.APPS`.
 - **Screenshots go to the clipboard only.** They press macOS's own
   screenshot keys, so tilemo needs no Screen Recording permission; tide also
@@ -160,9 +163,9 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **The dashboard is on Super+Shift+Space,** next to the launcher on
   Super+Space; tide has no dashboard key to match. Reversible: one line in
   `keys.lua`.
-- **The dashboard shows tileco's default clocks** (San Francisco, New York,
-  London), not SPEC.md's Sydney, Los Angeles, New York and London, since it
-  uses tileco's modules unchanged and has no settings of its own yet.
+- **The bar and dashboard show tileco's default clocks,** Sydney, Los
+  Angeles, New York and London (SPEC.md §8), not tide's San Francisco, New
+  York and London, and don't yet read tide's `clocks.json` (SPEC.md §15).
   Reversible: tilemo's `dashboard/settings.js`.
 - **The dashboard has no search;** the launcher stays `hs.chooser`. The
   alternative is tileco's whole launcher page in the webview, which needs a

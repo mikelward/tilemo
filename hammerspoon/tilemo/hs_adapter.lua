@@ -318,11 +318,30 @@ function M.new()
         hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens, gone = snap.gone })
     end
 
+    -- Run `path` with `args`, calling `done(code, err)` when it exits. Each
+    -- task is held until then: Hammerspoon may stop one that's collected,
+    -- which would take a terminal started from a key with it.
+    local tasks = {}
+    local function run(path, args, done)
+        local task
+        task = hs.task.new(path, function(code, _, err)
+            tasks[task] = nil
+            done(code, err)
+        end, args)
+        if task and task:start() then
+            tasks[task] = true
+            return true
+        end
+        return false
+    end
+
     -- Start an app key's app: by bundle ID, or one of tide's helpers
     -- through runenv, which gives it the login environment (tide §17,
     -- "PATH missing in keybinds"). `fresh` asks a running app for a new
     -- window with Cmd+N, the near-universal shortcut, since opening it
-    -- again would only bring its old windows forward.
+    -- again would only bring its old windows forward. A helper that fails
+    -- says so, with the first line of what it printed, rather than leaving
+    -- the key doing nothing.
     function a.launch(spec, fresh)
         local running = spec.bundle and hs.application.get(spec.bundle)
         if fresh and running then
@@ -344,13 +363,15 @@ function M.new()
             args[#args + 1] = word
         end
         local runenv = (os.getenv("HOME") or "") .. "/scripts/runenv"
-        local task = hs.task.new(runenv, function(code, _, err)
+        local started = run(runenv, args, function(code, err)
             if code ~= 0 then
                 a.log(spec.run .. " exited " .. code .. ": " .. (err or ""))
+                local why = (err or ""):match("[^\n]+")
+                a.notify(spec.run .. " failed" .. (why and ": " .. why or " (exit " .. code .. ")"))
             end
-        end, args)
-        if not task or not task:start() then
-            a.notify("Couldn't run " .. spec.run)
+        end)
+        if not started then
+            a.notify("Couldn't run " .. spec.run .. " with " .. runenv)
         end
     end
 
@@ -380,21 +401,15 @@ function M.new()
     end
 
     -- hs.urlevent.openURL refuses a URL without "://", which a System
-    -- Settings pane's lacks, so open(1) opens it. Each task is held until
-    -- it exits: Hammerspoon may stop one that's collected.
-    local opening = {}
+    -- Settings pane's lacks, so open(1) opens it.
     function a.open_url(url)
-        local task
-        task = hs.task.new("/usr/bin/open", function(code, _, err)
-            opening[task] = nil
+        local started = run("/usr/bin/open", { url }, function(code, err)
             if code ~= 0 then
                 a.log("couldn't open " .. url .. ": " .. tostring(err))
                 a.notify("Couldn't open " .. url)
             end
-        end, { url })
-        if task and task:start() then
-            opening[task] = true
-        else
+        end)
+        if not started then
             a.log("couldn't run open for " .. url)
             a.notify("Couldn't open " .. url)
         end
