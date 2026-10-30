@@ -138,6 +138,17 @@ t.test("a bar's toggles and volume steps go to Hammerspoon", function()
     t.eq(got, { "toggle mic", "volume -1" })
 end)
 
+t.test("a bar's clocks, kept while a file is wrong, go to Hammerspoon", function()
+    local _, wm = two_displays()
+    local kept
+    bar.handle(wm, { uuid = "B", goodClocks = { { zone = "Asia/Tokyo", label = "TYO" } } }, {
+        good_clocks = function(c)
+            kept = c
+        end,
+    })
+    t.eq(kept, { { zone = "Asia/Tokyo", label = "TYO" } })
+end)
+
 t.test("a chip names its windows' apps in layout order, up to five, then how many more", function()
     local a, wm = two_displays()
     for id = 2, 7 do

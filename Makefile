@@ -3,8 +3,8 @@
 #   make test     run the tests (plain Lua 5.4, no Mac needed)
 #   make lint     check every Lua file parses
 #   make install  copy the Hammerspoon modules to ~/.hammerspoon/tilemo
-#   make check-geometry   compare tilemo's copy of tide's geometry with a
-#                 tide checkout (TIDE=../tide by default)
+#   make check-tide   compare tilemo's copies of tide's geometry and clocks
+#                 module with a tide checkout (TIDE=../tide by default)
 #   make check-tileco   compare the dashboard's copies of tileco's clock
 #                 modules with a tileco checkout (TILECO=../tileco by default)
 #   make mocks    render the bar in fixed states to mocks/*.png (needs Node
@@ -22,7 +22,7 @@ export LUA_PATH := hammerspoon/?.lua;hammerspoon/?/init.lua;tests/?.lua;;
 LUA_FILES := $(wildcard hammerspoon/tilemo/*.lua hammerspoon/timo/*.lua tests/*.lua ci/*.lua)
 TESTS := $(wildcard tests/*_test.lua)
 
-.PHONY: test lint install check-geometry check-tileco mocks
+.PHONY: test lint install check-tide check-geometry check-tileco mocks
 
 test:
 	@status=0; for t in $(TESTS); do $(LUA) $$t || status=1; done; exit $$status
@@ -44,9 +44,13 @@ install:
 	@echo '  tilemo.start({})'
 
 # geometry.lua is tide's, copied unchanged, so a workspace looks the same on
-# both desktops.
-check-geometry:
+# both desktops; so is its clocks module, so tilemo reads and writes tide's
+# clocks files as tide does.
+check-tide:
 	cmp $(TIDE)/hypr/tide/geometry.lua hammerspoon/tilemo/geometry.lua
+	cmp $(TIDE)/shell/lib/clocks.mjs hammerspoon/tilemo/dashboard/tide-clocks.js
+
+check-geometry: check-tide
 
 # The dashboard's clocks, calendar and styles are tileco's, so the two
 # dashboards agree.

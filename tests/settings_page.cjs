@@ -1,0 +1,132 @@
+// Runs the settings page's bundled script (tests/settings_test.lua writes it
+// to the file named on the command line) against a small fake DOM, and
+// checks its changes reach tilemo as clocks.local.json's new text.
+
+const fs = require("fs");
+const vm = require("vm");
+const assert = require("assert");
+
+class Element {
+  constructor(tag) {
+    this.tag = tag;
+    this.children = [];
+    this.textContent = "";
+    this.value = "";
+    this.disabled = false;
+    this.attrs = {};
+    this.listeners = {};
+  }
+  append(...xs) {
+    for (const x of xs) this.children.push(x);
+  }
+  replaceChildren() {
+    this.children = [];
+  }
+  setAttribute(k, v) {
+    this.attrs[k] = v;
+  }
+  addEventListener(type, fn) {
+    this.listeners[type] = fn;
+  }
+}
+
+const ids = {};
+const sent = [];
+const sandbox = {
+  document: {
+    createElement: (tag) => new Element(tag),
+    getElementById: (id) => (ids[id] ??= new Element(id)),
+    addEventListener: () => {},
+  },
+  Intl,
+  Date,
+  Math,
+  JSON,
+  Number,
+  String,
+  Object,
+  Array,
+  Error,
+  Map,
+  Set,
+};
+sandbox.window = sandbox;
+sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(JSON.parse(JSON.stringify(m))) } } };
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
+
+const rows = () => ids["clock-list"].children.filter((li) => li.className !== "local");
+const zones = () => rows().map((li) => li.children[0].textContent);
+const press = (input, key) => input.listeners.keydown({ key, target: input });
+const lastWrite = () => JSON.parse(sent[sent.length - 1].write);
+
+// No files: tilemo's defaults, and local last.
+sandbox.tilemo.update({ clockFiles: [] });
+assert.deepStrictEqual(zones(), ["Australia/Sydney", "America/Los_Angeles", "America/New_York", "Europe/London"]);
+assert.match(ids.source.textContent, /tilemo's defaults/);
+assert.match(ids["clock-list"].children.at(-1).textContent, /\(local\)$/);
+
+// Adding a zone copies the defaults into clocks.local.json, with the new
+// one last, labeled with its city.
+const add = ids["add-zone"];
+add.value = "Asia/Tokyo";
+press(add, "Enter");
+assert.deepStrictEqual(lastWrite().map((c) => c.zone).at(-1), "Asia/Tokyo");
+assert.deepStrictEqual(lastWrite().at(-1), { zone: "Asia/Tokyo", label: "Tokyo" });
+assert.strictEqual(add.value, "", "the box empties once it's added");
+
+// A zone Intl doesn't know, or one listed already, is refused, and nothing
+// is written.
+const before = sent.length;
+add.value = "Mars/Base";
+press(add, "Enter");
+assert.match(ids.error.textContent, /unknown time zone Mars\/Base/);
+add.value = "Europe/London";
+press(add, "Enter");
+assert.match(ids.error.textContent, /listed already/);
+assert.strictEqual(sent.length, before);
+
+// tilemo hands the saved file back; the page shows it.
+const saved = JSON.stringify({ clocks: [{ zone: "Asia/Tokyo", label: "TYO" }, { zone: "Europe/London", label: "LON" }], hour24: false });
+sandbox.tilemo.update({ clockFiles: { local: saved } });
+assert.deepStrictEqual(zones(), ["Asia/Tokyo", "Europe/London"]);
+assert.match(ids.source.textContent, /clocks\.local\.json/);
+assert.strictEqual(ids.error.textContent, "");
+
+// Relabel, move and remove, each keeping the file's switches. Each change
+// redraws the rows, so each is found afresh.
+const row = (zone) => rows().find((li) => li.children[0].textContent === zone);
+assert.strictEqual(row("Asia/Tokyo").children[2].disabled, true, "the first can't move left");
+row("Asia/Tokyo").children[1].value = "abbr";
+press(row("Asia/Tokyo").children[1], "Enter");
+assert.deepStrictEqual(lastWrite(), { clocks: [{ zone: "Asia/Tokyo", label: "abbr" }, { zone: "Europe/London", label: "LON" }], hour24: false });
+row("Europe/London").children[2].listeners.click();
+assert.deepStrictEqual(lastWrite().clocks.map((c) => c.zone), ["Europe/London", "Asia/Tokyo"]);
+row("Asia/Tokyo").children[4].listeners.click();
+assert.deepStrictEqual(lastWrite(), { clocks: [{ zone: "Europe/London", label: "LON" }], hour24: false });
+
+// Two changes before tilemo hands the saved file back both stick: the page
+// shows the first at once, and the second builds on it.
+const three = [
+  { zone: "Asia/Tokyo", label: "TYO" },
+  { zone: "Europe/London", label: "LON" },
+  { zone: "America/Denver", label: "DEN" },
+];
+sandbox.tilemo.update({ clockFiles: { local: JSON.stringify(three) } });
+row("Asia/Tokyo").children[4].listeners.click();
+row("Europe/London").children[4].listeners.click();
+assert.deepStrictEqual(lastWrite(), [{ zone: "America/Denver", label: "DEN" }]);
+assert.deepStrictEqual(zones(), ["America/Denver"]);
+
+// A shared clocks.json, with no local file, is the list to start from.
+sandbox.tilemo.update({ clockFiles: { shared: '[{"zone": "America/Denver", "label": "DEN"}]' } });
+assert.deepStrictEqual(zones(), ["America/Denver"]);
+assert.match(ids.source.textContent, /shared with tide/);
+
+// A file that doesn't parse can't be changed here, and the page says so.
+sandbox.tilemo.update({ clockFiles: { local: "[{" } });
+assert.deepStrictEqual(zones(), []);
+assert.match(ids.error.textContent, /clocks\.local\.json: line 1/);
+assert.strictEqual(add.disabled, true);
+
+console.log("settings page: ok");

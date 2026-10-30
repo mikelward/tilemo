@@ -231,6 +231,8 @@ function M.new(tilemo)
                 end,
                 toggle = toggle,
                 volume = step_volume,
+                clock_errors = tilemo.report_clock_errors,
+                good_clocks = tilemo.keep_good_clocks,
             })
         end)
     end
@@ -256,7 +258,10 @@ function M.new(tilemo)
         if not v.ready then
             return
         end
-        local json = hs.json.encode(bar.state(tilemo.wm, v.uuid, title, self.icons, icon_of))
+        local state = bar.state(tilemo.wm, v.uuid, title, self.icons, icon_of)
+        state.clockFiles = tilemo.clock_files
+        state.goodClocks = tilemo.good_clocks
+        local json = hs.json.encode(state)
         if json == v.sent then
             return
         end

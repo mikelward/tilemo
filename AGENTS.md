@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-26
+last_modified: 2026-10-30
 ---
 
 # tilemo
@@ -102,6 +102,6 @@ Shared by every mikelward repo and the user-level agent config; canonical in mik
 
 ## Project
 
-- **Tests**. `make lint test` (plain Lua 5.4, no Mac needed). `make check-geometry` and
+- **Tests**. `make lint test` (plain Lua 5.4, no Mac needed). `make check-tide` and
   `make check-tileco` compare the copied tide and tileco code with their sources.
 - **Hammerspoon**. It can't run here: say what only the tests covered.

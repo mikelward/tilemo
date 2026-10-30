@@ -2,6 +2,7 @@
 -- touches `hs` lives here, so the rest tests against a fake (tests/fake.lua).
 -- Not runnable outside Hammerspoon.
 
+local atomic = require("tilemo.atomic")
 local saved = require("tilemo.saved")
 local shots = require("tilemo.shots")
 
@@ -427,6 +428,20 @@ function M.new()
         end
     end
 
+    -- Write `text` to `path` whole: to a file beside it, then renamed over
+    -- it, so a reader never sees half of it. Makes the folder if it's
+    -- missing. Returns true, or nil and why not.
+    function a.write_file(path, text)
+        local dir = path:match("^(.*)/[^/]+$")
+        if dir and not hs.fs.attributes(dir) then
+            local _, ok = hs.execute("/bin/mkdir -p '" .. dir:gsub("'", "'\\''") .. "'")
+            if not ok then
+                return nil, "couldn't make " .. dir
+            end
+        end
+        return atomic.write(path, text)
+    end
+
     -- Put the image file at `path` on the clipboard.
     function a.copy_image(path)
         local img = hs.image.imageFromPath(path)
@@ -545,6 +560,19 @@ function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
+end
+
+-- A watcher on folder `dir`, calling `on_change()` when anything in it
+-- changes. A folder that isn't there yet is made, so it can be watched.
+function M.watch_folder(dir, on_change)
+    if not hs.fs.attributes(dir) then
+        hs.execute("/bin/mkdir -p '" .. dir:gsub("'", "'\\''") .. "'")
+    end
+    local watcher = hs.pathwatcher.new(dir, function()
+        on_change()
+    end)
+    watcher:start()
+    return watcher
 end
 
 -- Screenshot's folder, from its options (SPEC.md §10).

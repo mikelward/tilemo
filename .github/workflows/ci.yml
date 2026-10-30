@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      # tide's geometry is copied here unchanged; check it still matches.
+      # tide's geometry and clocks module are copied here unchanged; check
+      # they still match.
       - uses: actions/checkout@v4
         with:
           repository: mikelward/tide
@@ -26,7 +27,7 @@ jobs:
       - run: make lint test
         env:
           TILEMO_NEED_NODE: "1"
-      - run: make check-geometry TIDE=tide
+      - run: make check-tide TIDE=tide
       - run: make check-tileco TILECO=tileco
   # A smoke test in a real Hammerspoon: every hs.* name tilemo uses exists,
   # tilemo starts and opens its dashboard, and it tiles three windows. The

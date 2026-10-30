@@ -18,6 +18,8 @@ local adapter_mod = require("tilemo.hs_adapter")
 local ffm_mod = require("tilemo.ffm")
 local dashboard_hs = require("tilemo.dashboard_hs")
 local launcher_hs = require("tilemo.launcher_hs")
+local settings_hs = require("tilemo.settings_hs")
+local dashboard = require("tilemo.dashboard")
 local shots = require("tilemo.shots")
 local tap_mod = require("tilemo.tap")
 local bar = require("tilemo.bar")
@@ -155,6 +157,38 @@ function M.start(config)
     self.pointer = adapter_mod.pointer_moves(function(x, y, flags)
         self.wm.ffm:move(x, y, keys.super_held(self.super, flags))
     end)
+    -- The clocks are tide's, from its settings folder, read again whenever
+    -- anything there changes (SPEC.md §15). The pages say when a file is
+    -- wrong; each distinct complaint is a notification once.
+    self.clock_dir = dashboard.clock_dir(os.getenv)
+    self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
+    local reported
+    self.report_clock_errors = function(errors)
+        local text = table.concat(errors or {}, "; ")
+        if text ~= "" and text ~= reported then
+            reported = text
+            self.adapter.notify("The clocks stay as they were: " .. text)
+        end
+    end
+    -- And which clocks those are: the last good ones a page loaded, for a
+    -- page opened while a file is wrong.
+    self.keep_good_clocks = function(clocks)
+        self.good_clocks = clocks
+    end
+    self.clock_watch = adapter_mod.watch_folder(self.clock_dir, function()
+        self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
+        if self.bar then
+            self.bar.update()
+        end
+        if self.dashboard then
+            self.dashboard.refresh()
+        end
+        self.settings.refresh()
+    end)
+    self.settings = settings_hs.new(self)
+    self.wm.open_settings = function()
+        self.settings.show()
+    end
     -- Screenshots: macOS saves each to Screenshot's folder, and tilemo puts
     -- it on the clipboard too, as tide does both (SPEC.md §10). The folder
     -- is followed when Screenshot's options change.

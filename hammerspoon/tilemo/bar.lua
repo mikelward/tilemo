@@ -363,6 +363,10 @@ function M.handle(wm, body, act)
         act.toggle(body.toggle)
     elseif body.volume then
         act.volume(tonumber(body.volume))
+    elseif body.clockErrors and act.clock_errors then
+        act.clock_errors(body.clockErrors)
+    elseif body.goodClocks and act.good_clocks then
+        act.good_clocks(body.goodClocks)
     end
 end
 

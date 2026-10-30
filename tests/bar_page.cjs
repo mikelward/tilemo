@@ -154,7 +154,7 @@ spin(-60);
 spin(30);
 spin(30);
 assert.strictEqual(
-  JSON.stringify(sent),
+  JSON.stringify(sent.filter((m) => !m.goodClocks)),
   JSON.stringify([
     { uuid: "B", show: 5 },
     { uuid: "B", open: "wifi" },

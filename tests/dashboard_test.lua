@@ -29,7 +29,8 @@ t.test("each module gets its own scope, with its imports and exports wired", fun
     t.eq(js:find("return { a, B };", 1, true) ~= nil, true)
     t.eq(js:find("return { c };", 1, true) ~= nil, true)
     t.eq(js:find("export ", 1, true), nil)
-    t.eq(js:find('const { DAY, DEFAULT_CLOCKS, WORK } = modules["./clocks.js"];', 1, true) ~= nil, true)
+    t.eq(js:find('const { DAY, DEFAULT_CLOCKS, WORK, abbreviation, checkZone } = modules["./clocks.js"];', 1, true) ~= nil,
+        true)
 end)
 
 t.test("an import renamed with as becomes a renamed binding", function()
@@ -114,6 +115,15 @@ t.test("a dashboard opened on one display marks that display's workspace current
     t.eq(st.workspaces[2].current, true)
     t.eq(st.workspaces[1].current, false)
     t.eq(st.workspaces[1].elsewhere, true)
+end)
+
+t.test("the dashboard's state carries the clocks kept while a file is wrong", function()
+    local a = fake.new()
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    local good = { { zone = "Asia/Tokyo", label = "TYO" } }
+    t.eq(dashboard.state(wm, a, "A", { ["local"] = "[{" }, good).goodClocks, good)
+    t.eq(dashboard.state(wm, a, "A").goodClocks, nil)
 end)
 
 t.test("Super+Shift+Space asks for the dashboard", function()
