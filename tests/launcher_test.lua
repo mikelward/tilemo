@@ -65,6 +65,79 @@ t.test("a scope with no match falls back to every scope", function()
     t.eq(#launcher.rank("lock", sample(), { scope = "tabs" }), 1)
 end)
 
+t.test("Tab moves through Launch, Tabs and Attention, and round again; Shift+Tab goes back", function()
+    t.eq(launcher.SCOPE_ORDER[1], "launch")
+    t.eq(launcher.next_scope("launch"), "tabs")
+    t.eq(launcher.next_scope("tabs"), "attention")
+    t.eq(launcher.next_scope("attention"), "launch")
+    t.eq(launcher.next_scope("launch", true), "attention")
+    t.eq(launcher.next_scope("tabs", true), "launch")
+end)
+
+t.test("the search field names the scope, what it lists, and where Tab goes", function()
+    t.eq(launcher.placeholder("launch"), "Launch: apps, settings and commands (Tab: Tabs)")
+    t.eq(launcher.placeholder("attention"), "Attention: windows wanting attention (Tab: Launch)")
+end)
+
+local function waiting()
+    return launcher.items(
+        { { name = "Mail", path = "/System/Applications/Mail.app" } },
+        { { title = "Inbox", url = "https://mail.example.com/", browser = "Safari", window = 1, tab = 1 } },
+        { { title = "Lock", action = "lock" } },
+        nil,
+        {
+            { window = 7, title = "Chat (3)", app = "Slack", ws = 2 },
+            { window = 4, title = "Zoom meeting", app = "zoom.us", ws = 5 },
+            { window = 9, title = "", app = "Messages", ws = 1 },
+        }
+    )
+end
+
+t.test("the Attention scope lists the windows wanting attention, newest first, and nothing else", function()
+    local found = launcher.rank("", waiting(), { scope = "attention" })
+    t.eq(#found, 3)
+    t.eq(found[1].window, 7)
+    t.eq(found[2].window, 4)
+    -- A window with no title goes by its app's name.
+    t.eq(found[3].title, "Messages")
+    t.eq(found[1].ws, 2)
+end)
+
+t.test("a window wanting attention matches by its title or its app", function()
+    t.eq(launcher.rank("zoom", waiting(), { scope = "attention" })[1].window, 4)
+    t.eq(launcher.rank("slack", waiting(), { scope = "attention" })[1].window, 7)
+end)
+
+t.test("a search of every scope orders windows wanting attention among the rest consistently", function()
+    -- Two windows and an app that tie on the query, with recency that, if
+    -- each kind kept its own order, would put them in a circle.
+    local items = launcher.items({ { name = "Mail", path = "/A/Mail.app" } }, nil, nil, nil, {
+        { window = 1, title = "Mail", app = "Mail", ws = 1 },
+        { window = 2, title = "Mail", app = "Mail", ws = 2 },
+    })
+    local recency = { ["attention:1"] = 0, ["attention:2"] = 2, ["app:/A/Mail.app"] = 1 }
+    for _, query in ipairs({ "mail", "" }) do
+        local found = launcher.rank(query, items, { recency = recency })
+        t.eq(#found, 3, query)
+        t.eq(found[1].kind, query == "" and "attention" or "app", query)
+        local windows = {}
+        for _, item in ipairs(found) do
+            if item.kind == "attention" then
+                windows[#windows + 1] = item.window
+            end
+        end
+        t.eq(windows, { 1, 2 }, query)
+    end
+end)
+
+t.test("the Launch and Tabs scopes leave the windows wanting attention out", function()
+    for _, scope in ipairs({ "launch", "tabs" }) do
+        for _, item in ipairs(launcher.rank("", waiting(), { scope = scope })) do
+            t.eq(item.kind ~= "attention", true, scope)
+        end
+    end
+end)
+
 t.test("items have stable keys", function()
     local items = sample()
     t.eq(items[1].key, "app:/Applications/Safari.app")

@@ -2,8 +2,9 @@
 -- (SPEC.md §9). Apps come from the Applications folders and System
 -- Settings' panes from its extensions (launcher.scan_apps and
 -- scan_settings), tabs from Chrome and Safari through AppleScript
--- (Automation, asked for the first time), and commands from
--- launcher.COMMANDS. Not runnable outside Hammerspoon.
+-- (Automation, asked for the first time), the windows wanting attention
+-- from the window manager, and commands from launcher.COMMANDS. Tab and
+-- Shift+Tab move between its scopes. Not runnable outside Hammerspoon.
 
 local launcher = require("tilemo.launcher")
 local saved = require("tilemo.saved")
@@ -122,6 +123,21 @@ local function open_tab(tilemo, item)
     end
 end
 
+-- The windows wanting attention, newest first, as launcher.items takes them.
+local function attention(tilemo)
+    local out = {}
+    for _, id in ipairs(tilemo.wm:attention_windows()) do
+        local w = tilemo.wm.windows[id]
+        out[#out + 1] = {
+            window = id,
+            title = tilemo.adapter.title(id) or w.title,
+            app = w.app and hs.application.nameForBundleID(w.app) or w.app,
+            ws = w.ws,
+        }
+    end
+    return out
+end
+
 local QUICK = {}
 
 -- macOS's own screenshot keys, as the Print keys use (SPEC.md §10).
@@ -167,18 +183,24 @@ function M.new(tilemo)
     local items = {}
     local before
     local chooser
+    local scope = launcher.SCOPE_ORDER[1]
 
     local function choices(query)
-        local found = launcher.rank(query or "", items, { recency = self.recency })
+        local found = launcher.rank(query or "", items, { recency = self.recency, scope = scope })
         local out = {}
         for _, item in ipairs(found) do
             out[#out + 1] = {
                 text = item.title,
                 subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or ""))
                     or item.kind == "setting" and "System Settings"
+                    or item.kind == "attention" and ((item.app or "") .. " · workspace " .. tostring(item.ws))
                     or item.kind,
                 id = item.id,
             }
+        end
+        -- An empty scope says so, in a row that can't be chosen.
+        if #out == 0 and (query or ""):match("^%s*$") then
+            out[1] = { text = launcher.SCOPE_EMPTY[scope], valid = false }
         end
         return out
     end
@@ -212,6 +234,9 @@ function M.new(tilemo)
             tilemo.adapter.open_url(item.url)
         elseif item.kind == "tab" then
             open_tab(tilemo, item)
+        elseif item.kind == "attention" then
+            -- As Super+Tab goes there: with its workspace.
+            tilemo.wm:activate(item.window)
         elseif item.quick then
             if item.quick == "toggle_ffm" then
                 tilemo.toggle_focus_follows_mouse()
@@ -226,14 +251,24 @@ function M.new(tilemo)
     -- Cmd+Return, and only that: the chooser's own Cmd+1…9 picks a row with
     -- Command held too, so the modifiers alone can't tell them apart.
     local fresh = false
-    local fresh_key
+    -- Keys taken only while the launcher is open, and given back when it
+    -- closes: Cmd+Return, Tab and Shift+Tab.
+    local open_keys = {}
+
+    local function set_scope(s)
+        scope = s
+        chooser:placeholderText(launcher.placeholder(scope))
+        chooser:choices(choices(chooser:query()))
+    end
+    -- As Tab and Shift+Tab move, for CI's smoke test.
+    self.set_scope = set_scope
 
     chooser = hs.chooser.new(function(choice)
         tilemo.wm:hold("launcher", false)
-        if fresh_key then
-            fresh_key:delete()
-            fresh_key = nil
+        for _, k in ipairs(open_keys) do
+            k:delete()
         end
+        open_keys = {}
         if not choice then
             -- Dismissed: back to the window you were in.
             if before then
@@ -258,25 +293,44 @@ function M.new(tilemo)
         end
         before = tilemo.adapter.focused()
         local apps, settings = M.scan()
-        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings)
+        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings, attention(tilemo))
         by_id = {}
         for _, item in ipairs(items) do
             by_id[item.id] = item
         end
         tilemo.wm:hold("launcher", true)
         fresh = false
-        -- Taken only while the launcher is open, and given back when it closes.
-        fresh_key = hs.hotkey.bind({ "cmd" }, "return", function()
-            -- With no row to pick, select() leaves the launcher open, and
-            -- the next plain Return mustn't count as fresh.
-            if chooser:selectedRowContents() and next(chooser:selectedRowContents()) then
-                fresh = true
-                chooser:select()
-            end
-        end)
+        open_keys = {
+            hs.hotkey.bind({ "cmd" }, "return", function()
+                -- With no row to pick, or only an empty scope's, select()
+                -- leaves the launcher open, and the next plain Return
+                -- mustn't count as fresh.
+                local row = chooser:selectedRowContents()
+                if row and row.id then
+                    fresh = true
+                    chooser:select()
+                end
+            end),
+            hs.hotkey.bind({}, "tab", function()
+                set_scope(launcher.next_scope(scope))
+            end),
+            hs.hotkey.bind({ "shift" }, "tab", function()
+                set_scope(launcher.next_scope(scope, true))
+            end),
+        }
         chooser:query("")
-        chooser:choices(choices(""))
+        set_scope(launcher.SCOPE_ORDER[1])
         chooser:show()
+    end
+
+    -- The row the launcher shows `n`th, and closing it as Esc does: for
+    -- CI's smoke test.
+    function self.row(n)
+        return chooser:selectedRowContents(n)
+    end
+
+    function self.cancel()
+        chooser:cancel()
     end
 
     return self

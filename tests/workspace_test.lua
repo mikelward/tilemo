@@ -683,6 +683,17 @@ t.test("a window marked by both its badge and its title comes once in a round", 
     t.eq(a.focus_, 3)
 end)
 
+t.test("the windows wanting attention, as the launcher lists them, come newest first and once each", function()
+    local a, wm = setup(3)
+    a.wins[2].app = "com.example.chat"
+    wm.windows[2].app = "com.example.chat"
+    wm.attention:title(3, "x", "Mail (1)")
+    wm.attention:title(2, "com.example.chat", "Chat (1)")
+    wm.attention:badge("com.example.chat", "1")
+    wm.attention:badge("com.example.gone", "2")
+    t.eq(wm:attention_windows(), { 2, 3 })
+end)
+
 t.test("a count rising in the window you're in doesn't want attention", function()
     local a, wm = setup(2)
     a.focus_ = 2

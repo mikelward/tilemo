@@ -1711,24 +1711,29 @@ function A.app(self, spec, fresh)
     end
 end
 
+-- The windows wanting attention, newest first, for Super+Tab and the
+-- launcher. Only marks with a window to go to: a badged app may have quit.
+-- An app's badge and its window's title can name the same window; it comes
+-- once, where its newest mark puts it.
+function M:attention_windows()
+    local list, seen = {}, {}
+    for _, m in ipairs(self.attention:list()) do
+        local target = m.id or self:app_windows(m.app)[1]
+        if target and self.windows[target] and not seen[target] then
+            seen[target] = true
+            list[#list + 1] = target
+        end
+    end
+    return list
+end
+
 -- Super+Tab and Super+Home (SPEC.md §14.2): the window wanting attention,
 -- most recent first; pressed again with Super held, the next one. Letting
 -- Super go ends the round. With nothing waiting, the window you were last
 -- in.
 function A.attention(self)
     if not self.round_list then
-        -- Only marks with a window to go to: a badged app may have quit.
-        -- An app's badge and its window's title can name the same window;
-        -- it comes once, where its newest mark puts it.
-        local list, seen = {}, {}
-        for _, m in ipairs(self.attention:list()) do
-            local target = m.id or self:app_windows(m.app)[1]
-            if target and self.windows[target] and not seen[target] then
-                seen[target] = true
-                list[#list + 1] = target
-            end
-        end
-        self.round_list, self.round = list, 0
+        self.round_list, self.round = self:attention_windows(), 0
     end
     local list = self.round_list
     if #list == 0 then
