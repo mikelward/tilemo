@@ -940,6 +940,17 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 - **Clocks:** tileco's `src/clocks.js` and `calendar.js` hold the zone,
   daytime-strip, DST and calendar logic, all tested. A native tilemo would port
   them.
+  - **Which clocks** is tide's setting, read from tide's `clocks.json` and
+    `clocks.local.json` (§15) with tide's own module, `shell/lib/clocks.mjs`,
+    copied unchanged as `dashboard/tide-clocks.js` and checked against
+    tide's in CI. With neither file, they're tileco's: Sydney, Los Angeles,
+    New York and London. A label of `"abbr"` shows the zone's abbreviation
+    from Intl, which says `GMT+1` for London in summer (tide §7.3).
+  - tide's `hour24` and `dedupeLocal` switches are read but not followed:
+    tileco's clock view is always 24-hour and always hides the local zone.
+  - A file that's wrong keeps the clocks as they were, and a notification
+    says which file and why, once. tilemo keeps the last good clocks the
+    pages loaded, so a page opened while a file is wrong shows them too.
 - **The dashboard, on Hammerspoon,** is a borderless `hs.webview` over the
   display you're on, from `Super+Shift+Space`:
   - It shows tileco's bar (the workspace chips, the focused window's title,
@@ -1207,6 +1218,13 @@ Each one names a workaround, or says there is none.
 - **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
   Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
   (§11).
+  - **Built: Clocks,** a window from the launcher ("Settings: clocks") or
+    the dashboard ("Change the clocks…"). As tide's Clocks page, it adds a
+    zone by its ID, relabels, moves and removes clocks, and writes only
+    `clocks.local.json`, with tide's own functions, so the first change
+    copies the list the bar shows. A zone Intl doesn't know is refused.
+    tilemo watches the folder, so the bar, the dashboard and the page
+    follow a change, a hand edit's included.
 - **One owner per job** (tide §5): tilemo tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.

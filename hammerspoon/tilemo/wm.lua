@@ -1804,6 +1804,14 @@ function A.screenshot(self, kind)
     self.a.screenshot(kind)
 end
 
+-- tilemo's settings window, from the launcher and the dashboard (SPEC.md
+-- §15).
+function A.settings(self)
+    if self.open_settings then
+        self.open_settings()
+    end
+end
+
 -- Super+Shift+Space: the dashboard, or closes it (SPEC.md §8).
 function A.dashboard(self)
     if self.open_dashboard then

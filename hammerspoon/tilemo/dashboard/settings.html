@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tilemo settings</title>
+<style>
+/*TILEMO_CSS*/
+body.settings {
+  margin: 0;
+  padding: 20px 24px;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.settings h1 {
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+.settings .source,
+.settings .note {
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.settings .error {
+  color: var(--urgent);
+  margin: 8px 0;
+}
+.settings .error:empty {
+  display: none;
+}
+.settings ol {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.settings li {
+  display: grid;
+  grid-template-columns: 1fr 8em auto auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 0;
+}
+.settings li.local {
+  color: var(--muted);
+}
+.settings input {
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--raised);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.settings input:focus {
+  outline: 2px solid var(--accent);
+}
+.settings button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--raised);
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.settings button:disabled {
+  opacity: 0.4;
+}
+.settings .add input {
+  width: 18em;
+}
+</style>
+</head>
+<body class="settings">
+<h1>Clocks</h1>
+<p class="source" id="source"></p>
+<ol id="clock-list"></ol>
+<p class="add">
+<input id="add-zone" placeholder="Add a zone, such as Asia/Tokyo" aria-label="Add a zone" spellcheck="false">
+</p>
+<p class="error" id="error" role="alert"></p>
+<p class="note">A label shows on the bar: any text, nothing for just the time, or <code>abbr</code> for the zone's abbreviation. Enter sets it. The bar shows local last, after these.</p>
+<script>
+/*TILEMO_SCRIPT*/
+</script>
+</body>
+</html>

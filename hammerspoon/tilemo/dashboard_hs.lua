@@ -48,6 +48,16 @@ function M.new(tilemo)
         end
     end
 
+    -- Fills the page with what it shows now.
+    local function push(v)
+        local state = hs.json.encode(dashboard.state(tilemo.wm, tilemo.adapter, uuid, tilemo.clock_files, tilemo.good_clocks))
+        v:evaluateJavaScript("tilemo.update(" .. state .. ")", function(_, err)
+            if err and next(err) then
+                tilemo.adapter.log("dashboard: " .. hs.inspect(err))
+            end
+        end)
+    end
+
     local content = hs.webview.usercontent.new("tilemo")
     content:setCallback(function(msg)
         local body = msg.body or {}
@@ -66,6 +76,13 @@ function M.new(tilemo)
                 close(true)
             elseif body.close then
                 close(true)
+            elseif body.settings then
+                close(false)
+                tilemo.settings.show()
+            elseif body.clockErrors then
+                tilemo.report_clock_errors(body.clockErrors)
+            elseif body.goodClocks then
+                tilemo.keep_good_clocks(body.goodClocks)
             end
         end)
     end)
@@ -84,7 +101,6 @@ function M.new(tilemo)
             tilemo.adapter.log("dashboard: no display to show it on")
             return
         end
-        local state = hs.json.encode(dashboard.state(tilemo.wm, tilemo.adapter, uuid))
         view = hs.webview.new(s.full, { developerExtrasEnabled = false }, content)
         view:windowStyle({ "borderless" })
         -- A title for the rules to see: tilemo leaves its own windows alone.
@@ -93,11 +109,7 @@ function M.new(tilemo)
         view:allowTextEntry(true)
         view:navigationCallback(function(action, v)
             if action == "didFinishNavigation" then
-                v:evaluateJavaScript("tilemo.update(" .. state .. ")", function(_, err)
-                    if err and next(err) then
-                        tilemo.adapter.log("dashboard: " .. hs.inspect(err))
-                    end
-                end)
+                push(v)
             end
         end)
         view:windowCallback(function(action, _, focused)
@@ -115,6 +127,13 @@ function M.new(tilemo)
         local w = view:hswindow()
         if w then
             w:focus()
+        end
+    end
+
+    -- The clocks files changed: an open dashboard shows them now.
+    function self.refresh()
+        if view then
+            push(view)
         end
     end
 

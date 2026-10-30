@@ -46,10 +46,11 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   emptying the title until focus moves. Reversible: hand focus back after
   a click, as the dashboard does on closing.
 
-- **tide's geometry is copied, not shared.** `hammerspoon/tilemo/geometry.lua`
-  is tide's file unchanged, and CI fails if they drift
-  (`make check-geometry`). The alternative is a git submodule of tide.
-  Reversible: swap the copy for the submodule path.
+- **tide's geometry and clocks module are copied, not shared.**
+  `hammerspoon/tilemo/geometry.lua` and `dashboard/tide-clocks.js` are
+  tide's files unchanged, and CI fails if they drift (`make check-tide`).
+  The alternative is a git submodule of tide. Reversible: swap the copies
+  for the submodule paths.
 - **No frame-offset store.** tileco stores, per app, how far a window's frame
   lands from where it asked (tileco SPEC.md §5.3). tilemo leaves an app that
   rounds its size where it settled. Reversible: add the store in `wm.lua`'s
@@ -164,10 +165,12 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 - **The dashboard is on Super+Shift+Space,** next to the launcher on
   Super+Space; tide has no dashboard key to match. Reversible: one line in
   `keys.lua`.
-- **The bar and dashboard show tileco's default clocks,** Sydney, Los
-  Angeles, New York and London (SPEC.md §8), not tide's San Francisco, New
-  York and London, and don't yet read tide's `clocks.json` (SPEC.md §15).
-  Reversible: tilemo's `dashboard/settings.js`.
+- **With no clocks file, the clocks are tileco's,** Sydney, Los Angeles,
+  New York and London (SPEC.md §8), not tide's San Francisco, New York and
+  London; tide's `clocks.json` or `clocks.local.json` sets them on both.
+  tide's `hour24` and `dedupeLocal` aren't followed, since tileco's view is
+  always 24-hour and always hides local. Reversible: `DEFAULT_FILE` in
+  `dashboard/settings.js`.
 - **The dashboard has no search;** the launcher stays `hs.chooser`. The
   alternative is tileco's whole launcher page in the webview, which needs a
   stand-in for the Chrome APIs it calls. Reversible: add the page later.

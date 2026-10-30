@@ -3,11 +3,12 @@
 // clocks and status icons right. tilemo fills it with tilemo.update(state) and
 // hears back through the "tilemo" message handler: { uuid, show: n },
 // { uuid, step: 1 or -1 }, { open: "battery" | "wifi" | "network" },
-// { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 } or
-// { dashboard: true }.
+// { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 },
+// { dashboard: true }, { clockErrors } naming a clocks file that's wrong, or
+// { goodClocks }, the clocks to keep while one is.
 
 import { renderClocks } from "./clockview.js";
-import { DEFAULT_SETTINGS } from "./settings.js";
+import { DEFAULT_SETTINGS, nextSettings } from "./settings.js";
 
 // Every message names this bar's display, so tilemo acts there.
 const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage({ uuid, ...msg });
@@ -198,8 +199,11 @@ function fit() {
   if (Number.isFinite(room)) document.getElementById("title").style.maxWidth = `${Math.max(0, room)}px`;
 }
 
+let settings = DEFAULT_SETTINGS;
+let goodSent = null;
+
 function tick() {
-  renderClocks(document.getElementById("clocks"), new Date(), false, DEFAULT_SETTINGS);
+  renderClocks(document.getElementById("clocks"), new Date(), false, settings);
   fit();
 }
 
@@ -209,6 +213,14 @@ window.tilemo = {
     renderWorkspaces(document.getElementById("workspaces"), state.workspaces, state.app_icons || {});
     document.getElementById("title").textContent = state.title;
     renderIcons(document.getElementById("icons"), state.icons);
+    const loaded = nextSettings(state, settings);
+    settings = loaded.settings;
+    if (loaded.errors.length > 0) send({ clockErrors: loaded.errors });
+    const good = JSON.stringify(settings.tideClocks);
+    if (good !== goodSent) {
+      goodSent = good;
+      send({ goodClocks: settings.tideClocks });
+    }
     tick();
   },
 };

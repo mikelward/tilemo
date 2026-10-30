@@ -21,7 +21,9 @@ It brings tide's desktop to macOS:
   and tilemo's own status items (input source, keep awake, camera,
   microphone, speaker, network, battery), with Super+Tab to what wants
   attention and Super+Shift+M to mute the microphone (§7.2, §8, §14.2);
-- tileco's dashboard on Super+Shift+Space.
+- tileco's dashboard on Super+Shift+Space;
+- a Clocks settings page, from the launcher or the dashboard, sharing
+  tide's `~/.config/tide/clocks*.json` (§15).
 
 With [mikelward/scripts](https://github.com/mikelward/scripts),
 `setup-macos --wm tilemo` does all of this: it installs Hammerspoon and tilemo,
