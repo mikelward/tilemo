@@ -263,6 +263,47 @@ local function check_tiling()
     end)
 end
 
+-- An app key whose helper fails says so. ci/hs-smoke.sh puts a stand-in
+-- runenv in ~/scripts, and a helper that waits on a FIFO, then exits 3;
+-- collecting garbage before letting it go checks tilemo still hears it.
+local HELPER_WAIT = 15
+
+local function check_failing_helper(next)
+    local notes = {}
+    local notify = tilemo.adapter.notify
+    tilemo.adapter.notify = function(text)
+        notes[#notes + 1] = text
+        notify(text)
+    end
+    tilemo.adapter.launch({ run = "tilemo-smoke-fail" })
+    collectgarbage("collect")
+    collectgarbage("collect")
+    -- In the background: if the helper's gone, nothing reads the FIFO,
+    -- and the write would wait for ever.
+    hs.execute("echo go >\"$HOME/scripts/tilemo-smoke-go\" &")
+    local started = hs.timer.secondsSinceEpoch()
+    -- A global, like smoke_timer, so it isn't collected.
+    smoke_helper_poll = hs.timer.doEvery(0.5, function()
+        local heard
+        for _, n in ipairs(notes) do
+            if n:find("tilemo-smoke-fail failed: no such app", 1, true) then
+                heard = n
+            end
+        end
+        if heard or hs.timer.secondsSinceEpoch() - started > HELPER_WAIT then
+            smoke_helper_poll:stop()
+            tilemo.adapter.notify = notify
+            if heard then
+                say("a failing app key says so: %s", heard)
+            else
+                fail("app keys: a failing helper wasn't reported in %ds (heard: %s)", HELPER_WAIT,
+                    table.concat(notes, " | "))
+            end
+            next()
+        end
+    end)
+end
+
 -- Start tilemo as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
     tilemo = require("tilemo")
@@ -342,5 +383,7 @@ smoke_timer = hs.timer.doAfter(3, function()
         return
     end
     say("dashboard opened and closed")
-    wait_for_bar(check_tiling)
+    check_failing_helper(function()
+        wait_for_bar(check_tiling)
+    end)
 end)
