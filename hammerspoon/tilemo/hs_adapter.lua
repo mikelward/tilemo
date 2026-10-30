@@ -3,6 +3,7 @@
 -- Not runnable outside Hammerspoon.
 
 local saved = require("tilemo.saved")
+local shots = require("tilemo.shots")
 
 local M = {}
 
@@ -426,6 +427,30 @@ function M.new()
         end
     end
 
+    -- Put the image file at `path` on the clipboard.
+    function a.copy_image(path)
+        local img = hs.image.imageFromPath(path)
+        if not img or not hs.pasteboard.writeObjects(img) then
+            a.log("couldn't copy " .. path .. " to the clipboard")
+            a.notify("Couldn't copy the screenshot to the clipboard")
+        end
+    end
+
+    -- Whether `path` is a file macOS saved as a screenshot. It tags each
+    -- with Spotlight's kMDItemIsScreenCapture, whatever its name. If the tag
+    -- comes after the file, the folder reports the file again then.
+    function a.is_shot(path)
+        if hs.fs.attributes(path, "mode") ~= "file" then
+            return false
+        end
+        for _, name in ipairs(hs.fs.xattr.list(path) or {}) do
+            if name == "com.apple.metadata:kMDItemIsScreenCapture" then
+                return true
+            end
+        end
+        return false
+    end
+
     -- Press macOS's own screenshot keys (keys.SCREENSHOT). The picker takes
     -- a moment to come up before it will hear Space.
     function a.screenshot(kind)
@@ -520,6 +545,48 @@ function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }
+end
+
+-- Screenshot's folder, from its options (SPEC.md §10).
+function M.screenshot_folder()
+    local out, ok = hs.execute("/usr/bin/defaults read com.apple.screencapture location 2>/dev/null")
+    return shots.folder(ok and out or nil, os.getenv("HOME") or "")
+end
+
+-- A watcher calling `on_change()` when Screenshot's options change, in the
+-- file macOS keeps them in.
+function M.screenshot_options(on_change)
+    local prefs = (os.getenv("HOME") or "") .. "/Library/Preferences"
+    local watcher = hs.pathwatcher.new(prefs, function(paths)
+        for _, path in ipairs(paths) do
+            if path:match("/com%.apple%.screencapture%.plist$") then
+                on_change()
+                return
+            end
+        end
+    end)
+    watcher:start()
+    return watcher
+end
+
+-- A watcher on folder `dir` calling `on_paths(paths)` with what changed in
+-- it, and the names of the files already there. `log(text)` hears what
+-- went wrong.
+function M.screenshots(dir, on_paths, log)
+    local existing = {}
+    if hs.fs.attributes(dir, "mode") == "directory" then
+        local listed, err = pcall(function()
+            for name in hs.fs.dir(dir) do
+                existing[#existing + 1] = name
+            end
+        end)
+        if not listed then
+            log("couldn't list " .. dir .. ": " .. tostring(err))
+        end
+    end
+    local watcher = hs.pathwatcher.new(dir, on_paths)
+    watcher:start()
+    return watcher, existing
 end
 
 -- Modifier changes, and anything that spoils a Super tap: a key, a mouse

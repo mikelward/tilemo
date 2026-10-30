@@ -304,6 +304,64 @@ local function check_failing_helper(next)
     end)
 end
 
+-- Print takes a screenshot with macOS's own keys, which saves it to
+-- Screenshot's folder (ci/hs-smoke.sh points it at a temporary one), and
+-- tilemo puts it on the clipboard too (SPEC.md §10).
+local SHOT_WAIT = 20
+
+local function shots_dir()
+    local out = hs.execute("/usr/bin/defaults read com.apple.screencapture location 2>/dev/null")
+    return require("tilemo.shots").folder(out, os.getenv("HOME") or "")
+end
+
+local function check_screenshot(next)
+    local dir = shots_dir()
+    local before = hs.pasteboard.changeCount()
+    tilemo.wm:act("screenshot", "screen")
+    local started = hs.timer.secondsSinceEpoch()
+    local file
+    -- A global, like smoke_timer, so it isn't collected.
+    smoke_shot_poll = hs.timer.doEvery(0.5, function()
+        for name in hs.fs.dir(dir) do
+            if name:match("%.png$") and name:sub(1, 1) ~= "." then
+                file = name
+            end
+        end
+        local copied = hs.pasteboard.changeCount() ~= before and hs.pasteboard.readImage() ~= nil
+        if (file and copied) or hs.timer.secondsSinceEpoch() - started > SHOT_WAIT then
+            smoke_shot_poll:stop()
+            if not file then
+                fail("screenshot: nothing saved in %s after %ds", dir, SHOT_WAIT)
+            elseif not copied then
+                fail("screenshot: %s saved but not put on the clipboard", file)
+            else
+                say("screenshot saved as %s and copied", file)
+            end
+            next()
+        end
+    end)
+end
+
+-- Moving Screenshot's folder while tilemo runs, as setup-macos does: tilemo
+-- follows it, and a shot saved there is copied too.
+local function check_moved_screenshot(next)
+    local dir = hs.execute("/usr/bin/mktemp -d"):gsub("%s+$", "")
+    hs.execute("/usr/bin/defaults write com.apple.screencapture location '" .. dir .. "'")
+    local started = hs.timer.secondsSinceEpoch()
+    -- A global, like smoke_timer, so it isn't collected.
+    smoke_move_poll = hs.timer.doEvery(0.5, function()
+        if tilemo.shots.dir == dir then
+            smoke_move_poll:stop()
+            say("screenshot folder followed to a new one")
+            check_screenshot(next)
+        elseif hs.timer.secondsSinceEpoch() - started > SHOT_WAIT then
+            smoke_move_poll:stop()
+            fail("screenshot: still watching %s after the folder moved to %s", tostring(tilemo.shots.dir), dir)
+            next()
+        end
+    end)
+end
+
 -- Start tilemo as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
     tilemo = require("tilemo")
@@ -384,6 +442,10 @@ smoke_timer = hs.timer.doAfter(3, function()
     end
     say("dashboard opened and closed")
     check_failing_helper(function()
-        wait_for_bar(check_tiling)
+        check_screenshot(function()
+            check_moved_screenshot(function()
+                wait_for_bar(check_tiling)
+            end)
+        end)
     end)
 end)

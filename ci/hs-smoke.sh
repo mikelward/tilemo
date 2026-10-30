@@ -34,6 +34,13 @@ printf '#!/bin/sh\nPATH="$HOME/scripts:$PATH" exec "$@"\n' >"$HOME/scripts/runen
 mkfifo "$HOME/scripts/tilemo-smoke-go"
 printf '#!/bin/sh\nread -r _ <"$HOME/scripts/tilemo-smoke-go"\necho "no such app" >&2\nexit 3\n' >"$HOME/scripts/tilemo-smoke-fail"
 chmod +x "$HOME/scripts/runenv" "$HOME/scripts/tilemo-smoke-fail"
+
+# Screenshots go to a folder of their own, straight away rather than after
+# the floating thumbnail, so the smoke test can find tilemo's.
+shots=$(mktemp -d)
+defaults write com.apple.screencapture location "$shots"
+defaults write com.apple.screencapture show-thumbnail -bool false
+killall SystemUIServer 2>/dev/null || true
 cat >"$hs_dir/init.lua" <<LUA
 TILEMO_SMOKE_OUT = "$out"
 local ok, err = xpcall(dofile, debug.traceback, "$repo/ci/hs_smoke.lua")
