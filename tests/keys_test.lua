@@ -117,7 +117,7 @@ t.test("is_super wants exactly Super's modifiers, Shift aside", function()
     t.eq(keys.is_super(keys.KARABINER, { alt = true }), false)
 end)
 
-t.test("the Print keys take macOS's own screenshots, to the clipboard", function()
+t.test("the Print keys take macOS's own screenshots, saved to Screenshot's folder", function()
     local kinds = {}
     for _, b in ipairs(keys.plain) do
         t.eq(b.key, "f13")
@@ -135,8 +135,9 @@ t.test("the Print keys take macOS's own screenshots, to the clipboard", function
     end
     t.eq(super_print, "region")
     for kind, k in pairs(keys.SCREENSHOT) do
-        -- Ctrl sends the shot to the clipboard rather than a file.
-        t.eq(table.concat(k.mods, "+"), "cmd+ctrl+shift", kind)
+        -- Without Ctrl, macOS saves the shot to a file; tilemo copies it
+        -- to the clipboard from there (shots.lua).
+        t.eq(table.concat(k.mods, "+"), "cmd+shift", kind)
     end
     t.eq(keys.SCREENSHOT.screen.key, "3")
     t.eq(keys.SCREENSHOT.region.key, "4")

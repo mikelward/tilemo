@@ -215,7 +215,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
 | Idle: dim, lock, off, suspend (tide §10) | Energy and Lock Screen settings; `caffeinate` or an IOPM assertion to keep awake | **partial**: system timings |
 | Lock = login, short hostname | macOS lock and login | **partial**: no hostname |
-| Screenshots, to the clipboard and a folder (tide §13) | macOS's own screenshot keys on tide's Print keys (§10) | **partial**: the clipboard or a folder, not both |
+| Screenshots, to the clipboard and a folder (tide §13) | macOS's own screenshot keys on tide's Print keys, and a watcher that copies each saved shot (§10) | **yes**, with macOS's file names |
 | Meet: share a 16:9 slice of an ultrawide (tide §12) | ScreenCaptureKit can share a region *(unverified in Meet)* | **partial** |
 | Light and dark by time (tide §15) | Appearance › Auto follows the sun; a fixed 07:00–19:00 needs a scheduled job | **yes**, with a job |
 | US Dvorak | native input source | **yes** |
@@ -1015,14 +1015,24 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   them (§7.2). tilemo presses macOS's screenshot keys rather than running
   `screencapture`, because a capture an app starts needs Screen Recording
   for that app, while macOS's own keys need nothing (§11.1):
-  - screen: Ctrl+Cmd+Shift+3; region: Ctrl+Cmd+Shift+4; window: the same,
-    then Space;
-  - the Ctrl variants put the shot on the clipboard, as tilemo's did before.
-  - tide also saves each shot to `~/Pictures/Screenshots`. macOS does one or
-    the other per shot, so tilemo keeps the clipboard; dropping Ctrl would
-    save to the folder set in Screenshot's options instead.
+  - screen: Cmd+Shift+3; region: Cmd+Shift+4; window: the same, then
+    Space;
+  - those save the shot to the folder in Screenshot's options, and tilemo
+    puts each new one there on the clipboard too, so a shot is both, as on
+    tide (`shots.lua`). It watches the folder and copies each new image
+    macOS tagged as a screen capture (Spotlight's `kMDItemIsScreenCapture`
+    extended attribute), whatever its name, which macOS translates and
+    Screenshot's options can change. So one taken with macOS's keys
+    directly is copied as well. Files already in the folder when tilemo
+    starts stay off the clipboard when they're edited. When Screenshot's
+    options move the folder, tilemo watches the new one, as CI's smoke test
+    checks. The Ctrl variants would put a shot on the clipboard alone.
+  - `setup-macos` sets that folder to `~/Pictures/Screenshots`, tide's, and
+    turns off the floating thumbnail, which holds a shot back from the
+    folder until it goes. Without that, shots go to the Desktop, and
+    Hammerspoon asks once for access to it.
   - Pressing the keys is a synthetic key event, which Accessibility already
-    covers *(unverified that macOS honors it for its screenshot keys)*.
+    covers. CI's smoke test shows macOS takes the shot from it, on macOS 15.
 - **Mouse** (conf `hyprland.lua`, tide §16):
   - Speed at the fastest, with acceleration left on: tide found a flat
     curve felt wrong. `com.apple.mouse.scaling` goes beyond the slider

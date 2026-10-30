@@ -88,14 +88,15 @@ M.plain = {
     { mods = { "shift" }, key = "f13", action = "screenshot", arg = "region" },
 }
 
--- macOS's own screenshot keys, to the clipboard (the Ctrl variants), so
--- tilemo needs no Screen Recording permission of its own (SPEC.md §10). A
+-- macOS's own screenshot keys, so tilemo needs no Screen Recording
+-- permission of its own (SPEC.md §10). They save the shot to Screenshot's
+-- folder, and tilemo copies it to the clipboard from there (shots.lua). A
 -- window is the region picker with Space pressed, as macOS has no key for
 -- it.
 M.SCREENSHOT = {
-    screen = { mods = { "cmd", "ctrl", "shift" }, key = "3" },
-    region = { mods = { "cmd", "ctrl", "shift" }, key = "4" },
-    window = { mods = { "cmd", "ctrl", "shift" }, key = "4", ["then"] = "space" },
+    screen = { mods = { "cmd", "shift" }, key = "3" },
+    region = { mods = { "cmd", "shift" }, key = "4" },
+    window = { mods = { "cmd", "shift" }, key = "4", ["then"] = "space" },
 }
 
 -- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.

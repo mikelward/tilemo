@@ -110,11 +110,12 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
   app key opens another window, as on tide. A helper that fails says so in a
   notification. Super+T opens a new kitty window, by bundle ID. Reversible:
   `keys.APPS`.
-- **Screenshots go to the clipboard only.** They press macOS's own
-  screenshot keys, so tilemo needs no Screen Recording permission; tide also
-  saves each to `~/Pictures/Screenshots` (SPEC.md §10), and macOS does one
-  or the other. Reversible: drop Ctrl from `keys.SCREENSHOT` to save to
-  Screenshot's folder instead.
+- **Screenshots are saved and copied** (SPEC.md §10): macOS's own keys save
+  each to Screenshot's folder, and tilemo copies each new file there that
+  macOS tagged as a screen capture to the clipboard, so a shot taken with
+  macOS's keys directly is copied too. They keep macOS's names ("Screenshot … at ….png"), not
+  tide's `YYYY-MM-DD_HH-MM-SS.png`. Reversible: put Ctrl back in
+  `keys.SCREENSHOT` and drop the watcher for the clipboard alone.
 - **Do Not Disturb runs a Shortcuts shortcut** named "Toggle Do Not
   Disturb", which you make once; macOS has no public switch for Focus.
   Reversible: `launcher_hs.lua`'s `QUICK.dnd`.
