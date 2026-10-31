@@ -23,6 +23,32 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    `setup-macos --wm tilemo` in scripts installs Hammerspoon and tilemo, frees
    the keys in SPEC.md §7.3, and hides the menu bar for tilemo's bar.
 
+## Settings pages, for parity with tide
+
+tide has 17 settings pages (tide SPEC.md §16); tilemo's settings window has
+Clocks, Start at login, Clipboard and the muted list (SPEC.md §15). The
+pages macOS covers (Idle, Sound, Network, Bluetooth, Displays, Power,
+Mouse, Touchpad, Keyboard) are the launcher's System Settings rows. The
+rest, in order:
+
+1. **Layouts.** Read tide's `layouts.json` and `layouts.local.json` in
+   place of `start()`'s `layout`, then a Layouts section as tide's page:
+   where ultrawide begins, the mode a new workspace starts in, each mode's
+   `mfact` and master count, a lone window's width, and where a new window
+   goes.
+2. **Workspaces.** Read `standing` and `inApps` from tide's
+   `workspaces.json` in place of `start()`'s `workspaces` and `home_apps`
+   (`inApps` naming Mac apps as well as tide's), then one Workspaces
+   section for the standing workspaces, home's apps, the name patterns
+   and the muted list.
+3. **Keys.** List tilemo's bindings from `keys.lua`, as tide's page lists
+   Hyprland's, and any key that failed to register.
+4. **Setup checklist and permissions** (SPEC.md §10, §11): each
+   permission's state, and deep links to the System Settings panes the
+   checklist names.
+5. **Appearance**, if anything's left for it: the dim's strength, once the
+   dim is built (SPEC.md §5.6), and a link to Appearance's own pane.
+
 ## Named workspaces
 
 SPEC.md now has named workspaces in place of the nine numbered ones, and
