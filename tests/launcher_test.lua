@@ -266,6 +266,49 @@ t.test("a tab finds its tilemo window by its browser and its window's name, if j
     t.eq(launcher.tab_window(tab, "com.google.Chrome", windows), nil, "two alike: neither")
 end)
 
+t.test("Brave's tabs are asked for as Chrome's are, by its own name", function()
+    local names = {}
+    for _, b in ipairs(launcher.BROWSERS) do
+        names[#names + 1] = b.name .. "=" .. b.bundle
+    end
+    t.eq(names, { "Google Chrome=com.google.Chrome", "Brave Browser=com.brave.Browser", "Safari=com.apple.Safari" })
+    local brave = launcher.browser("Brave Browser")
+    local script = launcher.tab_script(brave)
+    t.eq(script:find('tell application "Brave Browser"', 1, true) ~= nil, true)
+    t.eq(script, (launcher.tab_script(launcher.browser("Google Chrome")):gsub("Google Chrome", "Brave Browser")), "Chrome's, renamed")
+    t.eq(script:find("active tab index of window w", 1, true) ~= nil, true)
+    t.eq(script:find("(title of tab t of window w)", 1, true) ~= nil, true)
+    t.eq(launcher.browser("Firefox"), nil, "no AppleScript tabs")
+end)
+
+t.test("Safari's tabs are its current tab and its tabs' names", function()
+    local script = launcher.tab_script(launcher.browser("Safari"))
+    t.eq(script:find('tell application "Safari"', 1, true) ~= nil, true)
+    t.eq(script:find("index of current tab of window w", 1, true) ~= nil, true)
+    t.eq(script:find("(name of tab t of window w)", 1, true) ~= nil, true)
+end)
+
+t.test("a chosen tab is brought forward in its window by id, in its browser's words", function()
+    local item = { window = 2, window_id = 4021, tab = 3 }
+    local brave = launcher.open_tab_script(launcher.browser("Brave Browser"), item)
+    t.eq(brave:find('tell application "Brave Browser"', 1, true) ~= nil, true)
+    t.eq(brave:find("set active tab index of window id 4021 to 3", 1, true) ~= nil, true)
+    t.eq(brave:find("set minimized of window id 4021 to false", 1, true) ~= nil, true)
+    t.eq(brave:find("set index of window id 4021 to 1", 1, true) ~= nil, true)
+    local safari = launcher.open_tab_script(launcher.browser("Safari"), item)
+    t.eq(safari:find("set current tab of window id 4021 to tab 3 of window id 4021", 1, true) ~= nil, true)
+    t.eq(safari:find("set miniaturized of window id 4021 to false", 1, true) ~= nil, true)
+    local old = launcher.open_tab_script(launcher.browser("Google Chrome"), { window = 2, tab = 1 })
+    t.eq(old:find("set active tab index of window 2 to 1", 1, true) ~= nil, true, "no id: by number")
+end)
+
+t.test("Brave's tabs parse as Chrome's do and find Brave's windows", function()
+    local list = launcher.parse_tabs("Brave Browser", "1\t1\t1\t77\tDocs - Brave\thttps://docs.example.com/\tDocs\n")
+    t.eq(list[1].browser, "Brave Browser")
+    local windows = { { id = 5, app = "com.brave.Browser", title = "Docs - Brave", ws = "web" } }
+    t.eq(launcher.tab_window(list[1], launcher.browser("Brave Browser").bundle, windows).id, 5)
+end)
+
 t.test("a window's and a tab's subtitles name their workspace", function()
     t.eq(launcher.subtitle({ kind = "window", app = "Mail", ws = "in" }), "Mail · in")
     t.eq(launcher.subtitle({ kind = "window", ws = "in" }), "in")

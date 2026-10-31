@@ -194,7 +194,71 @@ local function host(url)
     return (url or ""):match("^%a[%w+.-]*://([^/?#]+)")
 end
 
--- A browser's tabs from TAB_SCRIPTS' output, one per line: window index,
+-- The browsers whose tabs the Windows tab lists (SPEC.md §9), by the name
+-- AppleScript knows them by. Brave carries Chromium's AppleScript
+-- dictionary, so it's asked as Chrome is.
+M.BROWSERS = {
+    { name = "Google Chrome", bundle = "com.google.Chrome", chromium = true },
+    { name = "Brave Browser", bundle = "com.brave.Browser", chromium = true },
+    { name = "Safari", bundle = "com.apple.Safari" },
+}
+
+-- The browser named `name` in M.BROWSERS, or nil.
+function M.browser(name)
+    for _, b in ipairs(M.BROWSERS) do
+        if b.name == name then
+            return b
+        end
+    end
+    return nil
+end
+
+-- The AppleScript that lists browser `b`'s tabs, one per line, as
+-- M.parse_tabs reads them.
+function M.tab_script(b)
+    local front = b.chromium and "active tab index of window w" or "index of current tab of window w"
+    local title = b.chromium and "title" or "name"
+    return ([[
+        set out to ""
+        tell application "%s"
+            repeat with w from 1 to count windows
+                set n to name of window w
+                set i to id of window w
+                set a to %s
+                repeat with t from 1 to count tabs of window w
+                    set f to 0
+                    if t is a then set f to 1
+                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (%s of tab t of window w) & linefeed
+                end repeat
+            end repeat
+        end tell
+        return out]]):format(b.name, front, title)
+end
+
+-- The AppleScript that brings tab `item` (M.parse_tabs') of browser `b` to
+-- the front, restoring its window if it's minimized. The window is named by
+-- its id, which stays put, not its number, its place front to back, which
+-- changes as soon as anything raises a window, such as tilemo going to it.
+function M.open_tab_script(b, item)
+    local win = item.window_id and ("window id %d"):format(item.window_id) or ("window %d"):format(item.window)
+    local set, restore
+    if b.chromium then
+        set = ("set active tab index of %s to %d"):format(win, item.tab)
+        restore = ("set minimized of %s to false"):format(win)
+    else
+        set = ("set current tab of %s to tab %d of %s"):format(win, item.tab, win)
+        restore = ("set miniaturized of %s to false"):format(win)
+    end
+    return ([[
+        tell application "%s"
+            %s
+            %s
+            set index of %s to 1
+            activate
+        end tell]]):format(b.name, set, restore, win)
+end
+
+-- A browser's tabs from M.tab_script's output, one per line: window index,
 -- tab index, 1 if it's the window's front tab or else 0, the window's id,
 -- its name, the tab's address and its title, separated by tabs. Returns
 -- { browser, window, tab, active, window_id, window_name, url, title }.
