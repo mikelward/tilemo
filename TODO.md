@@ -445,3 +445,13 @@ opens and Tab switches tabs; that a copy from Bitwarden, 1Password or
 Passwords never shows on the Clipboard tab; that Return copies and Cmd+V
 pastes it; that Shift+forward delete forgets an entry; and that emoji draw.
 
+
+## Brave's tabs in the Windows tab
+
+The Windows tab lists Chrome's and Safari's tabs through AppleScript
+(SPEC.md §2.5). Home uses Brave, so ask Brave too: it carries Chromium's
+AppleScript dictionary (`tell application "Brave Browser"`), so the
+Chrome query should work with the app name swapped. Check on a Mac that
+it answers, that macOS asks for Automation for Brave once, and that a
+Brave window's tabs land under its window. Then name it in SPEC.md's
+browser list and the tests.
