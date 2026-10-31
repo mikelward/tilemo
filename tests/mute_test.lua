@@ -339,4 +339,15 @@ t.test("a muted window's focus theft is still handed back, just not marked", fun
     t.eq(wm:attention_windows(), {})
 end)
 
+t.test("an entry typed in Settings is refused if malformed or muted already, saying why", function()
+    local set = mute.parse({ "com.example.chat", "site:chat.example.com" }, "workspaces.json")
+    t.eq(mute.add_problem(set, "com.example.mail"), nil)
+    t.eq(mute.add_problem(set, "site:mail.example.com"), nil)
+    t.eq(mute.add_problem(set, "com.example.chat"), "com.example.chat is muted already")
+    t.eq(mute.add_problem(set, "site:Chat.Example.com"), "chat.example.com is muted already", "a site ignoring case")
+    t.eq(mute.add_problem(set, ""), "type an app's bundle id, or site: and a host")
+    t.eq(mute.add_problem(set, "com.example chat"), "\"com.example chat\" has a space in it")
+    t.eq(mute.add_problem(set, "site:https://x.example.com/a"), "\"site:https://x.example.com/a\" has more than a host after site: (a scheme, a path or a port)")
+end)
+
 t.done("mute")

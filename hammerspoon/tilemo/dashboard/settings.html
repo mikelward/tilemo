@@ -112,8 +112,12 @@ body.settings {
 <p class="error" id="clipboard-error" role="alert"></p>
 <p class="note">The picker's history, on Super+C, shared with tide's clipboard.json. It's kept in memory, so it starts empty at each login. Turning it off keeps what's there until it's cleared.</p>
 <h1 id="muted">Muted</h1>
-<p class="note">Apps and sites that are never marked for attention. Mute one with Cmd+M, or a right-click, on its row in the switcher's Windows or Attention tab. macOS still shows their banners: turn those off in Notifications settings.</p>
+<p class="note">Apps and sites that are never marked for attention. Mute one with Cmd+M, or a right-click, on its row in the switcher's Windows or Attention tab, or type its bundle id, or site: and a host, below. macOS still shows their banners: turn those off in Notifications settings.</p>
 <ul id="muted-list"></ul>
+<p class="add">
+<input id="add-muted" placeholder="Mute an app's bundle id, or site:host" aria-label="Mute an app or site" spellcheck="false">
+</p>
+<p class="error" id="muted-error" role="alert"></p>
 <script>
 /*TILEMO_SCRIPT*/
 </script>
