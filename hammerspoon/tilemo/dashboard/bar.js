@@ -148,6 +148,7 @@ const PATHS = {
   speaker: `<path d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z"/>`,
   waves: [`<path d="M10.5 6.5a2 2 0 0 1 0 3"/>`, `<path d="M12 5a4 4 0 0 1 0 6"/>`, `<path d="M13.5 3.5a6.4 6.4 0 0 1 0 9"/>`],
   speakerOff: `<path d="M11 6.5l3 3M14 6.5l-3 3"/>`,
+  bluetooth: `<path d="M4.5 5l7 6-3.5 3V2l3.5 3-7 6"/>`,
   headphones: `<path d="M2.5 11V8.5a5.5 5.5 0 0 1 11 0V11"/><rect x="2" y="9.5" width="3" height="4.5" rx="1"/><rect x="11" y="9.5" width="3" height="4.5" rx="1"/>`,
   camera: `<rect x="1.5" y="4.5" width="9" height="7" rx="1.5"/><path d="M10.5 7.2l4-2.2v6l-4-2.2"/>`,
   arcs: [`<path d="M6 10.6a2.8 2.8 0 0 1 4 0"/>`, `<path d="M4 8.5a5.7 5.7 0 0 1 8 0"/>`, `<path d="M2 6.4a8.5 8.5 0 0 1 12 0"/>`],
@@ -228,6 +229,12 @@ function renderIcons(box, icons) {
     const muted = !!icons.mic.muted;
     const art = svg(PATHS.mic + (muted ? SLASH : ""));
     box.append(icon("mic", muted ? "Microphone muted" : "Microphone", { toggle: "mic" }, art, muted ? "muted" : "on"));
+  }
+  // Bluetooth: one glyph, faint while off, as tide's; a click opens
+  // Bluetooth settings.
+  if (icons.bluetooth) {
+    const on = !!icons.bluetooth.on;
+    box.append(icon("bluetooth", on ? "Bluetooth on" : "Bluetooth off", { open: "bluetooth" }, svg(PATHS.bluetooth), on ? "on" : "off"));
   }
   // Each connected Bluetooth audio device, named on hover; a click opens
   // Bluetooth settings.
