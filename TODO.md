@@ -75,13 +75,6 @@ bottom-right corner. To do, not built:
 - **Check on a Mac:** that a click on the tray leaves focus where it was,
   and that the tip shows while another app is in front.
 
-## The bar's workspace strip
-
-**Decided** (SPEC.md §8, §14.2): a chip is its name alone, plus the app
-icon of each window there wanting attention, which a click focuses. The
-menu bar item and the dashboard already show names alone. To do, not
-built: `bar.lua`'s state and `bar.js`'s chips, and the mocks.
-
 ## Launcher looks
 
 - **Try tileco's launcher page.** The launcher is `hs.chooser` with

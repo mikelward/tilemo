@@ -2,7 +2,8 @@
 // the workspaces left, the focused window's title in the middle, and the
 // clocks and status icons right. tilemo fills it with tilemo.update(state) and
 // hears back through the "tilemo" message handler: { uuid, show: n },
-// { uuid, step: 1 or -1 }, { open: "battery" | "wifi" | "network" },
+// { uuid, step: 1 or -1 }, { uuid, focus: window id } from an attention icon,
+// { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 },
 // { dashboard: true }, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
@@ -50,8 +51,9 @@ function shortName(name) {
   return chars.length > NAME_MAX ? chars.slice(0, NAME_MAX).join("") + "…" : chars.join("");
 }
 
-// Each chip is its name, then one icon per window (tilemo sends at most
-// five, and how many more as `more`), as tide's are. An app with no icon
+// Each chip is its name, then the app icon of each window there wanting
+// attention (tilemo sends at most five, their ids in `wins`, and how many
+// more as `more`), which a click focuses (SPEC.md §8). An app with no icon
 // shows as a blank square of the same size, so the count still reads.
 function renderWorkspaces(nav, workspaces, appIcons = {}) {
   nav.replaceChildren();
@@ -62,17 +64,26 @@ function renderWorkspaces(nav, workspaces, appIcons = {}) {
     b.type = "button";
     b.title = String(w.n);
     b.append(el("span", "n", shortName(w.n)));
-    for (const app of w.apps || []) {
+    const wins = w.wins || [];
+    (w.apps || []).forEach((app, i) => {
       const url = appIcons[app];
+      let icon;
       if (url) {
-        const img = el("img", "app");
-        img.src = url;
-        img.alt = "";
-        b.append(img);
+        icon = el("img", "app");
+        icon.src = url;
+        icon.alt = "";
       } else {
-        b.append(el("span", "app none"));
+        icon = el("span", "app none");
       }
-    }
+      if (wins[i] !== undefined) {
+        icon.addEventListener("click", (e) => {
+          // The window, not the chip's workspace.
+          e.stopPropagation();
+          send({ focus: wins[i] });
+        });
+      }
+      b.append(icon);
+    });
     if (w.more > 0) b.append(el("span", "more", `+${w.more}`));
     // A field tilemo left out is false: toggle(name, undefined) would flip it.
     for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, !!w[k]);

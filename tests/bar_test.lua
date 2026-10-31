@@ -75,7 +75,8 @@ t.test("each display's bar marks its own workspace, and the title shows on the f
         elsewhere = false,
         occupied = true,
         urgent = false,
-        apps = { "com.example.app" },
+        apps = {},
+        wins = {},
         more = 0,
     })
     t.eq(sa.workspaces[2].n, "2")
@@ -154,37 +155,69 @@ t.test("a bar's clocks, kept while a file is wrong, go to Hammerspoon", function
     t.eq(kept, { { zone = "Asia/Tokyo", label = "TYO" } })
 end)
 
-t.test("a chip names its windows' apps in layout order, up to five, then how many more", function()
+t.test("a chip shows no app icons for windows that don't want attention", function()
     local a, wm = two_displays()
-    for id = 2, 7 do
+    for id = 2, 4 do
         a.add(id, { app = "app" .. id })
     end
-    a.add(8, { app = "float", frame = { x = 300, y = 300, w = 200, h = 200 } })
     wm:sync()
-    wm.windows[8].floating = true
+    local asked = 0
+    local s = bar.state(wm, "A", "", {}, function()
+        asked = asked + 1
+        return "data:x"
+    end)
+    t.eq(s.workspaces[1].occupied, true)
+    t.eq(s.workspaces[1].apps, {})
+    t.eq(s.workspaces[1].more, 0)
+    t.eq(asked, 0, "no icon is made for a chip that shows none")
+    t.eq(s.app_icons, {})
+end)
+
+t.test("a chip names its windows wanting attention, in layout order, up to five, then how many more", function()
+    local a, wm = two_displays()
+    for id = 2, 8 do
+        a.add(id, { app = "app" .. id })
+    end
+    a.add(9, { app = "float", frame = { x = 300, y = 300, w = 200, h = 200 } })
+    wm:sync()
+    wm.windows[9].floating = true
     wm:retile()
+    -- All but window 3 want attention, marked in no particular order.
+    for _, id in ipairs({ 9, 5, 1, 2, 8, 4, 7, 6 }) do
+        wm.attention:activated(id, wm.windows[id].app)
+    end
     local seen = {}
     local s = bar.state(wm, "A", "", {}, function(app)
         seen[#seen + 1] = app
-        return app ~= "app3" and ("data:" .. app) or nil
+        return app ~= "app4" and ("data:" .. app) or nil
     end)
-    local order = {}
-    for i, id in ipairs(wm.workspaces["in"].order) do
-        if i <= bar.CHIP_APPS then
-            order[i] = wm.windows[id].app
+    local wins, apps = {}, {}
+    for _, id in ipairs(wm.workspaces["in"].order) do
+        if id ~= 3 and #wins < bar.CHIP_APPS then
+            wins[#wins + 1] = id
+            apps[#apps + 1] = wm.windows[id].app
         end
     end
-    t.eq(s.workspaces[1].apps, order)
-    t.eq(#s.workspaces[1].apps, 5)
-    t.eq(s.workspaces[1].more, 3)
+    t.eq(s.workspaces[1].wins, wins)
+    t.eq(s.workspaces[1].apps, apps)
+    t.eq(s.workspaces[1].more, 3, "two more tiles and the float")
     t.eq(s.workspaces[2].apps, {})
-    t.eq(s.workspaces[2].more, 0)
     -- Icons only for the apps shown, each asked for once.
     t.eq(#seen, 5)
-    for _, app in ipairs(order) do
-        t.eq(s.app_icons[app], app ~= "app3" and ("data:" .. app) or false)
+    for _, app in ipairs(apps) do
+        t.eq(s.app_icons[app], app ~= "app4" and ("data:" .. app) or false)
     end
     t.eq(s.app_icons.float, nil)
+end)
+
+t.test("a badged app's icon shows on the chip of its last used window", function()
+    local a, wm = two_displays()
+    a.add(2, { app = "chat" })
+    wm:sync()
+    wm.attention:dock({ { app = "chat", label = "2" } })
+    local s = bar.state(wm, "A", "", {})
+    t.eq(s.workspaces[1].apps, { "chat" })
+    t.eq(s.workspaces[1].wins, { 2 })
 end)
 
 t.test("floats follow a workspace's tiles in its chip", function()
@@ -192,7 +225,37 @@ t.test("floats follow a workspace's tiles in its chip", function()
     a.add(2, { app = "float" })
     wm:sync()
     wm.windows[2].floating = true
+    wm.attention:activated(2, "float")
+    wm.attention:activated(1, "com.example.app")
     t.eq(bar.state(wm, "A", "", {}).workspaces[1].apps, { "com.example.app", "float" })
+end)
+
+t.test("clicking an attention icon focuses its window, bringing a hidden workspace to that bar's display", function()
+    local a, wm = two_displays()
+    a.focus_ = 1
+    wm:send(1, "web")
+    wm:sync()
+    wm:reconcile()
+    t.eq(wm:shown("web"), nil)
+    wm.attention:activated(1, "com.example.app")
+    -- From JSON, the id may come back as a float.
+    bar.handle(wm, { uuid = "B", focus = 1.0 }, {})
+    t.eq(wm:shown("web"), "B")
+    t.eq(a.focus_, 1)
+end)
+
+t.test("clicking an attention icon leaves a workspace where it shows", function()
+    local a, wm = two_displays()
+    a.add(2, { app = "chat" })
+    wm:sync()
+    wm:reconcile()
+    a.focus_ = 1
+    bar.handle(wm, { uuid = "B", focus = 2 }, {})
+    t.eq(wm:shown("in"), "A")
+    t.eq(a.focus_, 2)
+    -- A window that's gone does nothing.
+    bar.handle(wm, { uuid = "B", focus = 99 }, {})
+    t.eq(a.focus_, 2)
 end)
 
 t.test("the bar hides on a display while a window there is in tilemo's full screen", function()
