@@ -76,6 +76,7 @@ const ws = [
     occupied: true,
     urgent: true,
     apps: ["com.a", "com.b", "com.a", "com.c", "com.d"],
+    wins: [11, 12, 13, 14, 15],
     more: 2,
   },
 ];
@@ -103,7 +104,8 @@ assert.strictEqual(
   "every workspace, by name, a long one cut",
 );
 assert.strictEqual(chips[3].title, "ABC-123 fix the login page", "the whole name on hover");
-// A chip's name, then one icon per window, then how many more.
+// A chip's name, then one icon per window wanting attention, then how many
+// more.
 const parts = chips[3].children;
 assert.deepStrictEqual(
   parts.map((c) => c.tag + "." + c.className),
@@ -150,6 +152,12 @@ assert.strictEqual(byName.battery.children[0].textContent, "15%");
 assert.strictEqual(ids.clocks.classList.contains("compact"), false);
 
 chips[2].listeners.click();
+// An attention icon focuses its window, and the chip doesn't also show its
+// workspace.
+let stopped = false;
+parts[3].listeners.click({ stopPropagation: () => (stopped = true) });
+assert.ok(stopped, "the click stays with the icon");
+parts[4].listeners.click({ stopPropagation() {} });
 byName.wifi.listeners.click();
 ids.clocks.listeners.click();
 ids.title.listeners.dblclick();
@@ -170,6 +178,8 @@ assert.strictEqual(
   JSON.stringify(sent.filter((m) => !m.goodClocks)),
   JSON.stringify([
     { uuid: "B", show: "docs" },
+    { uuid: "B", focus: 13 },
+    { uuid: "B", focus: 14 },
     { uuid: "B", open: "wifi" },
     { uuid: "B", dashboard: true },
     { uuid: "B", maximize: true },

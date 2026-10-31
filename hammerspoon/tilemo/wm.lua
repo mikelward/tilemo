@@ -1341,8 +1341,9 @@ function M:send(id, name, defer)
 end
 
 -- Bring a window forward, with its workspace if that isn't showing: app
--- keys, Super+Tab, Cmd+Tab, a Dock click, a notification.
-function M:activate(id)
+-- keys, Super+Tab, Cmd+Tab, a Dock click, a notification. A hidden
+-- workspace comes to display `uuid` if given, else where the keys act.
+function M:activate(id, uuid)
     local w = self.windows[id]
     if not w or not w.ws then
         return
@@ -1352,7 +1353,7 @@ function M:activate(id)
         local list = self.mru[w.ws]
         remove_value(list, id)
         table.insert(list, 1, id)
-        self:show(w.ws)
+        self:show(w.ws, uuid)
     else
         self:reconcile()
         self:retile()

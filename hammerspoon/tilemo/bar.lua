@@ -61,13 +61,13 @@ function M.below(area, h)
     return { x = area.x, y = area.y + h, w = area.w, h = math.max(0, area.h - h) }
 end
 
--- tide's chips show one app icon per window, up to this many, then "+n"
--- (tide §7.1).
+-- A chip shows the app icon of each window there wanting attention, up to
+-- this many, then "+n" (SPEC.md §8).
 M.CHIP_APPS = 5
 
--- Workspace `n`'s windows' apps, one per window: its tiles in layout order,
--- then its other windows (floats) by id, so the icons don't shuffle.
-local function apps_of(wm, n)
+-- Workspace `n`'s windows: its tiles in layout order, then its other
+-- windows (floats) by id, so the icons don't shuffle.
+local function windows_of(wm, n)
     local ids, seen = {}, {}
     local ws = wm.workspaces[n]
     for _, id in ipairs(ws and ws.order or {}) do
@@ -88,28 +88,37 @@ local function apps_of(wm, n)
     for _, id in ipairs(rest) do
         ids[#ids + 1] = id
     end
-    local apps = {}
-    for _, id in ipairs(ids) do
-        apps[#apps + 1] = wm.windows[id].app or ""
-    end
-    return apps
+    return ids
 end
 
 -- What display `uuid`'s bar shows: the workspaces as seen from there, each
--- with its windows' apps, the focused window's title on the display that
--- window is on, and the status icons (icons()). `title` is the focused
--- window's title. `icon_of(app)`, if given, gives an app's icon as a data
--- URL, sent once per app in `app_icons` rather than once per window.
+-- by name, with the apps of its windows wanting attention (SPEC.md §8) in
+-- `apps` and those windows' ids in `wins`, the focused window's title on
+-- the display that window is on, and the status icons (icons()). `title`
+-- is the focused window's title. `icon_of(app)`, if given, gives an app's
+-- icon as a data URL, sent once per app in `app_icons` rather than once per
+-- window.
 function M.state(wm, uuid, title, icons, icon_of)
     local ws = {}
     local app_icons = {}
+    local wanting = {}
+    for _, id in ipairs(wm:attention_windows()) do
+        wanting[id] = true
+    end
     for i, s in ipairs(wm:bar_state(uuid)) do
-        local all = apps_of(wm, s.name)
-        local apps = {}
+        local all = {}
+        for _, id in ipairs(windows_of(wm, s.name)) do
+            if wanting[id] then
+                all[#all + 1] = id
+            end
+        end
+        local apps, wins = {}, {}
         for i = 1, math.min(#all, M.CHIP_APPS) do
-            apps[i] = all[i]
-            if icon_of and all[i] ~= "" and app_icons[all[i]] == nil then
-                app_icons[all[i]] = icon_of(all[i]) or false
+            local app = wm.windows[all[i]].app or ""
+            apps[i] = app
+            wins[i] = all[i]
+            if icon_of and app ~= "" and app_icons[app] == nil then
+                app_icons[app] = icon_of(app) or false
             end
         end
         ws[i] = {
@@ -119,6 +128,7 @@ function M.state(wm, uuid, title, icons, icon_of)
             occupied = s.occupied or false,
             urgent = s.urgent or false,
             apps = apps,
+            wins = wins,
             more = math.max(0, #all - M.CHIP_APPS),
         }
     end
@@ -348,9 +358,22 @@ M.PANES = {
     network = "x-apple.systempreferences:com.apple.Network-Settings.extension",
 }
 
+-- The managed window a page names: ids come back through JSON, which may
+-- not keep a number's Lua subtype.
+local function window_named(wm, id)
+    local n = tonumber(id)
+    for wid in pairs(wm.windows) do
+        if wid == id or (n and tonumber(wid) == n) then
+            -- The window's own key, not the page's copy of it.
+            return wid
+        end
+    end
+end
+
 -- What a message from a bar's page does. Every message names its bar's
 -- display, and acts there, not wherever the keys happen to be: a chip or a
--- scroll on display B's bar shows a workspace on B, its clocks open the
+-- scroll on display B's bar shows a workspace on B, an attention icon on
+-- B's bar brings a hidden workspace to B with its window, its clocks open the
 -- dashboard on B, and a double-click on its title maximizes the focused
 -- window only if that window is on B, where the title shows. `act` holds what needs Hammerspoon: open(url),
 -- dashboard(uuid), toggle(what) and volume(step).
@@ -358,6 +381,11 @@ function M.handle(wm, body, act)
     local uuid = body.uuid
     if body.show then
         wm:show(tostring(body.show), uuid)
+    elseif body.focus ~= nil then
+        local id = window_named(wm, body.focus)
+        if id then
+            wm:activate(id, uuid)
+        end
     elseif body.step and uuid then
         wm:show(M.step(wm, uuid, tonumber(body.step)), uuid)
     elseif body.open then

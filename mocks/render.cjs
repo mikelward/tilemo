@@ -44,9 +44,9 @@ const STATES = [
     state: {
       uuid: "A",
       workspaces: ws([
-        ["in", { current: true, occupied: true, apps: ["mail", "chat"] }],
-        ["tilemo", { occupied: true, apps: ["term", "term"] }],
-        ["ABC-123", { elsewhere: true, occupied: true, apps: ["code"] }],
+        ["in", { current: true, occupied: true, urgent: true, apps: ["chat"] }],
+        ["tilemo", { occupied: true }],
+        ["ABC-123", { elsewhere: true, occupied: true }],
         ["review", { occupied: true, urgent: true, apps: ["web"] }],
       ]),
       title: "Inbox (3) — Mail",
@@ -69,11 +69,11 @@ const STATES = [
     state: {
       uuid: "A",
       workspaces: ws([
-        ["in", { occupied: true, apps: ["mail"] }],
-        ["design doc", { current: true, occupied: true, apps: ["notes"] }],
-        ["dotfiles", { occupied: true, apps: ["term"] }],
-        ["the quarterly planning spreadsheet", { occupied: true, apps: ["web"] }],
-        ["standup", { occupied: true, apps: ["chat"] }],
+        ["in", { occupied: true }],
+        ["design doc", { current: true, occupied: true }],
+        ["dotfiles", { occupied: true }],
+        ["the quarterly planning spreadsheet", { occupied: true }],
+        ["standup", { occupied: true, urgent: true, apps: ["chat"] }],
       ]),
       app_icons: APP_ICONS,
       title: "A very long document title that won't fit in the middle of the bar — Notes",
@@ -87,15 +87,15 @@ const STATES = [
     },
   },
   {
-    // A full workspace: five icons, then how many more, and an app with no
-    // icon as a blank square.
+    // A workspace with many windows wanting attention: five icons, then how
+    // many more, and an app with no icon as a blank square.
     name: "bar-apps",
     width: 1440,
     state: {
       uuid: "A",
       workspaces: ws([
-        ["in", { occupied: true, apps: ["mail"] }],
-        ["src", { current: true, occupied: true, apps: ["term", "web", "code", "term", "unknown"], more: 3 }],
+        ["in", { occupied: true }],
+        ["src", { current: true, occupied: true, urgent: true, apps: ["term", "web", "code", "term", "unknown"], more: 3 }],
       ]),
       title: "~/src — Terminal",
       app_icons: APP_ICONS,
