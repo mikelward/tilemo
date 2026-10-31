@@ -1326,7 +1326,7 @@ tab, the search field naming the tab you're in.
     since only a macOS update changes them.
   - **Workspaces, windows and attention** are tilemo's own state, so they
     cost nothing to list.
-  - **`Cmd+I`, or a right-click,** on a row in the Windows or Attention tab
+  - **`Cmd+M`, or a right-click,** on a row in the Windows or Attention tab
     mutes its app or site, or unmutes it (§14.2).
   - **Browser tabs** come from Chrome and Safari through AppleScript, run
     by `/usr/bin/osascript` as an `hs.task` rather than `hs.osascript`,
@@ -1619,9 +1619,11 @@ Each one names a workaround, or says there is none.
     *(unverified on macOS 26, and it opens the list, not the app's own
     page)*), where the app's banners can be turned off.
 - **Muting takes one key:** in the switcher's Windows and Attention tabs,
-  `Cmd+I` (physical Ctrl+I under `setup-macos`'s rotation) on the selected
-  row, or a right-click on any row, mutes that row's app, or a tab's site.
-  The same on a muted row unmutes it.
+  `Cmd+M` (physical Ctrl+M under `setup-macos`'s rotation, as tide's
+  `Ctrl+M`) on the selected row, or a right-click on any row, mutes that
+  row's app, or a tab's site. The same on a muted row unmutes it.
+  - `Cmd+M` is bound only while the switcher is open, so there it never
+    reaches macOS's minimize, and everywhere else it's left alone.
   - A window's row and an Attention row mute the window's app; a tab's
     row mutes its site.
   - Muted rows say "muted" in their second line.

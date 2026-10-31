@@ -471,4 +471,11 @@ t.test("\"mouse\" and \"mouse settings\" find the Mouse pane, among apps and com
     t.eq(launcher.rank("mouse settings", items, { scope = "launch" })[1].title, "Mouse settings")
 end)
 
+t.test("the switcher's mute key is Cmd+M, physical Ctrl+M as tide's", function()
+    _G.hs = _G.hs or {}
+    local hs_launcher = require("tilemo.launcher_hs")
+    t.eq(hs_launcher.MUTE_KEY.key, "m")
+    t.eq(table.concat(hs_launcher.MUTE_KEY.mods, "+"), "cmd")
+end)
+
 t.done("launcher")

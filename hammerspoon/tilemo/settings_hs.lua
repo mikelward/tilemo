@@ -67,7 +67,7 @@ function M.new(tilemo)
                 end
                 -- The folder's watcher reloads the files, and then this page.
             elseif type(body.unmute) == "string" then
-                -- The same as Cmd+I on a muted row; it refreshes this page.
+                -- The same as Cmd+M on a muted row; it refreshes this page.
                 if not mute.has(tilemo.wm.muted, body.unmute) or tilemo.toggle_mute(body.unmute) == nil then
                     push()
                 end

@@ -162,7 +162,7 @@ end
 -- since tilemo can't hold back macOS's banners *(unverified on macOS 26)*.
 M.NOTIFICATIONS_URL = "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
 
--- What the notice after Cmd+I says: `name` is the app's name or the site.
+-- What the notice after Cmd+M says: `name` is the app's name or the site.
 function M.notice(name, now)
     if now then
         return "Muted " .. name .. ": it won't be marked for attention. macOS still shows its banners;"

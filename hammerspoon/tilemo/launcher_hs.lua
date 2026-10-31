@@ -307,8 +307,11 @@ function QUICK.reload()
 end
 
 -- Mute or unmute the selected row, while the switcher's open: physical
--- Ctrl+I under setup-macos's rotation (SPEC.md §14.2).
-M.MUTE_KEY = { mods = { "cmd" }, key = "i" }
+-- Ctrl+M under setup-macos's rotation, as tide's Ctrl+M (SPEC.md §14.2).
+-- It's bound only while the chooser is open (open_keys), never globally:
+-- there it's taken before macOS's Cmd+M minimize can reach the chooser,
+-- and everywhere else Cmd+M is left as it was.
+M.MUTE_KEY = { mods = { "cmd" }, key = "m" }
 
 -- `tilemo` is the started tilemo module: its wm and adapter.
 function M.new(tilemo)
@@ -389,7 +392,7 @@ function M.new(tilemo)
     -- Command held too, so the modifiers alone can't tell them apart.
     local fresh = false
     -- Keys taken only while the launcher is open, and given back when it
-    -- closes: Cmd+Return, Tab and Shift+Tab.
+    -- closes: Cmd+Return, Tab, Shift+Tab and Cmd+M (M.MUTE_KEY).
     local open_keys = {}
 
     local function set_scope(s)
@@ -423,7 +426,7 @@ function M.new(tilemo)
         chooser:choices(choices(query))
     end)
 
-    -- Cmd+I or a right-click on a row in the Windows or Attention tab
+    -- Cmd+M or a right-click on a row in the Windows or Attention tab
     -- mutes or unmutes its app or site (SPEC.md §14.2), and the rows show
     -- it at once: a muted Attention row goes.
     toggle_mute = function(item)
