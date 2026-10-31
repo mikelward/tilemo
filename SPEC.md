@@ -283,7 +283,10 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 Dialogs must float, and stay in front of the window that opened them.
 Amethyst gets this wrong: it tiles some dialogs, such as autocomplete lists
 (Amethyst#883), and hides others behind their parent (§5.2). tilemo decides
-each new window once, in this order, and the first rule that matches wins:
+each new window once, in this order, and the first rule that matches wins.
+The one exception is a new title: a tile whose title changes in its first
+3 s is decided again, and floats if the rules now say so. A browser's popup
+can open before its page names it, and a title rule needs that name.
 
 1. **Not a window: ignore it.** Sheets (`AXSheet`) are attached to their
    window. Popovers, menus, tooltips and the menu bar aren't `AXWindow`s.
@@ -294,7 +297,10 @@ each new window once, in this order, and the first rule that matches wins:
    since its width is fixed though its height isn't, so step 4 misses it
    and a tile would leave a gap beside it. Notification Center's windows
    are left alone, whatever they report: they're macOS's own, over every
-   window.
+   window. Bitwarden's pop-outs in Chrome and Brave float: its extension
+   asks you to sign in, fill a login or use a passkey in a popup window
+   titled "Bitwarden". The vault's own tab is titled otherwise, and the
+   desktop app is another app.
 3. **A window with no close button, from an app that stays out of the
    Dock, is left alone.** It's part of that app's interface, not a window:
    Control Center's and menu bar apps' panels, Spotlight, the input source
@@ -345,6 +351,12 @@ Chrome's windows, from tileco §5.4 and tide §6.4:
   "Save as". Each reports a dialog or floating subrole, or is a standard
   window of a fixed size *(unverified per kind)*. One that reports
   `AXUnknown` is left alone, as the find bar, tooltips and hover cards are.
+  The popup an extension's button opens is one of those, anchored to the
+  button, and left alone. A pop-out window is another matter: an
+  extension's `chrome.windows.create({ type: "popup" })`, such as
+  Bitwarden's passkey prompt, is a resizable window like any other, and
+  tiles unless a title rule floats it. A site's sign-in popup is likely
+  the same *(unverified)*.
 - **App windows tile:** installed web apps and Secure Shell's terminals
   report as standard windows.
 - **Chrome's own notification popups** appear only when Chrome isn't
@@ -365,6 +377,9 @@ its parent, and stay in front:
 - an Electron app's dialog;
 - a JetBrains IDE's dialog;
 - Finder's Get Info window.
+
+Bitwarden's passkey prompt, signing in to a site with a passkey saved in
+Bitwarden's Chrome extension, must open floating too.
 
 And each of these must be left where its app put it, never moved or
 focused by tilemo: Chrome's find bar (Cmd+F), a tooltip, a link's status

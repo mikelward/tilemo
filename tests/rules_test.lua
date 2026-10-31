@@ -33,6 +33,16 @@ t.test("a fixed-size popup that isn't a standard window is left alone", function
     t.eq(rules.decide(std({ subrole = "AXDialog", size_settable = false })), "float", "a fixed-size dialog still floats")
 end)
 
+-- Its sign-in, autofill and passkey prompts open as a popup window of the
+-- browser, showing the extension's own page, titled "Bitwarden".
+t.test("Bitwarden's pop-outs in Chrome and Brave float, and nothing else of theirs", function()
+    t.eq(rules.decide(std({ app = "com.google.Chrome", title = "Bitwarden" })), "float")
+    t.eq(rules.decide(std({ app = "com.brave.Browser", title = "Bitwarden" })), "float")
+    t.eq(rules.decide(std({ app = "com.google.Chrome", title = "Vaults | Bitwarden Web vault" })), "tile",
+        "the web vault's tab")
+    t.eq(rules.decide(std({ app = "com.bitwarden.desktop", title = "Bitwarden" })), "tile", "the desktop app")
+end)
+
 t.test("Notification Center's windows are left alone, whatever they report", function()
     for _, f in ipairs({
         std({ app = "com.apple.notificationcenterui", title = "Notification Center", size_settable = false }),

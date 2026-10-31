@@ -814,6 +814,29 @@ t.test('"in"\'s apps always open on "in", by app name, wherever you are', functi
     t.eq(a.wins[2].minimized, true, "hidden, since \"in\" isn't showing")
 end)
 
+-- Bitwarden's pop-out from a Chrome window you moved off "in", with Chrome
+-- one of "in"'s apps: untitled, it opens on "in" like any Chrome window.
+t.test("a popup that floats once named joins its parent's workspace, as one named at once does", function()
+    local a = fake.new()
+    a.add(1, { name = "Google Chrome", app = "com.google.Chrome", pid = 200, title = "Amazon" })
+    local wm = wm_mod.new(a, { home_apps = { "Google Chrome" } })
+    wm:sync()
+    wm:reconcile()
+    wm:retile()
+    a.focus_ = 1
+    wm:act("send", "web")
+    wm:act("show", "web")
+    a.add(2, { name = "Google Chrome", app = "com.google.Chrome", pid = 200, title = "" })
+    wm:sync()
+    wm:reconcile()
+    t.eq(wm.windows[2].ws, "in", "a tile, at first")
+    a.clock = a.clock + 1
+    a.wins[2].title = "Bitwarden"
+    wm:retitled(2)
+    t.eq(wm.windows[2].ws, "web")
+    t.eq(a.wins[2].minimized, false, "showing, over its parent")
+end)
+
 t.test('"in"\'s apps are a setting, checked at start', function()
     local a = fake.new()
     a.add(1, { name = "Slack" })
