@@ -2497,6 +2497,25 @@ function A.step(self, d)
     self:show(self:step_from(self.screen_ws[self:current_screen()] or self.home, d))
 end
 
+-- Super+1…9 (SPEC.md §7.2): the Nth workspace in bar order, home first, so
+-- Super+1 is home. Past the last workspace, nothing.
+function A.nth(self, i)
+    local n = self:listed()[i]
+    if n then
+        self:show(n)
+    end
+end
+
+-- Super+Shift+1…9: send the focused window to the Nth workspace in bar
+-- order, with focus staying here, as Super+Shift+N did. Past the last,
+-- nothing.
+function A.send_nth(self, i)
+    local n = self:listed()[i]
+    if n then
+        self:send_keeping_focus(self.a.focused(), n)
+    end
+end
+
 -- Super+Home: the home workspace (SPEC.md §6.1).
 function A.home(self)
     self:show(self.home)

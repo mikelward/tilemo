@@ -92,6 +92,35 @@ t.test("Super+Left and Right step through workspaces in bar order, stopping at t
     t.eq(wm.screen_ws.A, "docs")
 end)
 
+t.test("Super+1…9 show the Nth workspace in bar order, Super+1 home, and past the last nothing", function()
+    local a, wm = setup(2, nil, { workspaces = { "in", "re" } })
+    a.focus_ = 2
+    wm:act("send", "web")
+    t.eq(wm:listed(), { "in", "re", "web" })
+    wm:act("nth", 3)
+    t.eq(wm.screen_ws.A, "web")
+    wm:act("nth", 2)
+    t.eq(wm.screen_ws.A, "re", "a standing workspace, made by going there")
+    wm:act("nth", 1)
+    t.eq(wm.screen_ws.A, "in", "Super+1 is home")
+    wm:act("nth", 4)
+    t.eq(wm.screen_ws.A, "in", "nothing past the last")
+end)
+
+t.test("Super+Shift+1…9 send the window to the Nth workspace, and focus stays here", function()
+    local a, wm = setup(2, nil, { workspaces = { "in", "re" } })
+    wm:focused(1)
+    wm:focused(2)
+    a.focus_ = 2
+    wm:act("send_nth", 2)
+    t.eq(wm.windows[2].ws, "re")
+    t.eq(wm.screen_ws.A, "in")
+    t.eq(a.focus_, 1)
+    a.focus_ = 1
+    wm:act("send_nth", 3)
+    t.eq(wm.windows[1].ws, "in", "nothing past the last")
+end)
+
 t.test("Super+Shift+Right carries the window to the next workspace and follows it", function()
     local a, wm = setup(2, nil, { workspaces = { "in" } })
     a.focus_ = 2

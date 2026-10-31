@@ -183,15 +183,26 @@ t.test("a screenshot action asks the adapter for that kind", function()
     t.eq(table.concat(a.shots, " "), "window screen")
 end)
 
-t.test('Super+Home goes to "in", and Super+1…9 are left out while undecided', function()
+t.test('Super+Home goes to "in", and Super+1…9 and Super+Shift+1…9 count along the bar', function()
     local home
+    local nth, send = {}, {}
     for _, b in ipairs(keys.map) do
         if b.key == "home" then
             home = b.action
         end
-        t.eq(b.key:match("^%d$"), nil, "no digit keys: " .. b.key)
+        if b.key:match("^%d$") then
+            local into = b.shift and send or nth
+            into[tonumber(b.key)] = b
+        end
     end
     t.eq(home, "home")
+    for i = 1, 9 do
+        t.eq(nth[i] and nth[i].action, "nth", "Super+" .. i)
+        t.eq(nth[i] and nth[i].arg, i, "Super+" .. i)
+        t.eq(send[i] and send[i].action, "send_nth", "Super+Shift+" .. i)
+        t.eq(send[i] and send[i].arg, i, "Super+Shift+" .. i)
+    end
+    t.eq(nth[0], nil, "no Super+0")
 end)
 
 t.test("the switcher's keys open it on their own tabs, and Super+Tab, End and Return have their new jobs", function()

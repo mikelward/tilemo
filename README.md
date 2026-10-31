@@ -24,8 +24,10 @@ It brings tide's desktop to macOS:
   apps, a lone Super tap on workspaces and Super+A on attention (§9);
 - Super+Return to go to a workspace by name and Super+Shift+Return to move
   a window to one, Super+Tab to flip between "in" and the last workspace,
-  Super+End to the last one other than "in", and Alt+Tab to swap with the master, with conf's Karabiner rule
-  (§7.2);
+  Super+End to the last one other than "in", Super+1…9 to the Nth
+  workspace on the bar (Super+1 is "in") and Super+Shift+1…9 to send a
+  window there, and Alt+Tab to swap with the master, with conf's Karabiner
+  rule (§7.2);
 - tide's bar along the top: the workspaces, the window's title, the clocks
   and tilemo's own status items (input source, keep awake, camera,
   microphone, Bluetooth on or off with `blueutil`, Bluetooth headphones,
