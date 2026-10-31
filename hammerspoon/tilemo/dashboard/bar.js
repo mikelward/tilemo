@@ -215,8 +215,10 @@ function renderIcons(box, icons) {
     b.append(el("span", "text", "Presenting"));
     box.append(b);
   } else if (icons.awake) {
+    // Its tip says what it's doing, in the sign's words (presenter.lua's
+    // awake_sign), as tide's hover does.
     const on = !!icons.awake.on;
-    box.append(icon("awake", on ? "Keeping awake" : "Keep awake", { toggle: "awake" }, svg(PATHS.awake), on ? "on" : "off"));
+    box.append(icon("awake", on ? "Keeping awake" : "Not keeping awake", { toggle: "awake" }, svg(PATHS.awake), on ? "on" : "off"));
   }
   if (icons.camera) {
     const c = el("span", "icon camera");

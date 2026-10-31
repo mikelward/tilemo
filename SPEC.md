@@ -1351,8 +1351,11 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - input source: `hs.keycodes`, a short label for the current layout or
     input method, only with more than one enabled. A click goes to the
     next one.
-  - keep awake: `hs.caffeinate`'s `displayIdle`, the same switch as the
-    launcher's Keep awake and `Super+S`. A click toggles it.
+  - keep awake: a cup of coffee, `hs.caffeinate`'s `displayIdle`, the
+    same switch as the launcher's Keep awake and `Super+S`. A click
+    toggles it, with the same sign as `Super+S` (§10). Its tip says what
+    it's doing in the sign's words, "Keeping awake" or "Not keeping
+    awake", as tide's hover does (tide §10).
     **While presenter mode is on** (§10) it's a filled accent pill reading
     "Presenting", as tide's Presenting pill is, and a click ends presenter
     mode.
