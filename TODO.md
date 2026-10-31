@@ -109,7 +109,45 @@ anyway (its `styleMask` in `HSChooserWindow.xib` is only
   Chrome APIs it calls, fed by `launcher.lua`'s items. Then compare the two
   on the Mac.
 
+## Keep awake and presenter mode
+
+**Built** (SPEC.md §7.2, §8, §10): `Super+S` and `Super+P`, the launcher's
+Presenter mode, the bar's Presenting pill, and Do Not Disturb through
+`/usr/bin/shortcuts`, with missing shortcuts named at load (console,
+`tilemo doctor`) and in a notification on first use. Only the plain-Lua
+tests and the bar page's test cover it. **Check on a Mac:**
+
+- `Super+S` and `Super+P` reach tilemo through Karabiner as
+  Ctrl+Option+Command+S and P, with nothing else on those chords;
+- Set Focus's wording on macOS 26, and that "Do Not Disturb On" and
+  "Do Not Disturb Off" made with it work from `shortcuts run`;
+- with them missing, `Super+P` keeps awake and the notification says what
+  to make;
+- the bar's item reads "Presenting" while on, and a click ends it;
+- the display stays awake, and the screen saver and lock hold off, while
+  `displayIdle` is held.
+
 ## Decisions needing review
+
+- **Presenter mode turns Do Not Disturb off when it ends,** even if it
+  was on before, since tilemo can't read a Focus. Keep awake goes back as
+  it was. A third shortcut using "Get Current Focus" could read it, at
+  the cost of one more shortcut to make. Reversible: `presenter.presenter`.
+- **The shortcuts are "Do Not Disturb On" and "Do Not Disturb Off",** two
+  of them rather than one taking "on" or "off" as input, since a
+  one-action shortcut is the easiest to make. Reversible: the names in
+  `presenter.lua`.
+- **A missing shortcut is a notification on first use, and only a
+  console line and a `tilemo doctor` line at load,** so a Mac that never
+  uses Do Not Disturb isn't told at every reload. Reversible:
+  `presenter_hs.check`.
+- **Presenter mode shows on the keep-awake item, not as an item of its
+  own:** while on, that item becomes a filled "Presenting" pill. The bar
+  has no room to spare beside the clocks. Reversible: `bar.js`'s
+  `renderIcons`.
+- **Either toggle alone while presenting ends presenter mode,** leaving
+  the other on, as on tide. Reversible: `presenter.keep_awake` and
+  `presenter.dnd`.
 
 - **After a mute, clicking tilemo's notice opens Notifications settings,**
   rather than a dialog asking first, which would take the keyboard from

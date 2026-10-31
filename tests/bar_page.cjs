@@ -250,4 +250,15 @@ assert.strictEqual(state(mutedMic), "muted");
 assert.ok(mutedMic.innerHTML.includes("M2.5 2.5l11 11"), "the slash");
 assert.strictEqual(state(charging), "charging");
 assert.strictEqual(charging.innerHTML.split("<svg ").length - 1, 2, "the bolt and the battery");
+// Presenting, keep awake says so in words, and a click ends presenter mode
+// rather than turning keep awake off alone.
+sent.length = 0;
+sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { on: true, presenting: true } } });
+const presenting = ids.icons.children[0];
+assert.strictEqual(presenting.className, "icon awake");
+assert.strictEqual(state(presenting), "presenting");
+assert.strictEqual(presenting.attrs.title, "Presenting: Do Not Disturb and keep awake");
+assert.strictEqual(presenting.children[0].textContent, "Presenting");
+presenting.listeners.click();
+assert.strictEqual(JSON.stringify(sent.filter((m) => !m.goodClocks)), JSON.stringify([{ uuid: "B", toggle: "presenter" }]));
 console.log("bar page: ok");

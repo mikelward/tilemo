@@ -5,6 +5,7 @@
 local atomic = require("tilemo.atomic")
 local kitty = require("tilemo.kitty")
 local saved = require("tilemo.saved")
+local runner = require("tilemo.runner")
 local shots = require("tilemo.shots")
 
 local M = {}
@@ -323,22 +324,11 @@ function M.new()
         hs.settings.set(M.SETTINGS_KEY, { windows = windows, screens = snap.screens, gone = snap.gone })
     end
 
-    -- Run `path` with `args`, calling `done(code, err)` when it exits. Each
-    -- task is held until then: Hammerspoon may stop one that's collected,
-    -- which would take a terminal started from a key with it.
-    local tasks = {}
-    local function run(path, args, done)
-        local task
-        task = hs.task.new(path, function(code, _, err)
-            tasks[task] = nil
-            done(code, err)
-        end, args)
-        if task and task:start() then
-            tasks[task] = true
-            return true
-        end
-        return false
-    end
+    -- Run `path` with `args`, calling `done(code, err, out)` when it exits,
+    -- each task held until then (runner.lua). presenter_hs runs its
+    -- shortcuts through it too, as `a.run`.
+    local run = runner.new(hs.task.new).run
+    a.run = run
 
     -- `env` as `NAME=value` words, sorted so they come out the same each
     -- time.

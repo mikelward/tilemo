@@ -288,15 +288,18 @@ function QUICK.dark()
     hs.osascript.applescript(
         'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode')
 end
-function QUICK.keep_awake()
-    local on = not hs.caffeinate.get("displayIdle")
-    hs.caffeinate.set("displayIdle", on, true)
-    hs.alert.show(on and "Keeping awake" or "Not keeping awake")
+-- Keep awake, presenter mode and Do Not Disturb go through presenter_hs,
+-- so each ends presenter mode as Super+S does (SPEC.md §10). macOS has no
+-- public switch for Focus, so Do Not Disturb runs a shortcut, and says what
+-- to make when it isn't there.
+function QUICK.keep_awake(tilemo)
+    tilemo.presenter.toggle_keep_awake()
 end
-function QUICK.dnd()
-    -- macOS has no public switch for Focus; a Shortcuts shortcut named
-    -- "Toggle Do Not Disturb" is the usual stand-in (unverified on macOS 26).
-    hs.task.new("/usr/bin/shortcuts", nil, { "run", "Toggle Do Not Disturb" }):start()
+function QUICK.presenter(tilemo)
+    tilemo.presenter.toggle_presenter()
+end
+function QUICK.dnd(tilemo)
+    tilemo.presenter.toggle_dnd()
 end
 -- tilemo doctor's findings, in a notification (SPEC.md §15).
 function QUICK.doctor(tilemo)

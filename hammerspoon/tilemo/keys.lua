@@ -91,6 +91,10 @@ M.map[#M.map + 1] = { key = "tab", action = "flip" }
 M.map[#M.map + 1] = { key = "end", action = "last" }
 -- tide's mic-mute key: the microphone, everywhere (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "m", shift = true, action = "mic_mute" }
+-- Super+S: keep awake; Super+P: presenter mode, Do Not Disturb and keep
+-- awake together (SPEC.md §10).
+M.map[#M.map + 1] = { key = "s", action = "keep_awake" }
+M.map[#M.map + 1] = { key = "p", action = "presenter" }
 -- Super+Home: "in" (SPEC.md §6.1).
 M.map[#M.map + 1] = { key = "home", action = "home" }
 -- Super+Print: a region, as Shift+Print is (SPEC.md §7.2).

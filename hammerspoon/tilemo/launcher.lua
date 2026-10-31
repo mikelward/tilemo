@@ -449,6 +449,7 @@ M.COMMANDS = {
     { title = "Shut down", quick = "shutdown" },
     { title = "Do Not Disturb", quick = "dnd" },
     { title = "Keep awake", quick = "keep_awake" },
+    { title = "Presenter mode: Do Not Disturb and keep awake", quick = "presenter" },
     { title = "Dark style", quick = "dark" },
     { title = "Focus follows mouse on or off", quick = "toggle_ffm" },
     { title = "Reload tilemo", quick = "reload" },

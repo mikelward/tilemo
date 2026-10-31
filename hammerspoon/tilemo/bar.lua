@@ -231,6 +231,7 @@ end
 --   camera = { in_use } or nil with no camera,
 --   source = { current, list = { { name, method }, … } },
 --   awake = whether the display is kept from sleeping,
+--   presenting = whether presenter mode is on,
 --   wifi = { power, rssi, ssid, interface } or nil with no Wi-Fi interface,
 --   network = { primary = the interface carrying traffic, or nil }.
 -- The Wi-Fi network's name needs Location Services on recent macOS, so it
@@ -282,7 +283,12 @@ function ITEMS.source(raw)
     end
 end
 
+-- While presenting (SPEC.md §10) it says so, in words, since presenter
+-- mode is easy to forget on after a talk.
 function ITEMS.awake(raw)
+    if raw.presenting then
+        return { on = true, presenting = true }
+    end
     if raw.awake ~= nil then
         return { on = raw.awake }
     end

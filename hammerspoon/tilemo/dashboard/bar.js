@@ -4,7 +4,8 @@
 // hears back through the "tilemo" message handler: { uuid, show: n },
 // { uuid, step: 1 or -1 }, { uuid, focus: window id } from an attention icon,
 // { open: "battery" | "wifi" | "network" },
-// { toggle: "mic" | "volume" | "awake" | "source" }, { volume: 1 or -1 },
+// { toggle: "mic" | "volume" | "awake" | "presenter" | "source" },
+// { volume: 1 or -1 },
 // { dashboard: true }, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
 
@@ -165,7 +166,12 @@ function renderIcons(box, icons) {
     b.textContent = icons.source.label;
     box.append(b);
   }
-  if (icons.awake) {
+  if (icons.awake?.presenting) {
+    // Presenter mode (SPEC.md §10): the cup with a word, and a click ends it.
+    const b = icon("awake", "Presenting: Do Not Disturb and keep awake", { toggle: "presenter" }, svg(PATHS.awake), "presenting");
+    b.append(el("span", "text", "Presenting"));
+    box.append(b);
+  } else if (icons.awake) {
     const on = !!icons.awake.on;
     box.append(icon("awake", on ? "Keeping awake" : "Keep awake", { toggle: "awake" }, svg(PATHS.awake), on ? "on" : "off"));
   }
