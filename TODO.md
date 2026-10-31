@@ -61,7 +61,9 @@ tap, and the switcher's tabs. The rest:
 ## Minimizing by key
 
 **Built** (SPEC.md §6.7): `Super+Z`, the corner tray, restoring from it
-and from the Windows tab, and the rule check for `Super+Z`. **Check on a
+and from the Windows tab, and the rule check for `Super+Z`. **Confirmed**
+by the user: each display's tray shows only the windows you minimized
+from the workspace showing on that display. **Check on a
 Mac:**
 
 - the tray draws in the corner of each display, over the Dock's side,
@@ -72,6 +74,17 @@ Mac:**
 - the icons follow light and dark;
 - `Super+Z` reaches tilemo through Karabiner as Ctrl+Option+Command+Z,
   with nothing else on that chord.
+
+## Mute: apps and sites that never want attention
+
+**Decided** (SPEC.md §14.2, §15): `muted` in tide's `workspaces.json` and
+`workspaces.local.json`, bundle ids and `site:<host>`, empty by default.
+Muting stops the marks; macOS's own banners stay, and the mute's notice
+offers System Settings › Notifications. To do, not built: loading and
+checking the list, suppressing and clearing the marks, `Cmd+I` and the
+right-click in the switcher's Windows and Attention tabs, the "muted"
+mark, the browser's front tab in the tab list, and the settings window's
+list. **Check on a Mac:** the Notifications pane's URL on macOS 26.
 
 ## Launcher looks
 
@@ -84,13 +97,25 @@ Mac:**
 
 ## Decisions needing review
 
+- **`muted` lives in `workspaces.json`,** beside `inApps` and
+  `namePatterns`, rather than a file of its own, since it's another list
+  of apps tide and tilemo share. Reversible: one name in `mute.lua`, and
+  tide's agent may pick otherwise.
+- **The one key is `Cmd+I`,** physical Ctrl+I under `setup-macos`'s
+  rotation; nothing in the switcher uses it. Reversible: one
+  line in `launcher_hs.lua`.
+- **A right-click on a row stands in for a hover button,** which
+  `hs.chooser` can't draw. Reversible: a webview switcher.
+- **A site matches a browser window by its front tab as the switcher last
+  saw it,** so a window whose tab changed since the switcher was last
+  opened may be marked or not by the old tab. Polling the browsers for it
+  would cost an Apple Event every 2 s. Reversible: `wm.tab_hosts`.
+- **A site's host matches exactly,** ignoring case, so
+  `site:chat.google.com` doesn't cover `mail.google.com`, and
+  `site:google.com` doesn't cover either. Reversible: `mute.matches`.
 - **Minimize is `Super+Z`, not `Super+Delete`:** a PC keyboard's Delete
   may arrive as forward delete or as Backspace, and `Super+Backspace`
   already closes the window. Reversible: one line in `keys.map`.
-- **Each display's tray shows the windows you minimized from the workspace
-  showing on that display,** not every display showing the focused
-  workspace's. Each display shows its own workspace, so that's what it
-  can restore into. Reversible: the tray's state in `tray.lua`.
 - **The tray's icons are in the order you minimized them, newest at the
   right,** nearest the corner, and as many as fit across the display; the
   rest are only in the Windows tab. Reversible: `tray.lua`.

@@ -1279,6 +1279,8 @@ tab, the search field naming the tab you're in.
     since only a macOS update changes them.
   - **Workspaces, windows and attention** are tilemo's own state, so they
     cost nothing to list.
+  - **`Cmd+I`, or a right-click,** on a row in the Windows or Attention tab
+    mutes its app or site, or unmutes it (§14.2).
   - **Browser tabs** come from Chrome and Safari through AppleScript, run
     by `/usr/bin/osascript` as an `hs.task` rather than `hs.osascript`,
     which would hold Hammerspoon until the browser answers (§2.5).
@@ -1539,6 +1541,47 @@ Each one names a workaround, or says there is none.
   list.
 - **The list covers every workspace,** most recent first. With nothing
   waiting, it says so.
+- **Mute** (`muted`, §15): an app such as Google Chat that flags all day
+  can be muted, so it never counts as wanting attention. Empty by default.
+  - **It's a backstop.** The usual fix is the app's own notification
+    settings, or macOS's for it; Mute is for an app that keeps flagging
+    once those are set.
+  - **Each entry** is an app's bundle id (`com.google.Chrome.app.…` for an
+    installed web app, which has its own), or `site:<host>` for a site in
+    a browser tab (`site:chat.google.com`).
+  - **An app matches** a mark for its window, or its Dock badge.
+  - **A site matches** a browser window's mark when that window's front
+    tab is on the host, as tilemo last saw it: the switcher's tab list
+    (§9) reads which tab is in front, and that's remembered per window
+    until the next time the switcher opens. A host matches exactly,
+    ignoring case: `site:chat.google.com` isn't `mail.google.com`.
+  - **A muted app or site gets no mark:** no icon or attention color on
+    its workspace's chip (§8), no `!` on the menu bar item, no row in the
+    Attention tab, and `Super+A` passes over it. Muting clears the marks
+    it now covers.
+  - **Its windows are otherwise normal,** and the focus guard (§14.1)
+    still hands focus back from one that takes it unasked, just without
+    marking it.
+  - **Notifications: less than on tide.** On tide, Mute also keeps the
+    app's notification popups from showing, though they still go into the
+    notification center's history. tilemo can't stop macOS's own banners:
+    they're Notification Center's, with no public way for another app to
+    hold them back. So on a Mac, Mute stops only the marks, and says so
+    when you mute: the notice offers to open System Settings › Notifications
+    (`x-apple.systempreferences:com.apple.Notifications-Settings.extension`
+    *(unverified on macOS 26, and it opens the list, not the app's own
+    page)*), where the app's banners can be turned off.
+- **Muting takes one key:** in the switcher's Windows and Attention tabs,
+  `Cmd+I` (physical Ctrl+I under `setup-macos`'s rotation) on the selected
+  row, or a right-click on any row, mutes that row's app, or a tab's site.
+  The same on a muted row unmutes it.
+  - A window's row and an Attention row mute the window's app; a tab's
+    row mutes its site.
+  - Muted rows say "muted" in their second line.
+  - A short notice says what was muted or unmuted, and after a mute
+    offers the Notifications settings (above).
+  - `hs.chooser` has no buttons on a row, so the right-click stands in for
+    a hover button *(a guess, to confirm)*.
 - **What changed:** `Super+Tab` used to step through the waiting windows,
   and `Super+Home` with it. `Super+Tab` now flips between "in" and the
   last workspace, and `Super+Home` goes to "in" (§7.2). `Super+A`'s list takes over from both,
@@ -1554,6 +1597,23 @@ Each one names a workaround, or says there is none.
   - **The workspace-name patterns** (§6.2) are tide's setting, in the same
     file tide reads them from *(its name to match tide's)*, so one list
     names workspaces on both desktops.
+- **The muted apps and sites** (§14.2) are tide's setting, `muted` in
+  `workspaces.json` and `workspaces.local.json`, so one list serves both
+  desktops.
+  - A list of strings, each a bundle id or `site:<host>`. Empty by
+    default. A `.local` list replaces the shared one whole (tide §16.1).
+  - **A malformed entry is an error at load,** in a notification and in
+    `tilemo doctor`, naming the file and the entry, and the rest of the
+    list still applies. Malformed: not a string, empty, with a space, or
+    `site:` with no host or with more than a host (a scheme, a path, a
+    port).
+  - **tilemo writes only `workspaces.local.json`,** as tide's settings
+    panel does: it reads the file just before each change, keeps every
+    other key, and writes it whole, to a temporary file renamed over it.
+    The first change copies the list in effect, since a local list
+    replaces the shared one.
+  - tilemo already watches the folder, so a hand edit takes effect at
+    once.
 - **The home workspace's apps are tilemo's own setting,** `home_apps` in
   `start()`, a list of app names (§6.2). tide's list names Wayland app IDs,
   which a Mac doesn't have.
@@ -1573,6 +1633,9 @@ Each one names a workaround, or says there is none.
     copies the list the bar shows. A zone Intl doesn't know is refused.
     tilemo watches the folder, so the bar, the dashboard and the page
     follow a change, a hand edit's included.
+  - **The settings window also lists the muted apps and sites** (§14.2),
+    each with an Unmute button, writing `workspaces.local.json` as the
+    one-key mute does.
 - **One owner per job** (tide §5): tilemo tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.
