@@ -1350,6 +1350,21 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     on a headset that's both input and output, playing sound would light
     it. It has no input-only reading; macOS's own orange dot shows a
     microphone in use.
+  - Bluetooth: on or off, as tide's: one glyph, faint while off and in the
+    text color while on. A click opens Bluetooth settings.
+    - Hammerspoon has no module for it (there is no `hs.bluetooth`), so
+      tilemo asks `blueutil -p` (Homebrew's `blueutil`, which scripts'
+      `setup-macos --wm tilemo` installs), found at `/opt/homebrew/bin` or
+      `/usr/local/bin`, since Hammerspoon's PATH has neither.
+    - It runs through `hs.task`, never waiting on it, one run at a time:
+      as tilemo starts, on wake, and every 30 s. tilemo has no Bluetooth
+      switch of its own, so nothing else changes it from here.
+    - Hidden with no `blueutil`, no adapter, or any failure, and the log
+      says why once, until the reason changes or clears. The headphones
+      icons don't need it.
+    - **Cost and reliability:** free and open source, from Homebrew. One
+      short process every 30 s. A missing or failing `blueutil` only hides
+      this icon.
   - headphones: one per connected Bluetooth audio device, as tide's
     headphones icons are (tide §7.4). They're `hs.audiodevice`'s output and
     input devices whose transport is Bluetooth, which macOS lists only while
@@ -1367,14 +1382,11 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - battery: `hs.battery`, with its percentage and a charging mark, and on
     hover how long until full or empty when macOS knows. None on a Mac
     without one.
-  - The battery, network and headphones items open their System Settings panes, named
+  - The battery, network, Bluetooth and headphones items open their System Settings panes, named
     by URL (`x-apple.systempreferences:…`) *(unverified on macOS 26)*.
-- **Not drawn:** Bluetooth on or off, and Focus (Do Not Disturb).
-  Hammerspoon has no module for either (there is no `hs.bluetooth` or
-  `hs.focus`), and tilemo doesn't shell out to a helper such as `blueutil`
-  from the bar. So tide's faint-while-off Bluetooth icon has no
-  counterpart: only the connected audio devices above show. Their menu
-  bar items show when the menu bar is revealed.
+- **Not drawn:** Focus (Do Not Disturb). Hammerspoon has no module for it
+  (there is no `hs.focus`). Its menu bar item shows when the menu bar is
+  revealed.
 - **The notch,** on a MacBook's own display, sits where tide centers the
   title. There, the title moves left of it *(unverified how wide it is per
   model)*.

@@ -4,6 +4,7 @@
 -- tileco's modules. Not runnable outside Hammerspoon.
 
 local bar = require("tilemo.bar")
+local bluetooth = require("tilemo.bluetooth")
 local tray_hs = require("tilemo.tray_hs")
 local dashboard = require("tilemo.dashboard")
 
@@ -11,6 +12,9 @@ local M = {}
 
 -- How often to read the status items that have no watcher, in seconds.
 M.POLL = 5
+-- How often blueutil is asked whether Bluetooth is on, besides at start and
+-- on wake: a process each time, so less often than the rest.
+M.BLUETOOTH_POLL = 30
 
 local DIR = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
 
@@ -85,6 +89,7 @@ function M.new(tilemo)
 
     local function read_icons()
         local raw = {}
+        raw.bluetooth = self.bluetooth and self.bluetooth.state
         raw.battery = try("the battery", function()
             local p = hs.battery.percentage()
             return p and {
@@ -519,6 +524,44 @@ function M.new(tilemo)
         hs.keycodes.inputSourceChanged(function()
             refresh_soon()
         end)
+    end)
+
+    -- Bluetooth on or off, from blueutil, run without waiting so it never
+    -- holds the bar up (bluetooth.lua). Each answer that changes it redraws.
+    self.bluetooth = bluetooth.poller({
+        find = function()
+            return bluetooth.find(function(p)
+                return hs.fs.attributes(p) ~= nil
+            end)
+        end,
+        run = function(path, args, done)
+            local ok, task = pcall(hs.task.new, path, function(code, out, err)
+                done(code, out, err)
+            end, args)
+            if not ok then
+                return false, tostring(task)
+            end
+            if not task or not task:start() then
+                return false, "hs.task couldn't run " .. path
+            end
+            return true
+        end,
+        log = log,
+        changed = function()
+            refresh_soon()
+        end,
+    })
+    self.bluetooth:poll()
+    self.bluetooth_timer = hs.timer.doEvery(M.BLUETOOTH_POLL, function()
+        self.bluetooth:poll()
+    end)
+    -- Waking, the radio may have changed while asleep.
+    try("the wake watcher", function()
+        self.wake_watcher = hs.caffeinate.watcher.new(function(event)
+            if event == hs.caffeinate.watcher.systemDidWake then
+                self.bluetooth:poll()
+            end
+        end):start()
     end)
 
     read_icons()

@@ -129,13 +129,6 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
-- **The bar shows Bluetooth headphones but not Bluetooth on or off**
-  (SPEC.md §8). tide's bar shows both. On a Mac, reading whether the
-  radio is on needs `blueutil` (Homebrew, free), which would be a new
-  dependency and a process every poll; the headphones come from
-  `hs.audiodevice` at no cost. The alternative is shelling out to
-  `blueutil -p` where it's installed. Reversible: one more item in
-  `bar.lua`'s `ITEMS`.
 - **tilemo's settings are one window with sections, not tide's pages**
   (SPEC.md §15): Clocks, Start at login, Clipboard and Muted, each with its own
   launcher row that scrolls there. It's one short window, and an

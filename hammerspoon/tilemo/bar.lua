@@ -330,6 +330,14 @@ function ITEMS.headphones(raw)
     end
 end
 
+-- Bluetooth on or off (bluetooth.lua), absent without a reading: no
+-- blueutil, no adapter, or an error.
+function ITEMS.bluetooth(raw)
+    if raw.bluetooth then
+        return { on = raw.bluetooth.on == true }
+    end
+end
+
 function ITEMS.mic(raw)
     if raw.mic then
         return { muted = raw.mic.muted or false }

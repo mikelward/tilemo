@@ -28,8 +28,9 @@ It brings tide's desktop to macOS:
   (§7.2);
 - tide's bar along the top: the workspaces, the window's title, the clocks
   and tilemo's own status items (input source, keep awake, camera,
-  microphone, Bluetooth headphones, speaker, network, battery), with
-  Super+Shift+M to mute the microphone (§7.2, §8, §14.2);
+  microphone, Bluetooth on or off with `blueutil`, Bluetooth headphones,
+  speaker, network, battery), with Super+Shift+M to mute the microphone
+  (§7.2, §8, §14.2);
 - Super+S to keep the display awake, and Super+P for presenter mode, Do
   Not Disturb and keep awake together (§10). Do Not Disturb needs two
   shortcuts you make in the Shortcuts app, "Do Not Disturb On" and "Do Not

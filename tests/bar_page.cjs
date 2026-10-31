@@ -268,7 +268,7 @@ sandbox.tilemo.update({
 });
 {
   const shown = ids.icons.children;
-  assert.strictEqual(shown.map((b) => b.className).join("|"), "icon headphones|icon headphones|icon volume|icon wired");
+  assert.strictEqual(shown.map((b) => b.className).join("|"), "icon headphones|icon headphones|icon volume|icon wired", "no Bluetooth reading: no Bluetooth icon, headphones still");
   assert.strictEqual(shown.slice(0, 2).map((b) => b.attrs["data-tip"]).join("|"), "Buds|Car");
   assert.strictEqual(shown[0].attrs["aria-label"], "Buds");
   assert.ok(shown[0].innerHTML.startsWith("<svg "), "drawn");
@@ -276,6 +276,25 @@ sandbox.tilemo.update({
   assert.strictEqual(JSON.stringify(sent.at(-1)), JSON.stringify({ uuid: "B", open: "bluetooth" }));
   sent.length = 0;
 }
+
+// Bluetooth on or off: one glyph, faint while off (data-state "off", as
+// keep awake), before the headphones, and a click opens its settings.
+for (const on of [true, false]) {
+  sandbox.tilemo.update({
+    uuid: "B",
+    workspaces: ws,
+    title: "",
+    icons: { bluetooth: { on }, headphones: { devices: [{ name: "Buds" }] }, network: { kind: "wired" } },
+  });
+  const shown = ids.icons.children;
+  assert.strictEqual(shown.map((b) => b.className).join("|"), "icon bluetooth|icon headphones|icon wired");
+  assert.strictEqual(shown[0].attrs["data-state"], on ? "on" : "off");
+  assert.strictEqual(shown[0].attrs["data-tip"], on ? "Bluetooth on" : "Bluetooth off");
+  assert.ok(shown[0].innerHTML.startsWith("<svg "), "drawn");
+  shown[0].listeners.click();
+  assert.strictEqual(JSON.stringify(sent.at(-1)), JSON.stringify({ uuid: "B", open: "bluetooth" }));
+}
+sent.length = 0;
 
 // A wire, or no network at all.
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
