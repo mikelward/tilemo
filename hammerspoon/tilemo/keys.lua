@@ -124,8 +124,12 @@ M.SCREENSHOT = {
     window = { mods = { "cmd", "shift" }, key = "4", ["then"] = "space" },
 }
 
--- Super+1…9 and Super+Shift+1…9 are gone, now that workspaces have names
--- (SPEC.md §7.2).
+-- Super+1…9: the Nth workspace in bar order, so Super+1 is home, as
+-- Super+Home is; Super+Shift+1…9 sends the window there (SPEC.md §7.2).
+for i = 1, 9 do
+    M.map[#M.map + 1] = { key = tostring(i), action = "nth", arg = i }
+    M.map[#M.map + 1] = { key = tostring(i), shift = true, action = "send_nth", arg = i }
+end
 
 -- Keys bound only with Karabiner's rule, which makes them from physical
 -- keys: Alt+Tab arrives as Control+Option+Shift+Tab, a combination nothing

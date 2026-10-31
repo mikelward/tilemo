@@ -695,8 +695,8 @@ numbered ones:
 - **`Super+Home` goes to "in"; `Super+Tab` flips between "in" and the
   workspace you used last; `Super+End` goes to the last one other than
   "in"** (§7.2).
-- **No `Super+1…9`:** with names, the switcher, `Super+Return` and
-  `Super+Shift+Return` replace them (§7.2).
+- **`Super+1…9` count along the bar:** `Super+N` is the Nth workspace in
+  bar order, so `Super+1` is "in", as `Super+Home` is (§7.2).
 - **An empty workspace is removed once you leave it,** other than "in" and
   the standing ones. Leaving means no display shows it any more. A workspace holding only
   windows you minimized isn't empty.
@@ -1124,9 +1124,11 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     key, and needs neither permission. tilemo's own tap is the fallback.
   - The rule sends the tap as `Super+F20`, a key no keyboard here has, so
     it's told apart from `Super+Space`.
-- **`Super+1…9` and `Super+Shift+1…9` are gone.** They went to and sent
-  to the nine numbered workspaces. With names, the switcher,
-  `Super+Return` and `Super+Shift+Return` cover them.
+- **`Super+1…9` and `Super+Shift+1…9` count along the bar,** as on tide
+  (tide §6.6). `Super+N` shows the Nth workspace in bar order, home first,
+  so `Super+1` is "in"; `Super+Shift+N` sends the focused window there,
+  with focus staying where you are. A number past the last workspace does
+  nothing. A number is a position, not a name.
 - **`Super+Tab` and `Super+End` remember the workspaces you've shown,**
   most recent first, across displays. A workspace that's gone since is
   passed over, and either key does nothing with nowhere to go.
@@ -2074,7 +2076,8 @@ Each one names a workaround, or says there is none.
 7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
    only (§7.1)?
 8. **Which key toggles focus follows mouse** (§5.2)?
-9. **`Super+1…9` and `Super+Shift+1…9`:** decided, dropped (§7.2).
+9. **`Super+1…9` and `Super+Shift+1…9`:** decided, positions in bar order
+   (§7.2).
 10. **`Super+End`:** decided, the last workspace other than "in" and the
     one you're on (§7.2).
 11. **Physical Alt+Tab:** decided, swap with the master, with the
