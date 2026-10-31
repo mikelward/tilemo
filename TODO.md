@@ -60,20 +60,18 @@ tap, and the switcher's tabs. The rest:
 
 ## Minimizing by key
 
-**Decided** (SPEC.md §6.7): option C of tide's mock, floating icons in the
-bottom-right corner. To do, not built:
+**Built** (SPEC.md §6.7): `Super+Z`, the corner tray, restoring from it
+and from the Windows tab, and the rule check for `Super+Z`. **Check on a
+Mac:**
 
-- **`Super+Z` minimizes the focused window,** setting its `mine` flag, and
-  focus moves to the workspace's last used window still showing.
-- **The tray:** an `hs.canvas` per display, at the floating level, taking
-  clicks, with one app icon per window you minimized from the workspace
-  showing there. Hovering shows the title; a click restores the window.
-- **The Windows tab** marks the windows you minimized, and Return restores
-  them.
-- **The rule check** (`keys.rule_gaps`) flags a tilemo rule without
-  `Super+Z`. conf's rule already sends Win+Z, so conf needs no change.
-- **Check on a Mac:** that a click on the tray leaves focus where it was,
-  and that the tip shows while another app is in front.
+- the tray draws in the corner of each display, over the Dock's side,
+  and goes when its last window is restored;
+- a click on an icon restores its window without Hammerspoon becoming the
+  front app first (`clickActivating(false)`);
+- the title's tip shows on hover while another app is in front;
+- the icons follow light and dark;
+- `Super+Z` reaches tilemo through Karabiner as Ctrl+Option+Command+Z,
+  with nothing else on that chord.
 
 ## Launcher looks
 

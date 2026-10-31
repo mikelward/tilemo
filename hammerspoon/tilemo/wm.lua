@@ -1162,11 +1162,40 @@ function M:minimized(id)
         return
     end
     local w = self.windows[id]
-    if w and w.ws then
-        w.mine = true
+    -- One already yours keeps its place in the tray.
+    if w and w.ws and not w.mine then
+        self:mark_mine(id)
         self:save()
     end
     self:schedule()
+end
+
+-- Window `id` is one you minimized: it goes into its display's tray, after
+-- the ones before it (SPEC.md §6.7).
+function M:mark_mine(id)
+    local w = self.windows[id]
+    self.min_seq = (self.min_seq or 0) + 1
+    w.mine = true
+    w.min_at = self.min_seq
+end
+
+-- The windows you minimized on workspace `n`, in the order you minimized
+-- them; ones minimized before tilemo saw them first, by id.
+function M:minimized_windows(n)
+    local out = {}
+    for id, w in pairs(self.windows) do
+        if n and w.ws == n and w.mine and self.a.state(id) then
+            out[#out + 1] = id
+        end
+    end
+    table.sort(out, function(p, q)
+        local a, b = self.windows[p].min_at or 0, self.windows[q].min_at or 0
+        if a ~= b then
+            return a < b
+        end
+        return tostring(p) < tostring(q)
+    end)
+    return out
 end
 
 -- macOS says a window came back. If tilemo didn't ask, you restored it from
@@ -2187,6 +2216,21 @@ function A.toggle_float(self)
         self:place_float(id, self.a.facts(id))
     end
     self:retile()
+end
+
+-- Super+Z: minimize the focused window to its display's tray (SPEC.md
+-- §6.7). Focus goes to the workspace's last used window still showing.
+function A.minimize(self)
+    local id = self.a.focused()
+    local w = self.windows[id or false]
+    if not (w and w.ws) or w.mine then
+        return
+    end
+    self:mark_mine(id)
+    self:reconcile()
+    self:retile()
+    self:refocus_ws(w.ws)
+    self:changed()
 end
 
 -- The window's going away is seen by the next sync, which refocuses.

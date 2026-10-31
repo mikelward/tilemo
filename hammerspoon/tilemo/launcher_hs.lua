@@ -152,6 +152,9 @@ local function windows(tilemo)
                 title = tilemo.adapter.title(id) or w.title,
                 app_name = w.name or (w.app and hs.application.nameForBundleID(w.app)) or w.app,
                 ws = w.ws,
+                -- Only one you minimized: tilemo's own hide the other
+                -- workspaces (SPEC.md §6.7).
+                minimized = w.mine or false,
             }
         end
     end
