@@ -36,6 +36,7 @@ local bar_hs = require("tilemo.bar_hs")
 local tray_hs = require("tilemo.tray_hs")
 local names = require("tilemo.names")
 local mute = require("tilemo.mute")
+local startup = require("tilemo.startup")
 local current = require("tilemo.current")
 local prompt_hs = require("tilemo.prompt_hs")
 local presenter_hs = require("tilemo.presenter_hs")
@@ -273,6 +274,46 @@ function M.start(config)
     end
     self.load_muted = load_muted
     load_muted()
+    -- Start at login: tide's `commands`, from the same folder (SPEC.md
+    -- §15), run once a login through runenv, as a helper key runs one,
+    -- unless running already. A bad entry is said once, naming it, and the
+    -- rest still run; a file that can't be read runs nothing until it's
+    -- fixed.
+    local reported_startup
+    local function start_list()
+        local list, errors = startup.load(self.clock_dir, self.adapter.read, self.adapter.decode)
+        local text = table.concat(errors, "; ")
+        if text ~= "" and text ~= reported_startup then
+            self.adapter.notify((list and "Some commands at login are left out: " or "Nothing runs at login until this is fixed: ") .. text)
+        end
+        reported_startup = text
+        if not list then
+            return
+        end
+        local login = self.adapter.login()
+        if not startup.due(hs.settings.get(startup.SETTINGS_KEY), login) then
+            return
+        end
+        hs.settings.set(startup.SETTINGS_KEY, login)
+        startup.run(list, self.adapter.uid() or "", function(args, done)
+            if not self.adapter.run("/usr/bin/pgrep", args, function(code)
+                done(code)
+            end) then
+                done(-1)
+            end
+        end, function(command)
+            self.adapter.launch({ run = command })
+        end, self.adapter.log)
+    end
+    -- Nothing here may stop tilemo loading.
+    local function run_startup()
+        local ok, err = pcall(start_list)
+        if not ok then
+            self.adapter.log("Start at login failed: " .. tostring(err))
+            self.adapter.notify("Start at login failed: " .. tostring(err))
+        end
+    end
+    run_startup()
     -- Cmd+M in the switcher (launcher_hs.lua): mute `entry`, or unmute it,
     -- named `name` in the notice. After a mute, a click on the notice opens
     -- Notifications settings, since macOS's banners are its own. Returns
@@ -300,6 +341,7 @@ function M.start(config)
     self.clock_watch = adapter_mod.watch_folder(self.clock_dir, function()
         load_patterns()
         load_muted()
+        run_startup()
         self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
         if self.bar then
             self.bar.update()
