@@ -108,6 +108,12 @@ function M.new()
             local app = w:application()
             local el = hs.axuielement.windowElement(w)
             local settable = el and el:isAttributeSettable("AXSize")
+            -- Whether the window has a close button: nil when there's no
+            -- element to ask.
+            local closable
+            if el then
+                closable = el:attributeValue("AXCloseButton") ~= nil
+            end
             return {
                 role = w:role(),
                 subrole = w:subrole(),
@@ -120,6 +126,11 @@ function M.new()
                 -- as settable.
                 size_settable = settable,
                 modal = el and el:attributeValue("AXModal") or false,
+                -- An app out of the Dock (kind 0): Notification Center,
+                -- Spotlight, a menu bar app. With no close button, its
+                -- window is left alone (rules.lua).
+                accessory = app and app:kind() == 0 or false,
+                closable = closable,
                 frame = box(w:frame()),
                 minimized = w:isMinimized(),
                 fullscreen = w:isFullScreen(),

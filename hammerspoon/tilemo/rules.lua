@@ -19,6 +19,10 @@ M.defaults = {
     -- System Settings is a fixed width, though its height can change, so a
     -- tile would leave a gap beside it.
     { app = "com.apple.systempreferences", action = "float" },
+    -- Notification Center's banners, alerts and widgets are macOS's own,
+    -- over every window: floated, one would be moved to the middle of the
+    -- display, and focus follows mouse would focus it.
+    { app = "com.apple.notificationcenterui", action = "ignore" },
 }
 
 M.actions = { tile = true, float = true, ignore = true }
@@ -66,7 +70,9 @@ local FLOATING_SUBROLES = {
 }
 
 -- "tile", "float" or "ignore", for a window described by `facts`:
--- role, subrole, app, title, size_settable, modal.
+-- role, subrole, app, title, size_settable, modal, and accessory and
+-- closable (whether its app stays out of the Dock, and whether the window
+-- has a close button; nil when unknown).
 function M.decide(facts, user)
     -- 1. Not a window: sheets, popovers and menus are left alone.
     if facts.role ~= "AXWindow" then
@@ -80,24 +86,35 @@ function M.decide(facts, user)
             end
         end
     end
-    -- 3. A window whose size can't be changed floats.
-    if facts.size_settable == false then
+    -- 3. A window with no close button from an app that stays out of the
+    -- Dock is part of that app's interface, not a window: Control Center's
+    -- and menu bar apps' panels, Spotlight, the input source switcher
+    -- (AeroSpace's isWindowHeuristic).
+    if facts.accessory and facts.closable == false then
+        return "ignore"
+    end
+    -- 4. A standard window whose size can't be changed floats: a fixed-size
+    -- dialog that reports itself standard. Other subroles go on to the
+    -- checks below, so a fixed-size popup, such as Chrome's find bar or a
+    -- tooltip (AXUnknown), is left alone rather than floated, centered and
+    -- focused.
+    if facts.size_settable == false and facts.subrole == "AXStandardWindow" then
         return "float"
     end
-    -- 4. A modal window floats.
+    -- 5. A modal window floats.
     if facts.modal then
         return "float"
     end
-    -- 5. Dialogs and panels float.
+    -- 6. Dialogs and panels float.
     if FLOATING_SUBROLES[facts.subrole] then
         return "float"
     end
-    -- 6. Standard windows tile. Late on purpose: some dialogs report
+    -- 7. Standard windows tile. Late on purpose: some dialogs report
     -- themselves as standard windows, and the checks above catch them.
     if facts.subrole == "AXStandardWindow" then
         return "tile"
     end
-    -- 7. Anything else, such as AXUnknown, is left alone: extension popups
+    -- 8. Anything else, such as AXUnknown, is left alone: extension popups
     -- and other odd windows mustn't take a tile.
     return "ignore"
 end
