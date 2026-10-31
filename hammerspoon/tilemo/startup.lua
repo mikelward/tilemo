@@ -157,4 +157,54 @@ function M.run(commands, uid, running, launch, log)
     from(1)
 end
 
+-- hs.settings' key for the login home's apps last started in. Apart from
+-- the list's, so a list that can't be read doesn't hold them back, nor
+-- they it, as tide runs the two independently (tide §6.5).
+M.HOME_SETTINGS_KEY = "tilemo.home_started"
+
+-- The apps home starts at login (SPEC.md §6.2): the `home_apps` you set in
+-- start(), in order, or none. tilemo's default list names a Mac app and a
+-- web app for each of mail, chat, calendar and music, which match either,
+-- so starting it would open both, Mail's and Messages' first-run setup
+-- included.
+function M.home_starts(configured)
+    local out = {}
+    for _, name in ipairs(configured or {}) do
+        out[#out + 1] = name
+    end
+    return out
+end
+
+-- Opens each of home's apps that isn't running, in order. `running(name)`
+-- says whether one is; `open(name)` starts one in the background; `log`
+-- says what was skipped and why. One that throws is logged, and the rest
+-- still start.
+function M.start_home(names, running, open, log)
+    for _, name in ipairs(names) do
+        local ok, err = pcall(function()
+            if running(name) then
+                log(name .. " is running already, so not starting it again")
+            else
+                open(name)
+            end
+        end)
+        if not ok then
+            log("couldn't start " .. name .. ": " .. tostring(err))
+        end
+    end
+end
+
+-- Home's apps at login: once a login (`login`, as for the list), and only
+-- with a `home_apps` you set. `settings` is hs.settings' get and set,
+-- keeping the login they last started in. Returns whether they started.
+function M.home_at_login(configured, settings, login, running, open, log)
+    local names = M.home_starts(configured)
+    if #names == 0 or not M.due(settings.get(M.HOME_SETTINGS_KEY), login) then
+        return false
+    end
+    settings.set(M.HOME_SETTINGS_KEY, login)
+    M.start_home(names, running, open, log)
+    return true
+end
+
 return M

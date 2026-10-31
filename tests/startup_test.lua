@@ -193,4 +193,85 @@ t.test("each starts only after the one before it, in the list's order", function
     t.eq(events[#events], "launch third")
 end)
 
+t.test("home starts only the apps you set, not tilemo's default list of alternatives", function()
+    t.eq(startup.home_starts(nil), {})
+    t.eq(startup.home_starts({ "Gmail", "Google Calendar" }), { "Gmail", "Google Calendar" })
+end)
+
+-- hs.settings, in memory.
+local function settings()
+    local kept = {}
+    return {
+        get = function(k)
+            return kept[k]
+        end,
+        set = function(k, v)
+            kept[k] = v
+        end,
+        kept = kept,
+    }
+end
+
+t.test("home's apps start in order at login, in the background, skipping one that's running", function()
+    local opened, logged = {}, {}
+    local s = settings()
+    local started = startup.home_at_login({ "Gmail", "Google Chat", "Google Calendar" }, s, "Sat Oct 31 09:00:00 2026",
+        function(name)
+            return name == "Google Chat"
+        end, function(name)
+            opened[#opened + 1] = name
+        end, function(text)
+            logged[#logged + 1] = text
+        end)
+    t.eq(started, true)
+    t.eq(opened, { "Gmail", "Google Calendar" })
+    t.eq(logged, { "Google Chat is running already, so not starting it again" })
+    t.eq(s.kept[startup.HOME_SETTINGS_KEY], "Sat Oct 31 09:00:00 2026")
+    t.eq(s.kept[startup.SETTINGS_KEY], nil, "apart from the list's login")
+end)
+
+t.test("home's apps start once a login, not at every reload", function()
+    local opened = {}
+    local s = settings()
+    local function at(login)
+        return startup.home_at_login({ "Gmail" }, s, login, function()
+            return false
+        end, function(name)
+            opened[#opened + 1] = name
+        end, function() end)
+    end
+    t.eq(at("login 1"), true)
+    t.eq(at("login 1"), false, "a reload in the same login")
+    t.eq(at(nil), false, "a login that can't be told")
+    t.eq(at("login 2"), true)
+    t.eq(opened, { "Gmail", "Gmail" })
+end)
+
+t.test("with tilemo's default home_apps, nothing starts and the login isn't spent", function()
+    local s = settings()
+    t.eq(startup.home_at_login(nil, s, "login 1", function()
+        error("not asked")
+    end, function()
+        error("not opened")
+    end, function() end), false)
+    t.eq(s.kept[startup.HOME_SETTINGS_KEY], nil)
+end)
+
+t.test("one of home's apps that fails to start is logged, and the rest still start", function()
+    local opened, logged = {}, {}
+    startup.start_home({ "Broken", "Gmail" }, function(name)
+        if name == "Broken" then
+            error("no such app")
+        end
+        return false
+    end, function(name)
+        opened[#opened + 1] = name
+    end, function(text)
+        logged[#logged + 1] = text
+    end)
+    t.eq(opened, { "Gmail" })
+    t.eq(#logged, 1)
+    t.eq(logged[1]:match("^couldn't start Broken: ") ~= nil, true, logged[1])
+end)
+
 t.done("startup_test")

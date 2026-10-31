@@ -164,7 +164,18 @@ tests and the bar page's test cover it. **Check on a Mac:**
   top-left point, so it could be placed on the bar's display, at the cost
   of working out the chooser's width there. Reversible: `launcher_hs`'s
   `toggle`.
-
+- **Home's apps start at login only from a `home_apps` you set** (SPEC.md
+  §6.2), not tilemo's default list, which names a Mac app and a web app for
+  each of mail, chat, calendar and music, and so would open Mail's and
+  Messages' first-run setup on a Mac that uses Google's. tide starts its
+  list, which `conf` sets to the four Google launchers. The alternatives are
+  starting the default list's installed apps, or the first installed of
+  each pair. Reversible: `startup.home_starts`.
+- **Home's entries stay app names, not tide's programs and web
+  addresses,** since a `chrome --app=URL` window on a Mac is Google
+  Chrome's, which tilemo can't tell from a browser window (SPEC.md §6.2).
+  The alternative is matching such windows by title. Reversible: it adds
+  nothing, so it's an addition later.
 - **tilemo's settings are one window with sections, not tide's pages**
   (SPEC.md §15): Clocks, Start at login, Clipboard and Muted, each with its own
   launcher row that scrolls there. It's one short window, and an
