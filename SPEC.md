@@ -760,10 +760,19 @@ the home workspace, the first standing one (§6.1), which is "in" unless
   - A setting holds a list of patterns, tried in order against the title.
     The first that matches gives its first capture, such as a ticket ID or
     a repository name.
-  - With no match, it's the title with the app's name stripped from its
-    end (" - Google Chrome", " — Mozilla Firefox"), cut to 20 characters
-    at a word boundary *(the cut is a guess, to confirm)*.
-  - With no title, the app's name.
+  - Patterns are how to get a better name than the first word, such as an
+    issue number or a project from a site's title.
+  - With no match, it's the title's first word, as on tide (tide §6.5),
+    once the app's name is stripped from the title's end (" - Google
+    Chrome", " — Mozilla Firefox").
+    - Punctuation clinging to the word's end goes: `.` `,` `:` `;` `!`
+      `?` `|` `…` and dashes. So `ABC-123: Fix login - Tracker - Google
+      Chrome` gives `ABC-123` with no patterns too.
+    - A word left with no letter or digit, such as a lone `—`, is passed
+      over for the next. Lua has no Unicode tables, so any character past
+      ASCII counts as a letter here.
+    - A word past 20 characters is cut to 20.
+  - With no title, or no such word in it, the app's name.
 - **The patterns are JavaScript regular expressions, not Lua patterns.**
   - tide's shell is QML, so tide's are JavaScript's. The setting lives in
     tide's shared files (tide §16.1), and one list serves both desktops

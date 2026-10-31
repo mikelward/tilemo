@@ -13,8 +13,8 @@ M.FILE = "workspaces.json"
 M.LOCAL_FILE = "workspaces.local.json"
 M.KEY = "namePatterns"
 
--- A default from the title alone is cut to this many characters at a word
--- boundary (SPEC.md §6.2, a guess to confirm).
+-- A default from the title alone is its first word, cut to this many
+-- characters (SPEC.md §6.2).
 M.FALLBACK_MAX = 20
 
 -- JavaScript giving `name` as TIDE_WORKSPACE holds it: its letters and
@@ -77,9 +77,27 @@ local function ends(s, suffix)
     return suffix ~= "" and #s > #suffix and s:sub(-#suffix) == suffix
 end
 
--- The title with the app's name stripped from its end (" - Google Chrome",
--- " — Mozilla Firefox"), cut to M.FALLBACK_MAX characters at a word
--- boundary, or the app's name with no title.
+-- Punctuation that clings to a word's end, as in "ABC-123:" or "Docs,",
+-- dropped from a default's first word as tide drops it (tide SPEC.md
+-- §6.5): ASCII's, and the UTF-8 for "…", "–" and "—".
+local TRAILING = { "%.", ",", ":", ";", "!", "%?", "|", "%-", "\226\128\166", "\226\128\147", "\226\128\148" }
+
+local function strip_trailing(word)
+    repeat
+        local before = word
+        for _, p in ipairs(TRAILING) do
+            word = word:gsub(p .. "$", "")
+        end
+    until word == before
+    return word
+end
+
+-- The first word of the title with the app's name stripped from its end
+-- (" - Google Chrome", " — Mozilla Firefox") and the punctuation at its
+-- own end dropped, cut to M.FALLBACK_MAX characters; or the app's name
+-- with no title, or none with a letter or digit. Lua has no Unicode
+-- tables, so any character past ASCII counts as one (a lone "—" doesn't,
+-- since it's stripped first).
 function M.fallback(title, app)
     title = trim(title or "")
     app = app or ""
@@ -91,20 +109,17 @@ function M.fallback(title, app)
             end
         end
     end
-    if title == "" then
-        return app
+    for word in title:gmatch("%S+") do
+        word = strip_trailing(word)
+        if word:find("[%w\128-\255]") then
+            local len = utf8.len(word)
+            if len and len > M.FALLBACK_MAX then
+                word = word:sub(1, utf8.offset(word, M.FALLBACK_MAX + 1) - 1)
+            end
+            return word
+        end
     end
-    local len = utf8.len(title)
-    if not len or len <= M.FALLBACK_MAX then
-        return title
-    end
-    local cut = title:sub(1, utf8.offset(title, M.FALLBACK_MAX + 1) - 1)
-    if title:sub(#cut + 1, #cut + 1) == " " then
-        return trim(cut)
-    end
-    -- Back to the last word boundary, unless the first word alone is too
-    -- long.
-    return trim(cut:match("^(.*%S)%s") or cut)
+    return app
 end
 
 -- `s` as a JavaScript string literal.
