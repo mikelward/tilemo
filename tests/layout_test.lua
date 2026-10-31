@@ -53,11 +53,17 @@ t.test("move swaps with the neighbor in the visible order", function()
     t.eq(ws.order, { 1, 4, 3, 2 })
 end)
 
-t.test("swap_master zooms: the master swaps with the next, others with the master", function()
+t.test("swap_master: others swap with the master, and the master with the one before it", function()
     local ws = layout.new(1, HD)
     ws.order = { 1, 2, 3 }
     layout.swap_master(ws, ws.order, 3)
     t.eq(ws.order, { 3, 2, 1 })
+    layout.swap_master(ws, ws.order, 3)
+    t.eq(ws.order, { 1, 2, 3 }, "back with 1, the master before it, not 2")
+    layout.swap_master(ws, ws.order, 1)
+    t.eq(ws.order, { 3, 2, 1 }, "and again")
+    -- With the master before gone, the next, as dwm's zoom.
+    ws.prev_master = 9
     layout.swap_master(ws, ws.order, 3)
     t.eq(ws.order, { 2, 3, 1 })
 end)

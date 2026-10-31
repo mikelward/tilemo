@@ -161,7 +161,7 @@ end)
 t.test("with Karabiner, every binding gets its own chord", function()
     local list, skipped = keys.bindings(keys.KARABINER)
     t.eq(#skipped, 0)
-    t.eq(#list, #keys.map + #keys.plain)
+    t.eq(#list, #keys.map + #keys.plain + #keys.karabiner_only)
 end)
 
 t.test("a screenshot action asks the adapter for that kind", function()
@@ -181,6 +181,36 @@ t.test('Super+Home goes to "in", and Super+1…9 are left out while undecided', 
         t.eq(b.key:match("^%d$"), nil, "no digit keys: " .. b.key)
     end
     t.eq(home, "home")
+end)
+
+t.test("the switcher's keys open it on their own tabs, and Super+Tab, End and Return have their new jobs", function()
+    local by = {}
+    for _, b in ipairs(keys.map) do
+        if not b.shift then
+            by[b.key] = { b.action, b.arg }
+        end
+    end
+    t.eq(by.space, { "launcher", "launch" })
+    t.eq(by.f20, { "launcher", "workspaces" }, "Karabiner's lone Super tap")
+    t.eq(by.a, { "launcher", "attention" })
+    t.eq(by.tab, { "flip" })
+    t.eq(by["end"], { "last" })
+    t.eq(by["return"], { "move_to" })
+    t.eq(by.delete, { "close" })
+    t.eq(by.home, { "home" })
+end)
+
+t.test("Alt+Tab swaps with the master only with Karabiner, which makes it from physical Alt+Tab", function()
+    local function find(list)
+        for _, b in ipairs(list) do
+            if b.key == "tab" and b.action == "swap_master" then
+                return b
+            end
+        end
+    end
+    local b = find((keys.bindings(keys.KARABINER)))
+    t.eq(b.mods, { "ctrl", "alt", "shift" })
+    t.eq(find((keys.bindings(keys.OPTION))), nil, "not Ctrl+Tab, every app's next tab")
 end)
 
 t.done("keys")

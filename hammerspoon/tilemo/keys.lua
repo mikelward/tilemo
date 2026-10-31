@@ -17,7 +17,9 @@ M.map = {
     { key = "k", action = "focus", arg = -1 },
     { key = "j", shift = true, action = "move", arg = 1 },
     { key = "k", shift = true, action = "move", arg = -1 },
-    { key = "return", action = "swap_master" },
+    -- Super+Return moves the window to a workspace by name; Alt+Tab swaps
+    -- with the master (M.karabiner_only, SPEC.md §7.2).
+    { key = "return", action = "move_to" },
     { key = "\\", action = "mfact", arg = 1, repeating = true },
     { key = "/", action = "mfact", arg = -1, repeating = true },
     { key = "=", action = "nmaster", arg = 1 },
@@ -73,9 +75,16 @@ end
 M.map[#M.map + 1] = { key = "l", action = "lock" }
 M.map[#M.map + 1] = { key = "e", shift = true, action = "logout" }
 
-M.map[#M.map + 1] = { key = "space", action = "launcher" }
+-- The switcher, each key on its own tab (SPEC.md §9). Karabiner's rule
+-- sends a lone Super tap as Super+F20, for the Workspaces tab.
+M.map[#M.map + 1] = { key = "space", action = "launcher", arg = "launch" }
+M.map[#M.map + 1] = { key = "f20", action = "launcher", arg = "workspaces" }
+M.map[#M.map + 1] = { key = "a", action = "launcher", arg = "attention" }
 M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
-M.map[#M.map + 1] = { key = "tab", action = "attention" }
+-- Super+Tab flips between home and the workspace you used last, and
+-- Super+End goes to the last one other than home (SPEC.md §7.2).
+M.map[#M.map + 1] = { key = "tab", action = "flip" }
+M.map[#M.map + 1] = { key = "end", action = "last" }
 -- tide's mic-mute key: the microphone, everywhere (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "m", shift = true, action = "mic_mute" }
 -- Super+Home: "in" (SPEC.md §6.1).
@@ -102,8 +111,16 @@ M.SCREENSHOT = {
     window = { mods = { "cmd", "shift" }, key = "4", ["then"] = "space" },
 }
 
--- Super+1…9 and Super+Shift+1…9 are left out while SPEC.md §7.2 leaves
--- them undecided, now that workspaces have names.
+-- Super+1…9 and Super+Shift+1…9 are gone, now that workspaces have names
+-- (SPEC.md §7.2).
+
+-- Keys bound only with Karabiner's rule, which makes them from physical
+-- keys: Alt+Tab arrives as Control+Option+Shift+Tab, a combination nothing
+-- else uses. Without the rule, physical Alt+Tab is Ctrl+Tab, every app's
+-- next tab, so swap with the master has no key (SPEC.md §7.2).
+M.karabiner_only = {
+    { mods = { "ctrl", "alt", "shift" }, key = "tab", action = "swap_master" },
+}
 
 -- Resize mode (tide's): each key grows or shrinks the focused float by
 -- 40 px; Esc or Return leaves.
@@ -134,7 +151,8 @@ end
 -- Every binding to register for this Super, each with its modifiers. The
 -- plain Print keys come first, and a later binding on a chord already taken
 -- is left out: with Super on Option, Super+Print is Alt+Print, which stays
--- tide's window screenshot (Shift+Print still takes a region).
+-- tide's window screenshot (Shift+Print still takes a region). With
+-- Karabiner's Super, its own combinations come too.
 function M.bindings(super)
     local out, seen, skipped = {}, {}, {}
     local function add(mods, b)
@@ -156,6 +174,11 @@ function M.bindings(super)
     end
     for _, b in ipairs(M.map) do
         add(M.mods(super, b), b)
+    end
+    if super == M.KARABINER then
+        for _, b in ipairs(M.karabiner_only) do
+            add(b.mods, b)
+        end
     end
     return out, skipped
 end

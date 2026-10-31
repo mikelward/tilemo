@@ -632,11 +632,11 @@ numbered ones:
   - they're never removed, even when empty;
   - a name typed at a prompt that matches one, ignoring case, is that
     workspace.
-- **`Super+Home` goes to "in"** (§7.2).
-- **Whether Super+1…9 stay is undecided.** With names, the switcher and
-  `Super+Return` replace them. If they stay, they'd go to and send to the
-  first nine in bar order, and a digit past the last would do nothing
-  (TODO.md).
+- **`Super+Home` goes to "in"; `Super+Tab` flips between "in" and the
+  workspace you used last; `Super+End` goes to the last one other than
+  "in"** (§7.2).
+- **No `Super+1…9`:** with names, the switcher and `Super+Return` replace
+  them (§7.2).
 - **An empty workspace is removed once you leave it,** other than "in" and
   the standing ones. Leaving means no display shows it any more. A workspace holding only
   windows you minimized isn't empty.
@@ -916,9 +916,10 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 
 | Keys | Action | How |
 |---|---|---|
-| tap `Super` | the switcher, on its Workspaces tab (§9) | event tap, or a Karabiner tap rule (below) |
+| tap `Super` | the switcher, on its Workspaces tab (§9) | Karabiner's tap rule, sending `Super+F20`; or tilemo's event tap (below) |
 | `Super+Space` | the switcher, on its Launch tab | hotkey |
-| `Super+Tab` | the switcher, on its Workspaces tab | hotkey |
+| `Super+Tab` | from any workspace, "in"; from "in", the workspace you used last. Pressed again, it flips back | hotkey |
+| `Super+End` | the workspace you used last other than "in" and this one: from "in" where `Super+Tab` goes, from another the one before it | hotkey |
 | `Super+A` | the switcher, on its Attention tab (§14.2) | hotkey |
 | `Super+Shift+Space` | dashboard (§8) | hotkey |
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
@@ -931,7 +932,7 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Shift+Left` / `Right` | carry the window to the previous / next workspace | hotkey |
 | `Super+J` / `K`, with Shift | focus / move down and up the stack | hotkey |
 | `Super+Return` | move the window to a workspace, by name (below) | hotkey |
-| `Alt+Tab` | swap with the master; on the master, swap with the previous master | Karabiner rule on physical Alt+Tab (below) |
+| `Alt+Tab` | swap with the master; on the master, swap with the previous master | conf's Karabiner rule turns physical Alt+Tab into `Ctrl+Option+Shift+Tab`, which tilemo registers (below) |
 | `Super+\` / `Super+/` | grow / shrink the master (`mfact` ±0.025), repeating | hotkey |
 | `Super+=` / `Super+-` | add / remove a master | hotkey |
 | `Super+.` / `Super+,` | next / previous layout | hotkey |
@@ -952,13 +953,14 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     Karabiner rule (`to_if_alone` on physical Win) avoids both.
   - Karabiner's rule is the better of the two here: it sees the physical
     key, and needs neither permission. tilemo's own tap is the fallback.
-- **Undecided: `Super+1…9` and `Super+Shift+1…9`.** They went to and sent
+  - The rule sends the tap as `Super+F20`, a key no keyboard here has, so
+    it's told apart from `Super+Space`.
+- **`Super+1…9` and `Super+Shift+1…9` are gone.** They went to and sent
   to the nine numbered workspaces. With names, the switcher and
-  `Super+Return` cover both, and the user leans toward dropping them.
-  They're left out until that's settled (TODO.md). If kept, they'd take
-  the first nine in bar order (§6.1).
-- **`Super+End` is unassigned.** It pairs with `Super+Home`, which goes to
-  "in"; what it does is open (TODO.md).
+  `Super+Return` cover both.
+- **`Super+Tab` and `Super+End` remember the workspaces you've shown,**
+  most recent first, across displays. A workspace that's gone since is
+  passed over, and either key does nothing with nowhere to go.
 - **`Super+Return` moves the focused window to a workspace,** with tide's
   prompt (tide §6.5): an `hs.chooser` listing the existing names. Typing
   filters them or gives a new name, and Enter moves the window, making the
@@ -969,9 +971,11 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - Under the rotation, physical Alt sends Control, so physical Alt+Tab
     arrives as Ctrl+Tab, which is the apps' own next tab (scripts
     `docs/MACOS.md`, "The one binding the rotation inverts").
-  - conf's Karabiner rule now turns physical Alt+Tab into Cmd+Tab, macOS's
-    app switcher. It changes to send a combination nothing else uses,
-    which tilemo registers *(which one to settle in conf)*.
+  - **Decided:** physical Alt+Tab gives up its job as Cmd+Tab, macOS's app
+    switcher. conf's rule used to make it Cmd+Tab; now tilemo's Karabiner
+    rule sends it as `Ctrl+Option+Shift+Tab`, a combination nothing else
+    uses, which tilemo registers. Physical Ctrl+Tab stays the apps' next
+    tab.
   - So physical Alt+Tab no longer switches apps. The switcher's Windows
     tab (§9) stands in, and a Mac keyboard's own Cmd+Tab still works.
   - Without Karabiner, tilemo doesn't take Ctrl+Tab, since that would take
@@ -1011,15 +1015,10 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   Ctrl+Option+arrows *(unverified)*. It goes.
 - **Karabiner's Win+arrow rule** sends Ctrl+Option+arrow for native Spaces
   and Win+Shift+arrow for Amethyst's throw. Both now go to tilemo.
-- **Karabiner's Alt+Tab rule** sends Cmd+Tab now. It goes to tilemo's swap
+- **Karabiner's Alt+Tab rule** sent Cmd+Tab. It goes to tilemo's swap
   with the master instead (§7.2).
-- **Super+Shift+N sent to workspace N,** if those keys stay (§7.2). Under the rotation that's
-  Option+Shift+digit, which makes a character in typing but can still be
-  registered. Hammerspoon passes Option and Shift straight to
-  `RegisterEventHotKey`
-  ([libhotkey.m](https://github.com/Hammerspoon/hammerspoon/blob/master/extensions/hotkey/libhotkey.m)).
-  `setup-macos` uses Super+Alt+N now only because Amethyst wouldn't take
-  the combination *(cause unverified)*.
+- **Super+Shift+N sent to workspace N.** Those keys are gone (§7.2), so
+  `setup-macos`'s Super+Alt+N go with them.
 
 ## 8. Bar, clocks and dashboard
 
@@ -1182,9 +1181,9 @@ tab, the search field naming the tab you're in.
     there with its workspace.
 
   An empty tab says so, in a row that can't be chosen.
-- **Each key opens it on its own tab:** `Super+Space` on Launch,
-  `Super+Tab` and the Super tap on Workspaces, `Super+A` on Attention
-  (§7.2). The Windows tab has no key of its own *(a guess, to confirm)*.
+- **Each key opens it on its own tab:** `Super+Space` on Launch, the
+  Super tap on Workspaces, `Super+A` on Attention (§7.2). `Super+Tab`
+  doesn't open it: it flips between "in" and the last workspace. The Windows tab has no key of its own *(a guess, to confirm)*.
 - **`Tab` and `Shift+Tab` move between tabs,** forward and back, as the
   scopes do now.
 - **A switcher key pressed while it's open** closes it if it's on that
@@ -1453,8 +1452,8 @@ Each one names a workaround, or says there is none.
 - **The list covers every workspace,** most recent first. With nothing
   waiting, it says so.
 - **What changed:** `Super+Tab` used to step through the waiting windows,
-  and `Super+Home` with it. `Super+Tab` now opens the workspace list, and
-  `Super+Home` goes to "in" (§7.2). `Super+A`'s list takes over from both,
+  and `Super+Home` with it. `Super+Tab` now flips between "in" and the
+  last workspace, and `Super+Home` goes to "in" (§7.2). `Super+A`'s list takes over from both,
   so the step-while-held round, and its event tap for Super let go, go
   with them.
 
@@ -1573,18 +1572,26 @@ Each one names a workaround, or says there is none.
 7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
    only (§7.1)?
 8. **Which key toggles focus follows mouse** (§5.2)?
-9. **`Super+1…9` and `Super+Shift+1…9`:** keep them with named workspaces,
-   or drop them (§7.2)?
-10. **`Super+End`:** what does it do, beside `Super+Home` going to "in"
-    (§7.2)?
-11. **Physical Alt+Tab:** tilemo's swap with the master takes it from
-    macOS's app switcher (§7.2). Is the Windows tab enough in its place?
-12. **Several displays, with names:** the user wants to rethink how
-    workspaces and displays fit together: whether a workspace can span
-    several displays, and how per-display workspaces should work (§6.1,
-    §6.4). Until then tilemo keeps one workspace per display, as now; a
-    second display shows a workspace of its own, named by its number
-    (TODO.md).
+9. **`Super+1…9` and `Super+Shift+1…9`:** decided, dropped (§7.2).
+10. **`Super+End`:** decided, the last workspace other than "in" and the
+    one you're on (§7.2).
+11. **Physical Alt+Tab:** decided, swap with the master, with the
+    Windows tab in place of the app switcher (§7.2).
+12. **Several displays, a follow-up:** the direction is that a workspace
+    spans every display, each display with its own layout within it. Open:
+    - how to move between displays. The candidate: `Super+Left` / `Right`
+      select the window left or right of this one, and at a display's edge
+      wrap to the nearest window on the next display that way (rightmost
+      on one to leftmost on the display to its right);
+      `Super+Shift+Left` / `Right` move the window the same way.
+    - whether that edge behavior is doable: it needs every display's
+      windows laid out side by side, and a rule for "nearest" between
+      displays of different sizes and offsets.
+    - If it's doable, those keys replace today's: `Super+Left` / `Right`
+      as previous / next workspace and `Super+Shift+Left` / `Right` as
+      carry. Previous / next workspace stays on `Super+PgUp` / `PgDn`;
+      carry would need a key of its own, or go.
+    - Until then tilemo keeps one workspace per display (§6.1, §6.4).
 
 ## Sources
 

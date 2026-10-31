@@ -508,6 +508,23 @@ function M:occupied(n)
     return false
 end
 
+-- Note workspace `n` as the one used most recently.
+function M:used_ws(n)
+    self.ws_history = self.ws_history or {}
+    remove_value(self.ws_history, n)
+    table.insert(self.ws_history, 1, n)
+end
+
+-- The most recently used workspace that still exists, or is standing, and
+-- that `skip(name)` doesn't rule out.
+function M:last_used(skip)
+    for _, n in ipairs(self.ws_history or {}) do
+        if (self:find(n) or self:standing_name(n)) and not skip(n) then
+            return n
+        end
+    end
+end
+
 -- Remove every empty workspace no display shows, other than the standing
 -- ones, home included (SPEC.md §6.1).
 function M:prune()
@@ -517,6 +534,7 @@ function M:prune()
             table.remove(self.names, i)
             self.workspaces[n] = nil
             self.mru[n] = nil
+            remove_value(self.ws_history or {}, n)
         end
     end
 end
@@ -1243,6 +1261,12 @@ function M:show(name, uuid, make)
         self.screen_ws[other] = cur
     end
     self.screen_ws[uuid] = n
+    -- The one left, then the one shown, most recent first, for Super+Tab
+    -- and Super+End.
+    if cur then
+        self:used_ws(cur)
+    end
+    self:used_ws(n)
     self:reconcile()
     self:retile()
     -- With nothing there to focus, focus stays put, perhaps on a window the
@@ -1473,6 +1497,15 @@ function M:ask_next()
                 self.ask_name(q.window)
                 return
             end
+        elseif q.move then
+            if self.windows[q.move] and self.ask_move then
+                self.prompting = q
+                self:hold("prompt", true)
+                self.ask_move(function(name)
+                    self:move_answer(q, name)
+                end)
+                return
+            end
         elseif self.ask_launch then
             self.prompting = q
             self:hold("prompt", true)
@@ -1544,6 +1577,19 @@ function M:launch_answer(q, name)
         n = self:find(n) or n
         self:launch_to(q.launch.app, n)
         q.go(self:env(n))
+    end
+    self:ask_next()
+end
+
+-- The prompt's answer for Super+Return's question `q`: a name sends the
+-- window there, as A.send does; nil (Esc) leaves it.
+function M:move_answer(q, name)
+    if self.prompting ~= q then
+        return
+    end
+    self:asked_done(q)
+    if name and self.windows[q.move] then
+        self:send_keeping_focus(q.move, name)
     end
     self:ask_next()
 end
@@ -2183,7 +2229,12 @@ function A.show(self, n)
 end
 
 function A.send(self, n)
-    local id = self.a.focused()
+    self:send_keeping_focus(self.a.focused(), n)
+end
+
+-- Send window `id` away, with focus staying on the workspace you're on, as
+-- on tide; with nothing left there, so do the keys.
+function M:send_keeping_focus(id, n)
     local w = self.windows[id or false]
     local from = w and w.ws
     local uuid = from and self:shown(from)
@@ -2214,6 +2265,48 @@ end
 -- Super+Home: the home workspace (SPEC.md §6.1).
 function A.home(self)
     self:show(self.home)
+end
+
+-- Super+Tab (SPEC.md §7.2): from any other workspace, home; from home, the
+-- workspace you used last. Pressed again, it flips back.
+function A.flip(self)
+    local cur = self.screen_ws[self:current_screen()] or self.home
+    if cur ~= self.home then
+        self:show(self.home)
+        return
+    end
+    local n = self:last_used(function(m)
+        return m == self.home
+    end)
+    if n then
+        self:show(n)
+    end
+end
+
+-- Super+End (SPEC.md §7.2): the workspace you used last, other than home
+-- and the one you're on. From home that's where Super+Tab goes; from
+-- another, the one before it.
+function A.last(self)
+    local cur = self.screen_ws[self:current_screen()] or self.home
+    local n = self:last_used(function(m)
+        return m == self.home or m == cur
+    end)
+    if n then
+        self:show(n)
+    end
+end
+
+-- Super+Return (SPEC.md §7.2): move the focused window to a workspace by
+-- name, with the prompt listing them all. This is Send: focus stays put.
+-- Esc leaves the window where it is.
+function A.move_to(self)
+    local id = self.a.focused()
+    local w = self.windows[id or false]
+    if not w or not w.ws or not self.ask_move then
+        return
+    end
+    self.asking[#self.asking + 1] = { move = id }
+    self:ask_next()
 end
 
 -- Super+Shift+Left/Right: carry the focused window there, and follow it.
@@ -2286,8 +2379,8 @@ function A.app(self, spec, fresh)
     end
 end
 
--- The windows wanting attention, newest first, for Super+Tab and the
--- launcher. Only marks with a window to go to: a badged app may have quit.
+-- The windows wanting attention, newest first, for the switcher's
+-- Attention tab (Super+A). Only marks with a window to go to: a badged app may have quit.
 -- An app's badge and its window's title can name the same window; it comes
 -- once, where its newest mark puts it.
 function M:attention_windows()
@@ -2300,34 +2393,6 @@ function M:attention_windows()
         end
     end
     return list
-end
-
--- Super+Tab and Super+Home (SPEC.md §14.2): the window wanting attention,
--- most recent first; pressed again with Super held, the next one. Letting
--- Super go ends the round. With nothing waiting, the window you were last
--- in.
-function A.attention(self)
-    if not self.round_list then
-        self.round_list, self.round = self:attention_windows(), 0
-    end
-    local list = self.round_list
-    if #list == 0 then
-        -- The most recent window other than the one you're in, which may be
-        -- none, as on an empty workspace.
-        local now = self.a.focused()
-        for _, prev in ipairs(self.history) do
-            if prev ~= now and self.windows[prev] then
-                self:activate(prev)
-                break
-            end
-        end
-        return
-    end
-    self.round = self.round % #list + 1
-    local target = list[self.round]
-    if self.windows[target] then
-        self:activate(target)
-    end
 end
 
 -- Read Dock badges and window titles for new marks. What's focused now
@@ -2353,13 +2418,11 @@ function M:poll_attention()
     self:changed()
 end
 
-function M:end_round()
-    self.round_list, self.round = nil, nil
-end
-
-function A.launcher(self)
+-- The switcher, on tab `tab` (SPEC.md §9): Super+Space on Launch, the
+-- Super tap on Workspaces, Super+A on Attention.
+function A.launcher(self, tab)
     if self.open_launcher then
-        self.open_launcher()
+        self.open_launcher(tab)
     end
 end
 

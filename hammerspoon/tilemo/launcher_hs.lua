@@ -138,6 +138,35 @@ local function attention(tilemo)
     return out
 end
 
+-- Every workspace, in bar order, for the Workspaces tab: its apps' names
+-- (to search by too) and where it's showing (SPEC.md §9).
+local function workspaces(tilemo)
+    local out = {}
+    local names = {}
+    local function app_name(bundle)
+        if names[bundle] == nil then
+            names[bundle] = hs.application.nameForBundleID(bundle) or bundle
+        end
+        return names[bundle]
+    end
+    for _, s in ipairs(tilemo.wm:bar_state()) do
+        local apps, seen = {}, {}
+        for _, w in pairs(tilemo.wm.windows) do
+            if w.ws == s.name and w.app and not seen[w.app] then
+                seen[w.app] = true
+                apps[#apps + 1] = app_name(w.app)
+            end
+        end
+        table.sort(apps)
+        out[#out + 1] = {
+            name = s.name,
+            apps = table.concat(apps, ", "),
+            where = s.here and "here" or s.elsewhere and "on another display" or (#apps == 0 and "empty" or nil),
+        }
+    end
+    return out
+end
+
 local QUICK = {}
 
 -- macOS's own screenshot keys, as the Print keys use (SPEC.md §10).
@@ -191,10 +220,7 @@ function M.new(tilemo)
         for _, item in ipairs(found) do
             out[#out + 1] = {
                 text = item.title,
-                subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or ""))
-                    or item.kind == "setting" and "System Settings"
-                    or item.kind == "attention" and ((item.app or "") .. " · " .. tostring(item.ws))
-                    or item.kind,
+                subText = launcher.subtitle(item),
                 id = item.id,
             }
         end
@@ -233,6 +259,9 @@ function M.new(tilemo)
             tilemo.adapter.open_url(item.url)
         elseif item.kind == "tab" then
             open_tab(tilemo, item)
+        elseif item.kind == "workspace" then
+            -- Made, if it's a standing workspace not made yet.
+            tilemo.wm:show(item.title)
         elseif item.kind == "attention" then
             -- As Super+Tab goes there: with its workspace.
             tilemo.wm:activate(item.window)
@@ -285,14 +314,22 @@ function M.new(tilemo)
         chooser:choices(choices(query))
     end)
 
-    function self.show()
-        -- Already open: pressing the key again doesn't bind Cmd+Return twice.
+    -- Open on tab `tab` (Launch if none). A switcher key pressed while
+    -- it's open closes it if it's on that key's tab, and otherwise moves to
+    -- that tab (SPEC.md §9).
+    function self.show(tab)
+        tab = launcher.SCOPES[tab or ""] and tab or launcher.SCOPE_ORDER[1]
         if chooser:isVisible() then
+            if tab == scope then
+                chooser:cancel()
+            else
+                set_scope(tab)
+            end
             return
         end
         before = tilemo.adapter.focused()
         local apps, settings = M.scan()
-        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings, attention(tilemo))
+        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings, attention(tilemo), workspaces(tilemo))
         by_id = {}
         for _, item in ipairs(items) do
             by_id[item.id] = item
@@ -318,7 +355,7 @@ function M.new(tilemo)
             end),
         }
         chooser:query("")
-        set_scope(launcher.SCOPE_ORDER[1])
+        set_scope(tab)
         chooser:show()
     end
 

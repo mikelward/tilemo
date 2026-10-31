@@ -54,22 +54,25 @@ end
 
 M.SCOPES = {
     launch = { app = true, setting = true, command = true },
+    workspaces = { workspace = true },
     tabs = { tab = true },
     attention = { attention = true },
 }
 
--- The order Tab moves through them, and what each lists. The launcher
--- opens on the first.
-M.SCOPE_ORDER = { "launch", "tabs", "attention" }
-M.SCOPE_NAMES = { launch = "Launch", tabs = "Tabs", attention = "Attention" }
+-- The order Tab moves through them, and what each lists. Each key opens
+-- the switcher on its own (SPEC.md §9).
+M.SCOPE_ORDER = { "launch", "workspaces", "tabs", "attention" }
+M.SCOPE_NAMES = { launch = "Launch", workspaces = "Workspaces", tabs = "Tabs", attention = "Attention" }
 M.SCOPE_LISTS = {
     launch = "apps, settings and commands",
+    workspaces = "every workspace",
     tabs = "Chrome and Safari tabs",
     attention = "windows wanting attention",
 }
 -- What an empty scope shows instead.
 M.SCOPE_EMPTY = {
     launch = "Nothing to launch",
+    workspaces = "No workspaces",
     tabs = "No Chrome or Safari tabs, or no Automation access to them",
     attention = "Nothing wants attention",
 }
@@ -91,7 +94,7 @@ function M.placeholder(scope)
         M.SCOPE_NAMES[M.next_scope(scope)])
 end
 
-local KIND_ORDER = { attention = 0, tab = 1, app = 2, setting = 3, command = 4 }
+local KIND_ORDER = { attention = 0, workspace = 1, tab = 2, app = 3, setting = 4, command = 5 }
 
 local function rank_all(query, items, limit, recency)
     local q = query:match("^%s*(.-)%s*$")
@@ -148,6 +151,33 @@ function M.rank(query, items, opts)
     return rank_all(query, items, limit, recency)
 end
 
+-- `parts` joined with " · ", leaving out any that's nil or empty, in any
+-- place: table.concat can't skip a nil.
+local function join(...)
+    local out = {}
+    for i = 1, select("#", ...) do
+        local p = select(i, ...)
+        if p ~= nil and p ~= "" then
+            out[#out + 1] = tostring(p)
+        end
+    end
+    return table.concat(out, " · ")
+end
+
+-- The line under an item's title in the switcher.
+function M.subtitle(item)
+    if item.kind == "tab" then
+        return join(item.browser, item.extra)
+    elseif item.kind == "setting" then
+        return "System Settings"
+    elseif item.kind == "attention" then
+        return join(item.app, item.ws)
+    elseif item.kind == "workspace" then
+        return join(item.where, item.extra)
+    end
+    return item.kind
+end
+
 -- A tab's host, for matching by site.
 local function host(url)
     return (url or ""):match("^%a[%w+.-]*://([^/?#]+)")
@@ -155,12 +185,24 @@ end
 
 -- Items from what the adapter found: apps { name, path }, tabs { title, url,
 -- browser, window, tab }, commands { title, action, arg, quick }, System
--- Settings' panes { name, id } and the windows wanting attention { window,
--- title, app, ws }, newest first. Each gets a stable key, for remembering
+-- Settings' panes { name, id }, the windows wanting attention { window,
+-- title, app, ws }, newest first, and the workspaces { name, apps, where },
+-- in bar order. Each gets a stable key, for remembering
 -- when it was used, and an id that's unique among the items, for choosing
 -- it: two tabs on the same page share a key but not an id.
-function M.items(apps, tabs, commands, settings, attention)
+function M.items(apps, tabs, commands, settings, attention, workspaces)
     local out = {}
+    -- In bar order, which they keep, as the attention list keeps its own.
+    for i, w in ipairs(workspaces or {}) do
+        out[#out + 1] = {
+            kind = "workspace",
+            title = w.name,
+            extra = w.apps,
+            where = w.where,
+            order = i,
+            key = "workspace:" .. w.name,
+        }
+    end
     for _, a in ipairs(apps or {}) do
         out[#out + 1] = { kind = "app", title = a.name, path = a.path, key = "app:" .. a.path }
     end

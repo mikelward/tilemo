@@ -237,19 +237,23 @@ function M.start(config)
     self.wm.ask_launch = function(default, done)
         self.prompt.launch(default, done)
     end
+    self.wm.ask_move = function(done)
+        self.prompt.choose(done)
+    end
     self.wm.ready = true
     self.launcher = launcher_hs.new(self)
-    self.wm.open_launcher = function()
-        self.launcher.show()
+    self.wm.open_launcher = function(tab)
+        self.launcher.show(tab)
     end
     self.dashboard = dashboard_hs.new(self)
     self.wm.open_dashboard = function()
         self.dashboard.show()
     end
-    -- Without Karabiner's tap rule, tilemo watches for a lone Super tap itself.
+    -- Without Karabiner's tap rule, tilemo watches for a lone Super tap
+    -- itself: the switcher, on its Workspaces tab (SPEC.md §7.2).
     self.tap = tap_mod.new(function()
         if not self.karabiner then
-            self.launcher.show()
+            self.launcher.show("workspaces")
         end
     end)
     self.tap_watch = adapter_mod.taps(function(flags)
@@ -257,10 +261,6 @@ function M.start(config)
         self.tap:flags(not none and keys.super_alone(self.super, flags), none, hs.timer.secondsSinceEpoch())
         -- Cmd+Tab switches apps when Command goes up (SPEC.md §14.1).
         self.wm:modifiers(flags.cmd or false)
-        -- Letting Super go ends a round of Super+Tab.
-        if not keys.is_super(self.super, flags) then
-            self.wm:end_round()
-        end
     end, function(kind, key, flags)
         self.tap:other()
         if kind == "key" then
