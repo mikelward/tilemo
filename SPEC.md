@@ -780,10 +780,23 @@ the home workspace, the first standing one (§6.1), which is "in" unless
 
 - **The variable is tide's** (tide §6.5), with the same name, so conf's
   shpool and tmux startup reads one variable on every desktop.
-- **Its value** is the current workspace's name with only ASCII letters and
-  digits kept: `my-repo` gives `myrepo`. A name with none, such as one in
-  another script, gives an empty value, and conf's startup takes its
+- **Its value** is the current workspace's name with only its letters and
+  digits kept, in any script, NFC-normalized, as on tide (tide §6.5):
+  `my-repo` gives `myrepo`, `Équipe 2` gives `Équipe2`, and `日本語` stays.
+  A name with none gives an empty value, and conf's startup takes its
   default *(a guess, to confirm)*.
+  - Letters and digits are Unicode's categories L and N. Punctuation,
+    spaces, symbols, emoji, marks and control characters go.
+  - The name is normalized before the rest go, so a decomposed `é` (`e`
+    and a combining accent, as macOS file names and some text fields give
+    it) is one letter, and kept.
+  - Lua has no Unicode tables, so a name past ASCII goes through
+    JavaScriptCore (`hs.osascript.javascript`, as the name patterns do,
+    §6.2), whose `\p{L}`, `\p{N}` and `normalize("NFC")` follow the
+    Unicode version macOS ships. An ASCII name needs none.
+  - If JavaScriptCore fails, the value is empty, not a guess, and the file
+    (below) holds the empty value; the launch logs why, and the file's
+    writer says it once in a notification.
 - **tilemo sets it for the processes it launches.** On a Mac that takes
   more than one way, since an app launched through LaunchServices (`open`,
   the Dock, Finder) gets launchd's environment, not Hammerspoon's:

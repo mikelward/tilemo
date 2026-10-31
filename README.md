@@ -75,8 +75,8 @@ launch from "in": Enter makes or uses the workspace and moves there, and
 Esc closes the window or cancels the launch. The default name comes from
 the window's title, through tide's `namePatterns` in
 `~/.config/tide/workspaces.json`, which are JavaScript regular expressions.
-Apps tilemo starts get the workspace's name, letters and digits only, as
-`TIDE_WORKSPACE`. Scripts read the current one with
+Apps tilemo starts get the workspace's name, letters and digits only (in
+any script, NFC-normalized), as `TIDE_WORKSPACE`. Scripts read the current one with
 `cat ~/Library/Caches/tilemo/workspace`, a file only you can read, which
 tilemo rewrites whenever the workspace changes. tilemo doesn't load
 `hs.ipc`, since its port runs any Lua a local process sends it.

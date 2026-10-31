@@ -191,6 +191,29 @@ t.test("a launch from \"in\" asks first; the name's workspace shows and the laun
     t.eq(wm.windows[2].ws, "PR-12 login")
 end)
 
+t.test("a launch to a name past ASCII gets what JavaScript keeps of it, or an empty value, logged", function()
+    local a, wm, _, launches = setup(1)
+    local scripts, logs = {}, {}
+    function a.javascript(source)
+        scripts[#scripts + 1] = source
+        return true, "Équipe2"
+    end
+    function a.log(text)
+        logs[#logs + 1] = text
+    end
+    wm:act("app", app_key("g"))
+    launches[1].done("Équipe 2")
+    t.eq(#scripts, 1, "the name went to JavaScript")
+    t.eq(a.envs[1], { TIDE_WORKSPACE = "Équipe2" })
+    function a.javascript()
+        return false, "no JavaScriptCore"
+    end
+    wm:act("app", app_key("g"))
+    t.eq(#a.launched, 2, "on a workspace other than home, it launches straight away")
+    t.eq(a.envs[2], { TIDE_WORKSPACE = "" }, "not a guess")
+    t.eq(logs, { "TIDE_WORKSPACE is empty: couldn't keep the workspace's letters and digits: no JavaScriptCore" })
+end)
+
 t.test("Esc cancels a launch from \"in\": nothing opens", function()
     local a, wm, _, launches = setup(1)
     wm:act("app", app_key("g"))

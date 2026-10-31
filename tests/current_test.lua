@@ -69,6 +69,55 @@ t.test("the name goes to the file as TIDE_WORKSPACE has it, and as it shows, pri
     })
 end)
 
+t.test("a name past ASCII goes to the file as JavaScript keeps it", function()
+    local d = disk()
+    local w = current.new("/c/tilemo", d, function()
+        return true, "Équipe2"
+    end)
+    t.eq(w.write("Équipe 2"), true)
+    t.eq(d.files["/c/tilemo/workspace"], "Équipe2\n")
+    t.eq(d.files["/c/tilemo/workspace.name"], "Équipe 2\n")
+end)
+
+t.test("a name whose letters can't be found writes an empty value, not the last one, and says why", function()
+    local d = disk()
+    local js_ok = true
+    local w = current.new("/c/tilemo", d, function()
+        if js_ok then
+            return true, "web"
+        end
+        return false, "no JavaScriptCore"
+    end)
+    w.write("wéb")
+    js_ok = false
+    local ok, err = w.write("Équipe")
+    t.eq(ok, nil)
+    t.eq(err, "couldn't keep the workspace's letters and digits: no JavaScriptCore")
+    t.eq(d.files["/c/tilemo/workspace"], "\n")
+    t.eq(d.files["/c/tilemo/workspace.name"], "Équipe\n")
+    js_ok = true
+    d.calls = {}
+    w.write("Équipe")
+    t.eq(#d.calls > 0, true, "tried again")
+end)
+
+t.test("going back to the last name after a failed one rewrites the files", function()
+    local d = disk()
+    local js_ok = true
+    local w = current.new("/c/tilemo", d, function()
+        if js_ok then
+            return true, "Équipe"
+        end
+        return false, "no JavaScriptCore"
+    end)
+    t.eq(w.write("web"), true)
+    js_ok = false
+    w.write("Équipe")
+    t.eq(w.write("web"), true)
+    t.eq(d.files["/c/tilemo/workspace"], "web\n", "not the empty value the failure left")
+    t.eq(d.files["/c/tilemo/workspace.name"], "web\n")
+end)
+
 t.test("only a change is written", function()
     local d = disk()
     local w = current.new("/c/tilemo", d)

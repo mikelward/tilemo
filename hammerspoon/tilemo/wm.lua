@@ -1692,9 +1692,14 @@ function M:move_answer(q, name)
     self:ask_next()
 end
 
--- TIDE_WORKSPACE for a process tilemo starts on workspace `n` (SPEC.md §6.3).
+-- TIDE_WORKSPACE for a process tilemo starts on workspace `n` (SPEC.md §6.3):
+-- empty, and logged, when the name's letters and digits can't be found.
 function M:env(n)
-    return { TIDE_WORKSPACE = names.sanitize(n) }
+    local value, err = names.sanitize(n, self.a.javascript)
+    if err then
+        self.a.log("TIDE_WORKSPACE is empty: " .. err)
+    end
+    return { TIDE_WORKSPACE = value }
 end
 
 -- Before a launch tilemo makes (the switcher's Launch tab, an app key,

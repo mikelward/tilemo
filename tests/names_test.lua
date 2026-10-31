@@ -60,12 +60,26 @@ local function decode(text)
     end
 end
 
-t.test("TIDE_WORKSPACE keeps only ASCII letters and digits", function()
-    t.eq(names.sanitize("my-repo"), "myrepo")
-    t.eq(names.sanitize("PR-12 login"), "PR12login")
-    t.eq(names.sanitize("in"), "in")
-    t.eq(names.sanitize("日本語"), "", "none gives an empty value")
-    t.eq(names.sanitize("café"), "caf")
+t.test("TIDE_WORKSPACE keeps an ASCII name's letters and digits, with no JavaScript", function()
+    local function no_js()
+        error("ASCII needs no JavaScript")
+    end
+    t.eq(names.sanitize("my-repo", no_js), "myrepo")
+    t.eq(names.sanitize("PR-12 login", no_js), "PR12login")
+    t.eq(names.sanitize("in", no_js), "in")
+    t.eq(names.sanitize("a\tb\0c\27[31m!? $x", no_js), "abc31mx", "control characters and punctuation go")
+    t.eq(names.sanitize("--- !!", no_js), "", "none gives an empty value")
+end)
+
+t.test("a name past ASCII that can't be run through JavaScript gives an empty value, and why", function()
+    local value, err = names.sanitize("café")
+    t.eq(value, "")
+    t.eq(err, "no JavaScript to keep the workspace's letters and digits")
+    value, err = names.sanitize("café", function()
+        return false, "JavaScriptCore said no"
+    end)
+    t.eq(value, "", "not the ASCII it would have kept")
+    t.eq(err, "couldn't keep the workspace's letters and digits: JavaScriptCore said no")
 end)
 
 t.test("with no pattern, the default is the title without its app's name, cut at a word", function()
@@ -143,6 +157,22 @@ local run = node_runner()
 if not run then
     print("SKIP the name patterns' JavaScript: no node")
 else
+    t.test("TIDE_WORKSPACE keeps letters and digits in any script, NFC-normalized", function()
+        t.eq(names.sanitize("café-1", run), "café1", "accented Latin, composed")
+        t.eq(names.sanitize("cafe\204\129 2", run), "caf\195\169" .. "2", "decomposed, as macOS gives it, comes out composed")
+        t.eq(names.sanitize("Привет, мир", run), "Приветмир", "Cyrillic")
+        t.eq(names.sanitize("日本語 メモ", run), "日本語メモ", "CJK")
+        t.eq(names.sanitize("build-١٢ १", run), "build١٢१", "Arabic-Indic and Devanagari digits")
+        t.eq(names.sanitize("Ⅻ ½", run), "Ⅻ½", "other numbers")
+        t.eq(names.sanitize("🚀 launch ✨", run), "launch", "emoji go")
+        t.eq(names.sanitize("é\t\"x\"\\\226\128\139y\226\128\168z", run), "éxyz",
+            "control characters, quotes, backslashes and format characters go")
+        t.eq(names.sanitize("a+b=c$ €5", run), "abc5", "symbols go")
+        t.eq(names.sanitize("-\204\129-", run), "", "a mark with no letter goes")
+        t.eq(names.sanitize("\225\132\128-\225\133\161", run), "\234\176\128", "jamo a dash kept apart are composed")
+        t.eq(names.sanitize("¿—? 🚀", run), "", "none gives an empty value")
+    end)
+
     t.test("the first pattern that matches gives its first capture", function()
         local ps = { "\\b([A-Z]+-[0-9]+)\\b", "github\\.com/[^/]+/([^/ ]+)" }
         t.eq(names.default_name("ABC-123: Fix login - Tracker - Google Chrome", "Google Chrome", ps, run), "ABC-123")

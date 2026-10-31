@@ -354,7 +354,8 @@ function M.start(config)
     end)
     -- The current workspace's name, for scripts, written whenever it
     -- changes (SPEC.md §6.3). A failure is said once, until a write works.
-    self.workspace_file = current.new(current.dir(os.getenv("HOME") or ""), adapter_mod.current_fs)
+    self.workspace_file = current.new(current.dir(os.getenv("HOME") or ""), adapter_mod.current_fs,
+        self.adapter.javascript)
     local file_error
     self.publish_workspace = function()
         local ok, err = self.workspace_file.write(self.wm:current_ws())
@@ -426,9 +427,10 @@ function M.start(config)
     return self
 end
 
--- The current workspace's TIDE_WORKSPACE, as the file holds it.
+-- The current workspace's TIDE_WORKSPACE, as the file holds it: "" and why
+-- when its letters and digits can't be found.
 function M.workspace()
-    return names.sanitize(M.wm:current_ws())
+    return names.sanitize(M.wm:current_ws(), M.adapter.javascript)
 end
 
 function M.toggle_focus_follows_mouse()
