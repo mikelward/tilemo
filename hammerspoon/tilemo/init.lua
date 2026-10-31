@@ -214,6 +214,9 @@ function M.start(config)
     })
     self.pointer = adapter_mod.pointer_moves(function(x, y, flags)
         self.wm.ffm:move(x, y, keys.super_held(self.super, flags))
+        if self.bar then
+            self.bar.pointer(x, y)
+        end
     end)
     -- The clocks are tide's, from its settings folder, read again whenever
     -- anything there changes (SPEC.md §15). The pages say when a file is

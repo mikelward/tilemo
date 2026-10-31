@@ -123,6 +123,30 @@ const STATES = [
   },
 ];
 
+// Hover, as tilemo tells the page where the pointer is: over an item's
+// edge, so the mock shows its whole target, in light and dark.
+const HOVER = {
+  uuid: "A",
+  workspaces: ws([
+    ["in", { occupied: true }],
+    ["src", { current: true, occupied: true, apps: ["term", "web"] }],
+    ["docs", { occupied: true }],
+  ]),
+  title: "~/src — Terminal",
+  app_icons: APP_ICONS,
+  icons: {
+    mic: { muted: false },
+    volume: { level: "mid", muted: false },
+    network: { kind: "wired" },
+    battery: { percent: 84, charging: false, text: "84%" },
+  },
+};
+STATES.push(
+  { name: "bar-hover-chip", width: 1440, state: HOVER, pointer: ["#workspaces button:nth-child(3)"] },
+  { name: "bar-hover-icon", width: 1440, state: HOVER, pointer: ["#icons .battery"], scheme: "dark" },
+  { name: "bar-hover-clocks", width: 1440, state: HOVER, pointer: ["#clocks"], scheme: "dark" },
+);
+
 (async () => {
   const page = process.argv[2];
   if (!page) {
@@ -132,13 +156,13 @@ const STATES = [
   const browser = await chromium.launch();
   let failed = false;
   try {
-    for (const { name, width, state } of STATES) {
+    for (const { name, width, state, pointer, scheme } of STATES) {
       const context = await browser.newContext({
         viewport: { width, height: 36 },
         deviceScaleFactor: 2,
         timezoneId: "Europe/Dublin",
         locale: "en-US",
-        colorScheme: "light",
+        colorScheme: scheme ?? "light",
       });
       const tab = await context.newPage();
       tab.on("pageerror", (e) => {
@@ -148,6 +172,13 @@ const STATES = [
       await tab.clock.setFixedTime(new Date("2026-10-26T09:30:00Z"));
       await tab.goto("file://" + path.resolve(page));
       await tab.evaluate((s) => window.tilemo.update(s), state);
+      if (pointer) {
+        // At the item's middle, 1px from the bar's top: outside its own box.
+        await tab.evaluate(([sel]) => {
+          const r = document.querySelector(sel).getBoundingClientRect();
+          window.tilemo.pointer(Math.round((r.left + r.right) / 2), 1);
+        }, pointer);
+      }
       const out = path.join(__dirname, `${name}.png`);
       await tab.screenshot({ path: out });
       console.log(`wrote ${path.relative(process.cwd(), out)}`);

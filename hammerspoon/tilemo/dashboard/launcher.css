@@ -5,6 +5,9 @@
   --muted: #5e5e5e;
   --surface: #ffffff;
   --raised: #e6e9ec;
+  /* A click target under the pointer: the bar a shade darker, as if half
+     pressed. */
+  --hover: rgba(0, 0, 0, 0.08);
   --bar: rgba(255, 255, 255, 0.92);
   --accent: #3584e4;
   --on-accent: #ffffff;
@@ -17,6 +20,7 @@
     --muted: #9a9996;
     --surface: #1e1e1e;
     --raised: #303030;
+    --hover: rgba(255, 255, 255, 0.1);
     --bar: rgba(16, 18, 20, 0.92);
     --accent: #78aeed;
     --on-accent: #1e1e1e;
@@ -72,6 +76,73 @@ nav button {
   font: inherit;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
+}
+/* No dead clicks in the bar: each item's click target, a ::before under its
+   content, reaches the bar's top and bottom and halfway to its neighbors.
+   Its ::after, the same box, shows it on hover as a rounded rect, half
+   pressed; it takes no clicks, so the rounding leaves no dead corners.
+   Only top, bottom, left and right place them, so a page can set them
+   otherwise. */
+nav button,
+#clocks,
+.scopes button {
+  position: relative;
+  z-index: 0;
+}
+nav button::before,
+nav button::after,
+#clocks::before,
+#clocks::after,
+.scopes button::before,
+.scopes button::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+}
+nav button::after,
+#clocks::after {
+  border-radius: 6px;
+  pointer-events: none;
+}
+.scopes button::after {
+  border-radius: 999px;
+  pointer-events: none;
+}
+/* A chip is 26px in the 36px bar, 4px from the next, inside a 1px border;
+   the first reaches the bar's left edge. */
+nav button::before,
+nav button::after {
+  top: -6px;
+  bottom: -6px;
+  left: -3px;
+  right: -3px;
+}
+nav button:first-child::before,
+nav button:first-child::after {
+  left: -11px;
+}
+/* The clocks, every zone's name and time and the gaps between them, are one
+   target: the bar's height, out to its right edge, and half their own gap
+   to the left. */
+#clocks::before,
+#clocks::after {
+  top: calc(50% - 18px);
+  bottom: calc(50% - 18px);
+  left: -7px;
+  right: -10px;
+}
+/* The scope chips are 6px apart. */
+.scopes button::before,
+.scopes button::after {
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  right: -3px;
+}
+nav button:hover::after,
+#clocks:hover::after,
+.scopes button:hover::after {
+  background: var(--hover);
 }
 nav button.occupied {
   background: var(--raised);

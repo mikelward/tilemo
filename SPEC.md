@@ -1207,10 +1207,36 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - A click on an icon names its bar's display and the window. tilemo shows
     the window's workspace on that display if it isn't showing anywhere,
     then activates the window (§6.1).
-  - Double-clicking the title maximizes the focused window, or puts it
-    back (§5.4). The message names its bar's display, and tilemo acts only
-    if the focused window is there, where the title shows.
+  - Double-clicking the title, or the free bar around it, maximizes the
+    focused window, or puts it back (§5.4), as a Mac's title bar does. The
+    message names its bar's display, and tilemo acts only if the focused
+    window is there, where the title shows.
   - Clicking the clocks opens the dashboard, with its clock panel.
+  - **No dead clicks.** Each item's click target is its whole span (a
+    chip, the clocks row with every zone's name and time, a status icon
+    with its text) reaching the bar's top and bottom and halfway across
+    the gap to each neighbor, so a click between two items goes to the
+    nearer one. The first chip reaches the display's left edge and the
+    last item its right edge; the room between the two groups is the
+    title's, while there is one. Inside a chip, a window icon's target is
+    the chip's height and halfway to its neighbors. `bar.js` measures the
+    items on each fit and draws each target as a box under the item's
+    content.
+  - **Hover shows the target.** Under the pointer, an item's whole target
+    shows as a rounded rect, half pressed: tileco's `--hover`, a shade
+    darker than the bar in light and lighter in dark. A chip shows with
+    the space around it, a window icon as its own, the title as the free
+    bar, a status item with its text, and the clocks as one row. The
+    rounding is drawn, not hit-tested, so it moves no click. WebKit
+    follows the pointer only in the key window, which the bar never is
+    (WebKit's `trackingAreaOptions` in `WebViewImpl.mm`), so `:hover`
+    doesn't fire there: tilemo's pointer tap tells the bar it's over where
+    the pointer is, one small script per move over a bar, and the page
+    marks that target. There's no appearance (dark mode) item in the bar.
+  - A first click isn't spent on bringing Hammerspoon forward:
+    `hs.webview`'s view accepts the first mouse (its `acceptsFirstMouse`
+    returns yes, in Hammerspoon 1.4.27's `libwebview.m`), so it reaches the
+    page.
   - It floats above every app's window but below the menu bar, joins every
     Space, and stays put.
   - Focus follows mouse pauses over it, as over the menu bar (§5.2).

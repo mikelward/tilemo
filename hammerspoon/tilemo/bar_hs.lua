@@ -255,6 +255,14 @@ function M.new(tilemo)
     end
     self.icon_of = icon_of
 
+    local function run(v, js)
+        v.view:evaluateJavaScript(js, function(_, err)
+            if bar.js_failed(err) then
+                log("bar: " .. hs.inspect(err))
+            end
+        end)
+    end
+
     local function push(v, title)
         if not v.ready then
             return
@@ -267,11 +275,29 @@ function M.new(tilemo)
             return
         end
         v.sent = json
-        v.view:evaluateJavaScript("tilemo.update(" .. json .. ")", function(_, err)
-            if err and next(err) then
-                log("bar: " .. hs.inspect(err))
-            end
-        end)
+        run(v, "tilemo.update(" .. json .. ")")
+    end
+
+    -- Hover. The bar's window never becomes key, and WebKit follows the
+    -- pointer only in the key window, so :hover never fires there; tilemo
+    -- tells the page where the pointer is instead, on every move over a
+    -- bar, and that it left.
+    local hovered
+    function self.pointer(x, y)
+        local frames = {}
+        for uuid, v in pairs(self.views) do
+            frames[uuid] = { x = v.frame.x, y = v.frame.y, w = v.frame.w, h = v.frame.h, hidden = v.hidden }
+        end
+        local uuid, px, py = bar.pointer_at(frames, x, y)
+        local old = hovered and self.views[hovered]
+        if old and hovered ~= uuid and old.ready then
+            run(old, "tilemo.pointer(null)")
+        end
+        hovered = uuid
+        local v = uuid and self.views[uuid]
+        if v and v.ready then
+            run(v, string.format("tilemo.pointer(%d, %d)", math.floor(px), math.floor(py)))
+        end
     end
 
     local function create(uuid, frame)

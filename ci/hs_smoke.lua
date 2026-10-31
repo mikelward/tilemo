@@ -195,6 +195,57 @@ local function check_bar()
     say("bar up on %d display(s), with %s", n, table.concat(items, ", "))
 end
 
+-- In a real WebKit, every point of each bar's two groups, top to bottom,
+-- is some item's click target, not the bar between them (SPEC.md §8): from
+-- the left edge to the last chip, and from the clocks to the right edge.
+-- With the pointer there, that target, and only it, shows as hovered.
+local TARGETS_JS = [==[
+(() => {
+  const bar = document.getElementById("bar");
+  const chips = document.getElementById("workspaces").children;
+  const clocks = document.getElementById("clocks").getBoundingClientRect();
+  const spans = [[0, chips[chips.length - 1].getBoundingClientRect().right], [clocks.left, innerWidth]];
+  const dead = [];
+  for (const [from, to] of spans) {
+    for (let x = Math.ceil(from); x < to; x++) {
+      for (const y of [0, innerHeight / 2, innerHeight - 1]) {
+        const e = document.elementFromPoint(x, y);
+        if (!e || e === bar || e.id === "workspaces" || e.id === "right" || e.id === "icons") {
+          dead.push(x + "," + y);
+          continue;
+        }
+        // A status item that only shows something (the camera) isn't hovered.
+        tilemo.pointer(x, y);
+        const lit = document.querySelectorAll(".hover");
+        const shows = !e.closest("button, #clocks, #title");
+        if (shows ? lit.length !== 0 : lit.length !== 1 || !e.closest(".hover")) dead.push("hover " + x + "," + y);
+      }
+    }
+  }
+  tilemo.pointer(null);
+  return dead.length ? dead.slice(0, 10).join(" ") : "ok";
+})()
+]==]
+
+local function check_bar_targets(after)
+    local _, v = next(tilemo.bar and tilemo.bar.views or {})
+    if not (v and v.ready) then
+        -- check_bar has said why.
+        after()
+        return
+    end
+    v.view:evaluateJavaScript(TARGETS_JS, function(result, err)
+        if bar.js_failed(err) then
+            fail("bar: couldn't check its click targets: %s", hs.inspect(err))
+        elseif result ~= "ok" then
+            fail("bar: clicks at %s reach no item", tostring(result))
+        else
+            say("bar: every click in its groups reaches an item")
+        end
+        after()
+    end)
+end
+
 -- Wait for every bar page to load, up to a deadline, then check the bar
 -- and call `next`.
 local BAR_WAIT = 15
@@ -210,7 +261,7 @@ local function wait_for_bar(next)
         if ready or hs.timer.secondsSinceEpoch() - started > BAR_WAIT then
             smoke_bar_poll:stop()
             check_bar()
-            next()
+            check_bar_targets(next)
         end
     end)
 end
