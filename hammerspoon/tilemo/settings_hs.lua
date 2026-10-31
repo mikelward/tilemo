@@ -1,7 +1,8 @@
--- tilemo's settings window on Hammerspoon (SPEC.md §15): the Clocks page,
--- dashboard.lua's settings page in an hs.webview. It writes tide's
--- clocks.local.json, and tilemo hands the files back once they change on
--- disk, so the page shows what the bar does. Not runnable outside
+-- tilemo's settings window on Hammerspoon (SPEC.md §15): the Clocks and
+-- Start at login pages, dashboard.lua's settings page in an hs.webview. It
+-- writes tide's clocks.local.json and startup.local.json, and tilemo hands
+-- the files back once they change on disk, so the page shows what the bar
+-- and the next login do. Not runnable outside
 -- Hammerspoon.
 
 local dashboard = require("tilemo.dashboard")
@@ -30,19 +31,21 @@ local function build()
     return dashboard.page(read("settings.html"), read("launcher.css"), sources, dashboard.SETTINGS_MODULES)
 end
 
--- `tilemo` is the started tilemo module: its wm, adapter, clock_dir and
--- clock_files.
+-- `tilemo` is the started tilemo module: its wm, adapter, clock_dir,
+-- clock_files and startup_files.
 function M.new(tilemo)
     local self = {}
     local page = build()
     local view
+    -- The section to show once the page has loaded, or nil.
+    local wanted
 
     local function push()
         if not view then
             return
         end
         -- An empty list must reach the page as one, not as an object.
-        local json = hs.json.encode({ clockFiles = tilemo.clock_files, muted = "__muted__" })
+        local json = hs.json.encode({ clockFiles = tilemo.clock_files, startupFiles = tilemo.startup_files, muted = "__muted__" })
         json = json:gsub('"__muted__"', function()
             return mute.encode_list(tilemo.wm.muted.list)
         end)
@@ -53,19 +56,39 @@ function M.new(tilemo)
         end)
     end
 
+    -- Scroll to section `id` ("clocks", "startup" or "muted").
+    local function reveal(id)
+        if not (view and id) then
+            return
+        end
+        view:evaluateJavaScript("tilemo.reveal(" .. hs.json.encode({ id }):sub(2, -2) .. ")", function(_, err)
+            if err and next(err) then
+                tilemo.adapter.log("settings: " .. hs.inspect(err))
+            end
+        end)
+    end
+
+    -- A write from the page: `text` to `name` in tide's folder, said in a
+    -- notice naming `what` if it fails.
+    local function save(name, text, what)
+        local path = tilemo.clock_dir .. "/" .. name
+        local ok, err = tilemo.adapter.write_file(path, text)
+        if not ok then
+            tilemo.adapter.notify("Couldn't save " .. what .. " to " .. path .. ": " .. tostring(err))
+            -- The page showed the change already: back to the files.
+            push()
+        end
+        -- The folder's watcher reloads the files, and then this page.
+    end
+
     local content = hs.webview.usercontent.new("tilemo")
     content:setCallback(function(msg)
         local body = msg.body or {}
         tilemo.adapter.after(0, function()
             if type(body.write) == "string" then
-                local path = tilemo.clock_dir .. "/" .. dashboard.LOCAL_FILE
-                local ok, err = tilemo.adapter.write_file(path, body.write)
-                if not ok then
-                    tilemo.adapter.notify("Couldn't save the clocks to " .. path .. ": " .. tostring(err))
-                    -- The page showed the change already: back to the files.
-                    push()
-                end
-                -- The folder's watcher reloads the files, and then this page.
+                save(dashboard.LOCAL_FILE, body.write, "the clocks")
+            elseif type(body.writeStartup) == "string" then
+                save(dashboard.STARTUP_LOCAL_FILE, body.writeStartup, "Start at login's commands")
             elseif type(body.unmute) == "string" then
                 -- The same as Cmd+M on a muted row; it refreshes this page.
                 if not mute.has(tilemo.wm.muted, body.unmute) or tilemo.toggle_mute(body.unmute) == nil then
@@ -81,14 +104,17 @@ function M.new(tilemo)
     -- The files changed: show them as they are now.
     self.refresh = push
 
-    function self.show()
+    -- Open the window, or bring it forward, showing `section` if given.
+    function self.show(section)
         if view then
             local w = view:hswindow()
             if w then
                 w:focus()
             end
+            reveal(section)
             return
         end
+        wanted = section
         local s = tilemo.wm:screen_by_uuid(tilemo.wm:current_screen())
         if not s then
             tilemo.adapter.log("settings: no display to show it on")
@@ -104,6 +130,8 @@ function M.new(tilemo)
         view:navigationCallback(function(action)
             if action == "didFinishNavigation" then
                 push()
+                reveal(wanted)
+                wanted = nil
             end
         end)
         view:windowCallback(function(action)

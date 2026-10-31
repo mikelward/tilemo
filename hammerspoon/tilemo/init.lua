@@ -226,6 +226,7 @@ function M.start(config)
     -- wrong; each distinct complaint is a notification once.
     self.clock_dir = dashboard.clock_dir(os.getenv)
     self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
+    self.startup_files = dashboard.startup_files(self.clock_dir, self.adapter.read)
     local reported
     self.report_clock_errors = function(errors)
         local text = table.concat(errors or {}, "; ")
@@ -345,6 +346,7 @@ function M.start(config)
         load_muted()
         run_startup()
         self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
+        self.startup_files = dashboard.startup_files(self.clock_dir, self.adapter.read)
         if self.bar then
             self.bar.update()
         end
@@ -354,8 +356,8 @@ function M.start(config)
         self.settings.refresh()
     end)
     self.settings = settings_hs.new(self)
-    self.wm.open_settings = function()
-        self.settings.show()
+    self.wm.open_settings = function(section)
+        self.settings.show(section)
     end
     -- Screenshots: macOS saves each to Screenshot's folder, and tilemo puts
     -- it on the clipboard too, as tide does both (SPEC.md §10). The folder

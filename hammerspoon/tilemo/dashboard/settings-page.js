@@ -1,18 +1,23 @@
-// tilemo's settings page (SPEC.md §15): the clocks, as tide's Clocks page
-// (tide SPEC.md §16). It changes ~/.config/tide/clocks.local.json only, with
-// tide's own functions, so a change made here shows on tide too. And the
-// muted apps and sites (SPEC.md §14.2), each with an Unmute button. tilemo
-// fills it with tilemo.update({ clockFiles, muted }) and hears back through
-// the "tilemo" message handler: { write: text } for clocks.local.json,
-// { unmute: entry }, or { close: true }.
+// tilemo's settings page (SPEC.md §15): the clocks and Start at login's
+// commands, as tide's Clocks and Start at login pages (tide SPEC.md §16).
+// It changes ~/.config/tide/clocks.local.json and startup.local.json only,
+// with tide's own functions, so a change made here shows on tide too. And
+// the muted apps and sites (SPEC.md §14.2), each with an Unmute button.
+// tilemo fills it with tilemo.update({ clockFiles, startupFiles, muted })
+// and hears back through the "tilemo" message handler: { write: text } for
+// clocks.local.json, { writeStartup: text } for startup.local.json,
+// { unmute: entry }, or { close: true }. tilemo.reveal(id) scrolls to a
+// section, for the launcher's rows.
 
 import { editableClocks, editedClocks, movedClock, relabeledClock, withClock, withoutClock } from "./tide-clocks.js";
+import { editableStartup, editedStartup, movedCommand, withCommand, withoutCommand } from "./tide-startup.js";
 import { isZone, localText, sharedText } from "./settings.js";
 
 const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage(msg);
 
 let files = null;
 let muted = [];
+let startupFiles = null;
 
 const SOURCES = {
   "clocks.local.json": "From clocks.local.json, this Mac's own list.",
@@ -93,6 +98,63 @@ function render() {
   list.append(local);
 }
 
+// A startup file's text, or null when there's none.
+const startupText = (which) => (typeof startupFiles?.[which] === "string" ? startupFiles[which] : null);
+
+const STARTUP_SOURCES = {
+  "startup.local.json": "From startup.local.json, this Mac's own list.",
+  "startup.json": "From startup.json, shared with tide. A change saves this Mac's own list to startup.local.json.",
+};
+
+function showStartupError(text) {
+  document.getElementById("startup-error").textContent = text;
+}
+
+// As change() is for the clocks: tide's startup functions, saved to
+// startup.local.json, shown at once.
+function changeStartup(fn) {
+  const r = editedStartup(startupText("shared"), startupText("local"), fn);
+  if (r.error) {
+    showStartupError(r.error);
+    return false;
+  }
+  showStartupError("");
+  send({ writeStartup: r.text });
+  startupFiles = { ...startupFiles, local: r.text };
+  renderStartup();
+  return true;
+}
+
+function renderStartup() {
+  const list = document.getElementById("startup-list");
+  list.replaceChildren();
+  const base = editableStartup(startupText("shared"), startupText("local"));
+  const add = document.getElementById("add-command");
+  const source = document.getElementById("startup-source");
+  if (base.error) {
+    source.textContent = "";
+    showStartupError(`${base.error}. Fix the file to change the commands here.`);
+    add.disabled = true;
+    return;
+  }
+  add.disabled = false;
+  source.textContent = base.source ? STARTUP_SOURCES[base.source] : "None yet. The first saves this Mac's own list to startup.local.json.";
+  if (base.commands.length === 0) {
+    list.append(el("li", "Nothing runs at login."));
+    return;
+  }
+  base.commands.forEach((c, i) => {
+    const li = el("li");
+    li.append(
+      el("span", c),
+      button("↑", `Move ${c} up`, i === 0, () => changeStartup((cs) => movedCommand(cs, i, c, -1))),
+      button("↓", `Move ${c} down`, i === base.commands.length - 1, () => changeStartup((cs) => movedCommand(cs, i, c, 1))),
+      button("✕", `Remove ${c}`, false, () => changeStartup((cs) => withoutCommand(cs, i, c))),
+    );
+    list.append(li);
+  });
+}
+
 // Each muted entry: an app's bundle id, or site:<host>, shown as the host.
 function renderMuted() {
   const list = document.getElementById("muted-list");
@@ -121,6 +183,12 @@ document.getElementById("add-zone").addEventListener("keydown", (e) => {
   if (change((cs) => withClock(cs, zone))) input.value = "";
 });
 
+document.getElementById("add-command").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const input = e.target;
+  if (changeStartup((cs) => withCommand(cs, input.value))) input.value = "";
+});
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") send({ close: true });
 });
@@ -128,10 +196,16 @@ document.addEventListener("keydown", (e) => {
 window.tilemo = {
   update(state) {
     files = state.clockFiles;
+    startupFiles = state.startupFiles ?? null;
     muted = Array.isArray(state.muted) ? state.muted : [];
     // New files: what went wrong before is about the old ones.
     showError("");
+    showStartupError("");
     render();
+    renderStartup();
     renderMuted();
+  },
+  reveal(id) {
+    document.getElementById(id)?.scrollIntoView?.({ block: "start" });
   },
 };

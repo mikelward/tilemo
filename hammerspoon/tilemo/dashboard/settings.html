@@ -42,6 +42,10 @@ body.settings {
 .settings #muted-list li {
   grid-template-columns: 1fr auto;
 }
+/* A command, then its up, down and remove buttons. */
+.settings #startup-list li {
+  grid-template-columns: 1fr auto auto auto;
+}
 .settings li.local {
   color: var(--muted);
 }
@@ -73,7 +77,7 @@ body.settings {
 </style>
 </head>
 <body class="settings">
-<h1>Clocks</h1>
+<h1 id="clocks">Clocks</h1>
 <p class="source" id="source"></p>
 <ol id="clock-list"></ol>
 <p class="add">
@@ -81,7 +85,15 @@ body.settings {
 </p>
 <p class="error" id="error" role="alert"></p>
 <p class="note">A label shows on the bar: any text, nothing for just the time, or <code>abbr</code> for the zone's abbreviation. Enter sets it. The bar shows local last, after these.</p>
-<h1>Muted</h1>
+<h1 id="startup">Start at login</h1>
+<p class="source" id="startup-source"></p>
+<ol id="startup-list"></ol>
+<p class="add">
+<input id="add-command" placeholder="Add a command, such as google-calendar" aria-label="Add a command" spellcheck="false">
+</p>
+<p class="error" id="startup-error" role="alert"></p>
+<p class="note">tilemo runs these once a login, in order, as it starts, unless one's program is running already. Each is a program and its words, with no shell. A change takes effect at the next login.</p>
+<h1 id="muted">Muted</h1>
 <p class="note">Apps and sites that are never marked for attention. Mute one with Cmd+M, or a right-click, on its row in the switcher's Windows or Attention tab. macOS still shows their banners: turn those off in Notifications settings.</p>
 <ul id="muted-list"></ul>
 <script>

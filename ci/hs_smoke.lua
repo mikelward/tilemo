@@ -577,14 +577,15 @@ if not ok then
     fail("launcher: %s", err)
 end
 
--- The settings window builds its page and opens; the clocks come from
--- tide's folder, which tilemo makes if it's missing, to watch it.
+-- The settings window builds its page and opens, on Start at login as its
+-- launcher row asks; the clocks come from tide's folder, which tilemo makes
+-- if it's missing, to watch it.
 ok, err = xpcall(function()
-    tilemo.settings.show()
+    tilemo.settings.show("startup")
 end, debug.traceback)
 if not ok then
     fail("settings: %s", err)
-elseif type(tilemo.clock_files) ~= "table" or not hs.fs.attributes(tilemo.clock_dir) then
+elseif type(tilemo.clock_files) ~= "table" or type(tilemo.startup_files) ~= "table" or not hs.fs.attributes(tilemo.clock_dir) then
     fail("settings: no clocks folder at %s", tostring(tilemo.clock_dir))
 else
     say("settings shown, clocks from %s", tilemo.clock_dir)

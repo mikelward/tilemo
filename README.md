@@ -38,8 +38,10 @@ It brings tide's desktop to macOS:
 - tide's picker on Super+C: what you've copied since tilemo started,
   never a password manager's copy, and emoji and symbols by name (§9.1);
 - tileco's dashboard on Super+Shift+Space;
-- a Clocks settings page, from the launcher or the dashboard, sharing
-  tide's `~/.config/tide/clocks*.json` (§15).
+- a settings window, from the launcher or the dashboard, with tide's
+  Clocks and Start at login lists, sharing tide's
+  `~/.config/tide/clocks*.json` and `startup*.json`, and the muted apps and
+  sites; each section has its own launcher row (§15).
 
 With [mikelward/scripts](https://github.com/mikelward/scripts),
 `setup-macos --wm tilemo` does all of this: it installs Hammerspoon and tilemo,

@@ -136,9 +136,67 @@ assert.strictEqual(muted().length, 1);
 assert.strictEqual(muted()[0].textContent, "Nothing is muted.");
 sandbox.tilemo.update({ clockFiles: [], muted: ["com.example.chat", "site:chat.example.com"] });
 assert.deepStrictEqual(muted().map((li) => li.children[0].textContent), ["com.example.chat", "chat.example.com"]);
+for (const li of muted()) assert.strictEqual(li.children.length, 2, "an entry and Unmute");
 sent.length = 0;
 muted()[1].children[1].listeners.click();
 assert.deepStrictEqual(sent, [{ unmute: "site:chat.example.com" }]);
 assert.strictEqual(muted()[1].children[1].attrs["aria-label"], "Unmute chat.example.com");
+
+// Start at login: tide's startup.json and startup.local.json, through
+// tide's own functions. No files: nothing runs, and the first command
+// added saves startup.local.json.
+const commands = () => ids["startup-list"].children.map((li) => li.children[0]?.textContent ?? li.textContent);
+const lastStartup = () => JSON.parse(sent.filter((m) => m.writeStartup).at(-1).writeStartup);
+sandbox.tilemo.update({ clockFiles: [], startupFiles: [], muted: [] });
+assert.deepStrictEqual(commands(), ["Nothing runs at login."]);
+assert.match(ids["startup-source"].textContent, /startup\.local\.json/);
+const addCommand = ids["add-command"];
+addCommand.value = "  google-calendar  ";
+press(addCommand, "Enter");
+assert.deepStrictEqual(lastStartup(), { commands: ["google-calendar"] });
+assert.strictEqual(addCommand.value, "", "the box empties once it's added");
+assert.deepStrictEqual(commands(), ["google-calendar"], "shown at once");
+
+// A command with shell syntax, or one listed already, is refused, says
+// why, and writes nothing.
+sent.length = 0;
+addCommand.value = "open -a $HOME/x";
+press(addCommand, "Enter");
+assert.match(ids["startup-error"].textContent, /no shell/);
+addCommand.value = "google-calendar";
+press(addCommand, "Enter");
+assert.match(ids["startup-error"].textContent, /listed already/);
+assert.deepStrictEqual(sent, []);
+
+// A shared startup.json is the list to start from; the first change copies
+// it into startup.local.json, keeping that file's other keys.
+sandbox.tilemo.update({
+  clockFiles: [],
+  startupFiles: { shared: '{"commands": ["google-calendar", "google-chat"]}', local: '{"note": 1}' },
+});
+assert.deepStrictEqual(commands(), ["google-calendar", "google-chat"]);
+assert.match(ids["startup-source"].textContent, /shared with tide/);
+// settings_test.lua checks the stylesheet gives a row this many columns.
+for (const li of ids["startup-list"].children) assert.strictEqual(li.children.length, 4, "a command, up, down and remove");
+const cmdRow = (c) => ids["startup-list"].children.find((li) => li.children[0].textContent === c);
+assert.strictEqual(cmdRow("google-calendar").children[1].disabled, true, "the first can't move up");
+cmdRow("google-chat").children[1].listeners.click();
+assert.deepStrictEqual(lastStartup(), { note: 1, commands: ["google-chat", "google-calendar"] });
+cmdRow("google-calendar").children[3].listeners.click();
+assert.deepStrictEqual(lastStartup(), { note: 1, commands: ["google-chat"] });
+
+// A startup file that doesn't parse can't be changed here.
+sandbox.tilemo.update({ clockFiles: [], startupFiles: { local: "{" } });
+assert.match(ids["startup-error"].textContent, /startup\.local\.json/);
+assert.strictEqual(addCommand.disabled, true);
+
+// The launcher's rows scroll to their section.
+let revealed = null;
+sandbox.document.getElementById("startup").scrollIntoView = () => {
+  revealed = "startup";
+};
+sandbox.tilemo.reveal("startup");
+assert.strictEqual(revealed, "startup");
+sandbox.tilemo.reveal("nothing-by-this-id");
 
 console.log("settings page: ok");
