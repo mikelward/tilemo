@@ -35,6 +35,8 @@ It brings tide's desktop to macOS:
   shortcuts you make in the Shortcuts app, "Do Not Disturb On" and "Do Not
   Disturb Off", each one Set Focus action; tilemo says so if they're
   missing, and keep awake works without them;
+- tide's picker on Super+C: what you've copied since tilemo started,
+  never a password manager's copy, and emoji and symbols by name (§9.1);
 - tileco's dashboard on Super+Shift+Space;
 - a Clocks settings page, from the launcher or the dashboard, sharing
   tide's `~/.config/tide/clocks*.json` (§15).

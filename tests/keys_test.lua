@@ -212,6 +212,27 @@ t.test("the switcher's keys open it on their own tabs, and Super+Tab, End and Re
     t.eq(by.home, { "home" })
 end)
 
+t.test("Super+C opens the picker on Clipboard; Calendar has no key; Super+H and Super+Shift+C stay", function()
+    local by, shifted = {}, {}
+    for _, b in ipairs(keys.map) do
+        (b.shift and shifted or by)[b.key] = b
+    end
+    t.eq({ by.c.action, by.c.arg }, { "picker", "clipboard" })
+    t.eq(by.h.arg.run, "home")
+    t.eq(shifted.c.arg.run, "google-chat")
+    for _, b in ipairs(keys.map) do
+        t.eq(type(b.arg) == "table" and b.arg.run == "google-calendar", false, "a key runs google-calendar")
+    end
+end)
+
+t.test("the picker key asks the window manager to open the picker", function()
+    local wm = require("tilemo.wm")
+    local asked
+    wm.actions.picker({ open_picker = function(tab) asked = tab end }, "clipboard")
+    t.eq(asked, "clipboard")
+    wm.actions.picker({}, "clipboard") -- before the picker exists: nothing, no error
+end)
+
 t.test("Alt+Tab swaps with the master only with Karabiner, which makes it from physical Alt+Tab", function()
     local function find(list)
         for _, b in ipairs(list) do
