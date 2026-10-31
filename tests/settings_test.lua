@@ -62,6 +62,14 @@ t.test("the Clipboard settings files are tide's, in its settings folder", functi
     t.eq(got, { ["local"] = "{}" })
 end)
 
+t.test("the Layouts settings files are tide's, in its settings folder", function()
+    local got = dashboard.layout_files("/c/tide", function(p)
+        return p == "/c/tide/layouts.json" and "{}" or nil
+    end)
+    t.eq(got, { shared = "{}" })
+    t.eq(dashboard.LAYOUTS_LOCAL_FILE, "layouts.local.json")
+end)
+
 t.test("a tide module copied unchanged finds another by tide's name for it", function()
     local js = dashboard.bundle({
         ["tide-clocks.js"] = "export const X = 1;",
@@ -81,7 +89,7 @@ t.test("the settings page builds, and changes the clocks as tide's page does", f
     t.eq(html:find('id="add-zone"', 1, true) ~= nil, true)
     t.eq(html:find('id="add-command"', 1, true) ~= nil, true)
     t.eq(html:find('id="clipboard-history"', 1, true) ~= nil, true)
-    for _, id in ipairs({ "clocks", "startup", "clipboard", "muted" }) do
+    for _, id in ipairs({ "clocks", "layouts", "startup", "clipboard", "muted" }) do
         t.eq(html:find('<h1 id="' .. id .. '"', 1, true) ~= nil, true, "a section to reveal: " .. id)
     end
     local node = io.popen("command -v node"):read("l")

@@ -587,6 +587,8 @@ if not ok then
     fail("settings: %s", err)
 elseif type(tilemo.clock_files) ~= "table" or type(tilemo.startup_files) ~= "table" or not hs.fs.attributes(tilemo.clock_dir) then
     fail("settings: no clocks folder at %s", tostring(tilemo.clock_dir))
+elseif type(tilemo.layout_files) ~= "table" or type(tilemo.wm.layout.modes) ~= "table" then
+    fail("settings: tide's layouts weren't read")
 else
     say("settings shown, clocks from %s", tilemo.clock_dir)
 end

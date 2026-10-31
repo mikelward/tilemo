@@ -5,7 +5,8 @@
 --
 -- start() takes { layout = ..., rules = {...}, focus_follows_mouse = true,
 -- keep_focus = {...}, bar = true }: `layout` overrides tilemo/layout.lua's
--- defaults whole, `rules` are float rules that come before the built-in
+-- defaults whole, and tide's layouts.json and layouts.local.json lay over
+-- it (SPEC.md §15), `rules` are float rules that come before the built-in
 -- ones (tilemo/rules.lua), and `keep_focus` names more apps, by bundle ID,
 -- that keep focus while they're in front. `bar = false` leaves out the bar
 -- along the top and shows the workspaces in the menu bar instead.
@@ -42,6 +43,7 @@ local current = require("tilemo.current")
 local prompt_hs = require("tilemo.prompt_hs")
 local presenter_hs = require("tilemo.presenter_hs")
 local presenter = require("tilemo.presenter")
+local layout = require("tilemo.layout")
 
 local M = {}
 
@@ -164,6 +166,14 @@ function M.start(config)
     config.saved = adapter_mod.load()
     -- The tiling area starts below the bar.
     config.top = config.bar ~= false and bar.HEIGHT or 0
+    -- The layouts are tide's, from layouts.json and layouts.local.json in
+    -- its settings folder, over `layout` or tide's defaults (SPEC.md §15),
+    -- read before the first workspace is made and again when they change.
+    local layout_base = config.layout or layout.defaults
+    self.layout_base = layout_base
+    local layout_errors
+    config.layout, layout_errors = layout.load_settings(
+        dashboard.clock_dir(os.getenv), self.adapter.read, self.adapter.decode, layout_base)
     self.wm = wm_mod.new(self.adapter, config)
     self.wm.ffm = ffm_mod.new(self.wm, self.adapter, {
         enabled = config.focus_follows_mouse ~= false,
@@ -342,7 +352,26 @@ function M.start(config)
         end
         return now
     end
+    -- A layouts file that's wrong is said once, naming it, and the last
+    -- good settings stay.
+    local reported_layouts
+    local function report_layouts(errors)
+        local text = table.concat(errors, "; ")
+        if text ~= "" and text ~= reported_layouts then
+            self.adapter.notify("The layouts stay as they were: " .. text)
+        end
+        reported_layouts = text
+    end
+    local function load_layouts()
+        local c, errors = layout.load_settings(self.clock_dir, self.adapter.read, self.adapter.decode, layout_base, self.wm.layout)
+        report_layouts(errors)
+        self.wm:set_layout(c)
+        self.layout_files = dashboard.layout_files(self.clock_dir, self.adapter.read)
+    end
+    report_layouts(layout_errors)
+    self.layout_files = dashboard.layout_files(self.clock_dir, self.adapter.read)
     self.clock_watch = adapter_mod.watch_folder(self.clock_dir, function()
+        load_layouts()
         load_patterns()
         load_muted()
         run_startup()

@@ -272,4 +272,66 @@ sandbox.tilemo.reveal("nothing-by-this-id");
   assert.strictEqual(sandbox.document.getElementById("muted-error").textContent, "", "new files: the error was about the old ones");
 }
 
+// Layouts: tide's layouts.json and layouts.local.json, through tide's own
+// rows and steps; only layouts.local.json is written, key by key.
+{
+  const box = () => sandbox.document.getElementById("layout-rows");
+  // Each row is [name, less, value, more]; headings are h2s.
+  const layoutRow = (name) => box().children.find((r) => r.tag === "div" && r.children[0].textContent === name);
+  const lastLayouts = () => JSON.parse(sent.filter((m) => m.writeLayouts).at(-1).writeLayouts);
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: [] });
+  assert.match(sandbox.document.getElementById("layouts-source").textContent, /tide's defaults/);
+  assert.strictEqual(layoutRow("Ultrawides start in").children[2].textContent, "Three columns");
+  assert.strictEqual(layoutRow("Other monitors start in").children[2].textContent, "Tile");
+  assert.strictEqual(layoutRow("New windows go").children[2].textContent, "End of stack");
+  assert.ok(box().children.some((r) => r.tag === "h2" && r.textContent === "MASTER WIDTH"));
+  // "Tile" names a master width and a master count; the first is the width.
+  const tile = () => box().children.filter((r) => r.tag === "div" && r.children[0].textContent === "Tile");
+  assert.strictEqual(tile()[0].children[2].textContent, "55%");
+  assert.strictEqual(tile()[1].children[2].textContent, "1");
+  sent.length = 0;
+  tile()[0].children[3].listeners.click();
+  assert.deepStrictEqual(lastLayouts(), { modes: { tile: { mfact: 0.6 } } }, "+ steps the master width to the next mark");
+  assert.strictEqual(tile()[0].children[2].textContent, "60%", "shown at once");
+  layoutRow("New windows go").children[3].listeners.click();
+  assert.deepStrictEqual(lastLayouts(), { modes: { tile: { mfact: 0.6 } }, newWindow: "top" }, "builds on the change before");
+  layoutRow("Ultrawides start in").children[1].listeners.click();
+  assert.strictEqual(lastLayouts().defaultMode.ultrawide, "tile", "‹ steps back through the modes");
+  // A lone window's width sets the whole list, as a list is set whole.
+  layoutRow("Aspect 2.1 and up").children[1].listeners.click();
+  assert.deepStrictEqual(lastLayouts().single, [{ minAspect: 2.1, width: 0.75 }, { minAspect: 3.2, width: 0.6 }]);
+
+  // The shared file's settings show, and a change keeps them out of the
+  // local file, which says only what it changes.
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: { shared: '{"modes": {"twocol": {"nmaster": 3}}}' } });
+  assert.match(sandbox.document.getElementById("layouts-source").textContent, /layouts\.json, shared with tide/);
+  const twocol = () => box().children.filter((r) => r.tag === "div" && r.children[0].textContent === "Two columns");
+  assert.strictEqual(twocol()[1].children[2].textContent, "3");
+  sent.length = 0;
+  twocol()[1].children[1].listeners.click();
+  assert.deepStrictEqual(lastLayouts(), { modes: { twocol: { nmaster: 2 } } });
+  // Two columns takes one master at fewest, so − stops there.
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: { local: '{"modes": {"twocol": {"nmaster": 1}}}' } });
+  assert.match(sandbox.document.getElementById("layouts-source").textContent, /layouts\.local\.json/);
+  assert.strictEqual(twocol()[1].children[1].disabled, true);
+
+  // start()'s own layout is what the files lay over: the page shows it, and
+  // steps from it, writing only the change.
+  const base = { modes: { tile: { mfact: 0.7, nmaster: 1 } }, single: [{ minAspect: 2.5, width: 0.9 }] };
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: [], layoutBase: base });
+  assert.strictEqual(tile()[0].children[2].textContent, "70%");
+  sent.length = 0;
+  tile()[0].children[3].listeners.click();
+  assert.deepStrictEqual(lastLayouts(), { modes: { tile: { mfact: 0.75 } } }, "+ widens from what's in effect");
+  layoutRow("Aspect 2.5 and up").children[1].listeners.click();
+  assert.deepStrictEqual(lastLayouts().single, [{ minAspect: 2.5, width: 0.85 }], "the base's lone-window rules, not tide's");
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: { local: '{"modes": {"tile": {"mfact": 0.6}}}' }, layoutBase: base });
+  assert.strictEqual(tile()[0].children[2].textContent, "60%", "the files over the base");
+
+  // A file that's wrong is named, and nothing can change until it's fixed.
+  sandbox.tilemo.update({ clockFiles: [], layoutFiles: { local: '{"modes": {"tile": {"mfact": 2}}}' } });
+  assert.match(sandbox.document.getElementById("layouts-error").textContent, /layouts\.local\.json: modes\.tile\.mfact must be a number from 0\.1 to 0\.9/);
+  assert.strictEqual(layoutRow("New windows go").children[3].disabled, true);
+}
+
 console.log("settings page: ok");

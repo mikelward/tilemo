@@ -513,6 +513,7 @@ M.COMMANDS = {
     { title = "Layout: two columns", action = "layout", arg = "twocol" },
     { title = "Dashboard: workspaces, clocks and calendar", action = "dashboard" },
     { title = "Settings: clocks", action = "settings", arg = "clocks" },
+    { title = "Settings: layouts", action = "settings", arg = "layouts" },
     { title = "Settings: start at login", action = "settings", arg = "startup" },
     { title = "Settings: clipboard history", action = "settings", arg = "clipboard" },
     { title = "Settings: muted apps and sites", action = "settings", arg = "muted" },

@@ -1,17 +1,23 @@
-// tilemo's settings page (SPEC.md §15): the clocks and Start at login's
-// commands, as tide's Clocks and Start at login pages (tide SPEC.md §16).
-// It changes ~/.config/tide/clocks.local.json and startup.local.json only,
-// with tide's own functions, so a change made here shows on tide too. And
-// the muted apps and sites (SPEC.md §14.2), each with an Unmute button.
-// tilemo fills it with tilemo.update({ clockFiles, startupFiles, muted })
-// and hears back through the "tilemo" message handler: { write: text } for
-// clocks.local.json, { writeStartup: text } for startup.local.json,
+// tilemo's settings page (SPEC.md §15): the clocks, the layouts and Start
+// at login's commands, as tide's Clocks, Layouts and Start at login pages
+// (tide SPEC.md §16). It changes ~/.config/tide/clocks.local.json,
+// layouts.local.json and startup.local.json only, with tide's own
+// functions, so a change made here shows on tide too. And the muted apps
+// and sites (SPEC.md §14.2), each with an Unmute button. tilemo fills it
+// with tilemo.update({ clockFiles, layoutFiles, layoutBase, startupFiles,
+// muted }) and hears back through the "tilemo" message handler:
+// { write: text } for clocks.local.json, { writeLayouts: text } for
+// layouts.local.json, { writeStartup: text } for startup.local.json,
 // { unmute: entry }, or { close: true }. tilemo.reveal(id) scrolls to a
 // section, for the launcher's rows.
 
 import { editableClocks, editedClocks, movedClock, relabeledClock, withClock, withoutClock } from "./tide-clocks.js";
 import { editableStartup, editedStartup, movedCommand, withCommand, withoutCommand } from "./tide-startup.js";
 import { historySummary, loadClipboardSettings, steppedMax, withSetting } from "./tide-clipboard.js";
+import {
+  effectiveLayouts, formatLayout, layoutChoices, layoutRows, loadLayouts, shownLayout, steppedLayout, steppedSingle,
+  withLayoutSetting,
+} from "./tide-layouts.js";
 import { isZone, localText, sharedText } from "./settings.js";
 
 const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage(msg);
@@ -20,6 +26,10 @@ let files = null;
 let muted = [];
 let startupFiles = null;
 let clipboardFiles = null;
+let layoutFiles = null;
+// What the files lay over, in their names: start()'s layout, which may not
+// be tide's defaults. Empty for tide's defaults alone.
+let layoutBase = {};
 let clipboardCount = 0;
 // The settings tilemo has in effect, the fallback when a file is wrong.
 let clipboardInEffect;
@@ -210,6 +220,94 @@ document.getElementById("clipboard-more").addEventListener("click", () => {
 });
 document.getElementById("clipboard-clear").addEventListener("click", () => send({ clearClipboard: true }));
 
+// The Layouts section, as tide's Layouts page (tide SPEC.md §16): its rows,
+// values and steps are tide's own, and a change writes only
+// layouts.local.json, keeping whatever else it says.
+const layoutText = (which) => (typeof layoutFiles?.[which] === "string" ? layoutFiles[which] : null);
+
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+// `over` laid on `base` as tide lays one file on another: objects key by
+// key, lists and values whole.
+function overlaid(base, over) {
+  const out = { ...base };
+  for (const [k, v] of Object.entries(over)) {
+    out[k] = isObject(base[k]) && isObject(v) ? overlaid(base[k], v) : v;
+  }
+  return out;
+}
+
+// The files' settings over the base, so a value shown or stepped is the
+// one in effect; a change still writes only what it changes.
+function layoutsLoaded() {
+  const loaded = loadLayouts(layoutText("shared"), layoutText("local"));
+  return { settings: overlaid(layoutBase, loaded.settings), errors: loaded.errors };
+}
+
+function setLayout(path, value) {
+  const r = withLayoutSetting(layoutText("local"), path, value, layoutText("shared"));
+  const error = document.getElementById("layouts-error");
+  if (r.error) {
+    error.textContent = r.error;
+    return;
+  }
+  error.textContent = "";
+  send({ writeLayouts: r.text });
+  layoutFiles = { ...layoutFiles, local: r.text };
+  renderLayouts();
+}
+
+// One row: its name, a button either side of its value.
+function layoutRow(label, value, less, more) {
+  const row = el("div");
+  row.className = "row";
+  const shown = el("span", value);
+  shown.className = "value";
+  row.append(el("span", label), less, shown, more);
+  return row;
+}
+
+function renderLayouts() {
+  const box = document.getElementById("layout-rows");
+  box.replaceChildren();
+  const { settings, errors } = layoutsLoaded();
+  const broken = errors.length > 0;
+  document.getElementById("layouts-source").textContent = layoutText("local") !== null
+    ? "From layouts.local.json, this Mac's own, over layouts.json."
+    : layoutText("shared") !== null
+      ? "From layouts.json, shared with tide. A change saves to layouts.local.json."
+      : "tide's defaults. A change saves to layouts.local.json.";
+  document.getElementById("layouts-error").textContent = broken ? `${errors.join("; ")}. Fix the file to change these here.` : "";
+  const effective = effectiveLayouts(settings);
+  for (const r of layoutRows(effective)) {
+    if (r.kind === "heading") {
+      box.append(el("h2", r.label));
+    } else if (r.kind === "choice") {
+      const choices = layoutChoices(r.path);
+      const value = shownLayout(settings, r.path);
+      const i = choices.findIndex((c) => c.value === value);
+      const step = (d) => setLayout(r.path, choices[(i + d + choices.length) % choices.length].value);
+      box.append(layoutRow(r.label, choices[i]?.label ?? String(value),
+        button("‹", `Previous: ${r.label}`, broken, () => step(-1)),
+        button("›", `Next: ${r.label}`, broken, () => step(1))));
+    } else if (r.kind === "number") {
+      const value = shownLayout(settings, r.path);
+      const less = steppedLayout(r.path, value, -1);
+      const more = steppedLayout(r.path, value, 1);
+      box.append(layoutRow(r.label, formatLayout(r.path, value),
+        button("−", `Less: ${r.label}`, broken || less === value, () => setLayout(r.path, less)),
+        button("+", `More: ${r.label}`, broken || more === value, () => setLayout(r.path, more))));
+    } else if (r.kind === "single") {
+      const width = effective.single[r.index].width;
+      const less = steppedSingle(effective.single, r.index, -1);
+      const more = steppedSingle(effective.single, r.index, 1);
+      box.append(layoutRow(r.label, formatLayout("single.width", width),
+        button("−", `Narrower: ${r.label}`, broken || less[r.index].width === width, () => setLayout("single", less)),
+        button("+", `Wider: ${r.label}`, broken || more[r.index].width === width, () => setLayout("single", more))));
+    }
+  }
+}
+
 // Each muted entry: an app's bundle id, or site:<host>, shown as the host.
 function renderMuted() {
   const list = document.getElementById("muted-list");
@@ -264,6 +362,8 @@ window.tilemo = {
     files = state.clockFiles;
     startupFiles = state.startupFiles ?? null;
     clipboardFiles = state.clipboardFiles ?? null;
+    layoutFiles = state.layoutFiles ?? null;
+    layoutBase = isObject(state.layoutBase) ? state.layoutBase : {};
     clipboardCount = Number.isInteger(state.clipboardCount) ? state.clipboardCount : 0;
     const e = state.clipboardSettings;
     clipboardInEffect = e && typeof e.history === "boolean" && Number.isInteger(e.maxItems) ? e : undefined;
@@ -272,7 +372,9 @@ window.tilemo = {
     showError("");
     showStartupError("");
     document.getElementById("muted-error").textContent = "";
+    document.getElementById("layouts-error").textContent = "";
     render();
+    renderLayouts();
     renderStartup();
     renderClipboard();
     renderMuted();
