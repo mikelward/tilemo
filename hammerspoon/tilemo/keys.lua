@@ -61,7 +61,6 @@ M.APPS = {
     { key = "g", spec = { run = "browser1" } },
     { key = "g", shift = true, spec = { run = "browser3" } },
     { key = "f", spec = { run = "browser2" } },
-    { key = "c", spec = { run = "google-calendar", home_app = true } },
     { key = "c", shift = true, spec = { run = "google-chat", home_app = true } },
     { key = "h", spec = { run = "home" } },
     { key = "i", spec = { run = "irc" } },
@@ -85,6 +84,10 @@ M.map[#M.map + 1] = { key = "space", action = "launcher", arg = "launch" }
 M.map[#M.map + 1] = { key = "f20", action = "launcher", arg = "workspaces" }
 M.map[#M.map + 1] = { key = "a", action = "launcher", arg = "attention" }
 M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
+-- Super+C: the picker, on its Clipboard tab (SPEC.md §7.2), C for
+-- clipboard and characters. It was Google Calendar, which has no key now:
+-- it's one of "in"'s apps, and the switcher finds it.
+M.map[#M.map + 1] = { key = "c", action = "picker", arg = "clipboard" }
 -- Super+Tab flips between home and the workspace you used last, and
 -- Super+End goes to the last one other than home (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "tab", action = "flip" }

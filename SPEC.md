@@ -227,6 +227,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Full-width bar with workspaces and urgency (tide §7) | tilemo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
 | SYD / LAX / NYC / LON clocks (tileco `src/clocks.js`) | bar clocks, and tileco's clock panel in the dashboard | **yes** |
 | One switcher with tabs: launcher, workspaces, windows, attention (tide §8) | tilemo's switcher, an `hs.chooser`; the lone Super tap needs an event tap or Karabiner (§7, §9) | **yes** |
+| Clipboard history and characters by name on Super+C (tide §8.4) | an `hs.pasteboard` watcher and an `hs.chooser` with two tabs (§9.1) | **partial**: text only, kept in memory, so not across a restart |
 | Browser tabs in the Windows tab (tileco §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
 | App keys (tide `hyprland.lua`, tileco §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
 | Second and third Chrome profiles (`browser2`, `browser3`) | separate `--user-data-dir`s, as tide runs them (§7) | **yes** |
@@ -1031,7 +1032,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+A` | the switcher, on its Attention tab (§14.2) | hotkey |
 | `Super+Shift+Space` | dashboard (§8) | hotkey |
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
-| `Super+T` / `W` / `V` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
+| `Super+T` / `W` / `V` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
+| `Super+C` | the picker, on its Clipboard tab: what you've copied, and characters by name (§9.1). It was Google Calendar, which has no key now: it's one of "in"'s apps (§6.2), and the switcher finds it | hotkey |
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
 | `Super+Z` | minimize the window, to the tray (§6.7) | hotkey |
 | `Super+L` | lock | hotkey; macOS's lock screen |
@@ -1375,6 +1377,38 @@ tab, the search field naming the tab you're in.
   *(unverified that screen sharing still honors it on macOS 26)*.
 - **Spotlight stays** on Cmd+Space, physical Ctrl+Space (§7.3). In macOS
   26, tilemo's commands can also appear there as App Intents (§2.6).
+
+### 9.1 The picker
+
+**`Super+C` opens tide's picker** (tide §8.4): its own `hs.chooser`, with
+two tabs. C is for clipboard and characters.
+
+- **Clipboard:** what you've copied since tilemo started, newest first,
+  one line each, searched with the switcher's fuzzy match.
+  - An `hs.pasteboard` watcher keeps each copy as it happens. It keeps
+    text only: an image or a file copied isn't listed.
+  - **It never keeps a password.** A copy whose pasteboard types include
+    `org.nspasteboard.ConcealedType` or `org.nspasteboard.TransientType`
+    is skipped. That's [nspasteboard.org](http://nspasteboard.org)'s
+    convention, which password managers follow: Bitwarden's desktop app
+    sets the concealed type through arboard 3.6.1. A copy whose types
+    can't be read isn't kept either.
+  - The types are read when the watcher fires, so a copy replaced within
+    that moment is judged by its replacement's types, as on tide.
+  - **In memory only,** the newest 200. Nothing is written to disk, so
+    quitting Hammerspoon or reloading tilemo wipes it. That's cheaper
+    than a file (no permissions to keep at 600, nothing to clean up), and
+    safer: a copy you regret is gone at the next restart.
+- **Characters:** tide's list, `chars.tsv`, copied unchanged with its
+  Unicode License v3 notice, and searched as tide does: each typed word
+  must start a word of the name, so `e acute` finds é and É.
+- **Keys:** `Tab` / `Shift+Tab` switch tabs; Return copies the row and
+  closes, and Cmd+V pastes it, as on tide; Shift+Delete (forward delete)
+  forgets a clipboard entry; Esc closes; `Super+C` again closes.
+- **Cost and reliability:** nothing to pay and no network. The watcher
+  polls the pasteboard's change count, Hammerspoon's
+  `hs.pasteboard.watcher.interval`, half a second by default. The list is
+  about 130 KB, read the first time the Characters tab shows.
 
 ## 10. The rest of the desktop
 
@@ -1792,7 +1826,8 @@ Each one names a workaround, or says there is none.
   removes Amethyst and Rectangle, applies the Mission Control settings
   (§6.6), and stops making nine Spaces.
 - **tide:** the layout geometry and its test fixtures, shared so tilemo
-  doesn't keep its own copy.
+  doesn't keep its own copy, and the picker's character list (§9.1),
+  which `make check-tide` compares.
 
 ## 18. Testing and milestones
 

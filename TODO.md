@@ -148,6 +148,19 @@ tests and the bar page's test cover it. **Check on a Mac:**
 - **Either toggle alone while presenting ends presenter mode,** leaving
   the other on, as on tide. Reversible: `presenter.keep_awake` and
   `presenter.dnd`.
+- **Super+C's clipboard history is in memory only, text only, the newest
+  200.** Cheaper and safer than a file at mode 600: no permissions to keep
+  right, nothing left on disk, and a reload wipes it. The cost is losing it
+  at every restart, and images aren't listed. Reversible: picker.lua's
+  history is a plain list a file could back, and the watcher could keep
+  `hs.pasteboard.readImage()` too.
+- **Return in the picker copies; it doesn't paste.** As on tide, where
+  pasting for you isn't reliable yet; here `hs.eventtap.keyStroke` with
+  Cmd+V after the chooser closes would do it. Reversible: one call in
+  `picker_hs.lua`'s chooser callback.
+- **Shift+Delete forgets a clipboard entry,** which on a Mac keyboard is
+  Shift+forward delete (Fn+Shift+Delete). tide's key; plain Delete stays
+  the search field's.
 
 - **After a mute, clicking tilemo's notice opens Notifications settings,**
   rather than a dialog asking first, which would take the keyboard from
@@ -422,3 +435,13 @@ tests and the bar page's test cover it. **Check on a Mac:**
   tileco's scopes (Launch, Tabs, Attention) moved between with Tab. The
   alternative is tileco's whole launcher page in the webview, which needs a
   stand-in for the Chrome APIs it calls. Reversible: add the page later.
+
+## Check the picker on a real Mac
+
+Hammerspoon can't run here, so only `tests/picker_test.lua` (the history,
+the skipped types, the rows and the character search) and CI's smoke test
+(the `hs.*` names exist) cover Super+C. On a Mac, check that the chooser
+opens and Tab switches tabs; that a copy from Bitwarden, 1Password or
+Passwords never shows on the Clipboard tab; that Return copies and Cmd+V
+pastes it; that Shift+forward delete forgets an entry; and that emoji draw.
+

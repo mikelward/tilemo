@@ -233,11 +233,10 @@ end)
 
 t.test("an app key for one of \"in\"'s apps doesn't ask", function()
     local a, wm, _, launches = setup(1)
-    wm:act("app", app_key("c"))
     wm:act("app", app_key("c", true))
     wm:act("app", app_key("y"))
     t.eq(#launches, 0)
-    t.eq(#a.launched, 3)
+    t.eq(#a.launched, 2)
     t.eq(a.envs[1], { TIDE_WORKSPACE = "in" })
 end)
 

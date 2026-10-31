@@ -2544,6 +2544,14 @@ function A.launcher(self, tab)
     end
 end
 
+-- Super+C: the picker, on tab `tab`: what you've copied, and characters by
+-- name (SPEC.md §7.2).
+function A.picker(self, tab)
+    if self.open_picker then
+        self.open_picker(tab)
+    end
+end
+
 -- Super+Shift+M: mute or unmute the microphone (SPEC.md §7.2).
 function A.mic_mute(self)
     if self.toggle_mic then
