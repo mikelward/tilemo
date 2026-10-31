@@ -638,4 +638,15 @@ t.test("one overlay letting go of the keyboard doesn't release another's hold", 
     t.eq(wm.holding_keyboard, false)
 end)
 
+t.test("the settings action opens the window on the section it names", function()
+    local wm = wm_mod.new(fake.new(), {})
+    local opened = {}
+    wm.open_settings = function(section)
+        opened[#opened + 1] = section or "none"
+    end
+    wm:act("settings", "startup")
+    wm:act("settings")
+    t.eq(opened, { "startup", "none" })
+end)
+
 t.done("wm")

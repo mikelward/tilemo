@@ -1900,8 +1900,20 @@ Each one names a workaround, or says there is none.
   - macOS lets an app activate as it opens, so unlike tide, a command's
     window may take focus *(unverified on macOS 26)*. Its windows go where
     the home workspace's rules put them (§6.2).
-  - There's no page for it yet: tide's Settings page edits the list, or a
-    hand edit does.
+  - **The settings window's Start at login section** edits the list, as
+    tide's Start at login page does, with tide's own `startup.mjs`, copied
+    unchanged as `dashboard/tide-startup.js`.
+    - It shows the list in effect: `startup.local.json`'s, else
+      `startup.json`'s. The first change copies it into
+      `startup.local.json`, keeping that file's other keys, as the Clocks
+      section does.
+    - A command typed at the foot is added with Enter, at the end. The
+      arrows move one, and ✕ takes it out.
+    - A command with a quote, backslash, `$` or control character, or one
+      listed already, is refused, and the section says why. A file that
+      doesn't parse can't be changed here until it's fixed.
+    - A change takes effect at the next login: the list already ran in
+      this one (above).
 - **The home workspace's apps are tilemo's own setting,** `home_apps` in
   `start()`, a list of app names (§6.2). tide's list names Wayland app IDs,
   which a Mac doesn't have.
@@ -1915,7 +1927,11 @@ Each one names a workaround, or says there is none.
   Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
   (§11).
   - **Built: Clocks,** a window from the launcher ("Settings: clocks") or
-    the dashboard ("Change the clocks…"). As tide's Clocks page, it adds a
+    the dashboard ("Change the clocks…"). The window also has the Start at
+    login and Muted sections. Each section has its own launcher row
+    ("Settings: clocks", "Settings: start at login", "Settings: muted apps
+    and sites"), found by its name, which opens the window there, or
+    scrolls an open one, as tide's per-page rows do (tide §16). As tide's Clocks page, it adds a
     zone by its ID, relabels, moves and removes clocks, and writes only
     `clocks.local.json`, with tide's own functions, so the first change
     copies the list the bar shows. A zone Intl doesn't know is refused.

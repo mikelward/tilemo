@@ -2716,9 +2716,9 @@ end
 
 -- tilemo's settings window, from the launcher and the dashboard (SPEC.md
 -- §15).
-function A.settings(self)
+function A.settings(self, section)
     if self.open_settings then
-        self.open_settings()
+        self.open_settings(section)
     end
 end
 

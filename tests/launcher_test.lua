@@ -514,6 +514,24 @@ t.test("\"mouse\" and \"mouse settings\" find the Mouse pane, among apps and com
     t.eq(launcher.rank("mouse settings", items, { scope = "launch" })[1].title, "Mouse settings")
 end)
 
+t.test("each settings section has its own row, found by its name, opening the window there", function()
+    local items = launcher.items({}, {}, launcher.COMMANDS, {})
+    local function first(q)
+        return launcher.rank(q, items, { scope = "launch" })[1]
+    end
+    t.eq(first("start at login").title, "Settings: start at login")
+    t.eq(first("start at login").arg, "startup")
+    t.eq(first("clocks").arg, "clocks")
+    t.eq(first("muted").arg, "muted")
+    local sections = {}
+    for _, c in ipairs(launcher.COMMANDS) do
+        if c.action == "settings" then
+            sections[#sections + 1] = c.arg
+        end
+    end
+    t.eq(sections, { "clocks", "startup", "muted" })
+end)
+
 t.test("the switcher's mute key is Cmd+M, physical Ctrl+M as tide's", function()
     _G.hs = _G.hs or {}
     local hs_launcher = require("tilemo.launcher_hs")

@@ -136,6 +136,12 @@ tests and the bar page's test cover it. **Check on a Mac:**
   `hs.audiodevice` at no cost. The alternative is shelling out to
   `blueutil -p` where it's installed. Reversible: one more item in
   `bar.lua`'s `ITEMS`.
+- **tilemo's settings are one window with sections, not tide's pages**
+  (SPEC.md §15): Clocks, Start at login and Muted, each with its own
+  launcher row that scrolls there. It's one short window, and an
+  `hs.webview` has no sidebar to build. The alternative is a page per
+  section, as tide's panel has. Reversible: `settings.html` and
+  `settings_hs.lua`'s `reveal`.
 - **Enter on a new name in `Super+Return`'s prompt goes to a new, empty
   workspace of that name** (SPEC.md §7.2), as tide's does. It goes again
   once you leave it empty, so a stray name costs nothing. The alternative

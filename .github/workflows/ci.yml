@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      # tide's geometry and clocks module are copied here unchanged; check
+      # tide's geometry, clocks and startup modules are copied here unchanged; check
       # they still match.
       - uses: actions/checkout@v4
         with:
