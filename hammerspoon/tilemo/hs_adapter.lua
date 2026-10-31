@@ -668,9 +668,10 @@ end
 
 -- Call `on_change` on any window coming, going, hiding or changing state,
 -- `on_focus(id)` when one gains focus, `on_moved(id)` when one moves or
--- changes size, and `on_min(id)` / `on_unmin(id)` when one is minimized or
--- comes back. Returns what to keep alive.
-function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
+-- changes size, `on_min(id)` / `on_unmin(id)` when one is minimized or
+-- comes back, and `on_title(id)` when its title changes (Hammerspoon waits
+-- 0.5 s after the last change to say so). Returns what to keep alive.
+function M.watch(on_change, on_focus, on_moved, on_min, on_unmin, on_title)
     local wf = hs.window.filter.new(false)
     wf:setDefaultFilter({ allowRoles = "*" })
     wf:subscribe({
@@ -695,6 +696,7 @@ function M.watch(on_change, on_focus, on_moved, on_min, on_unmin)
     wf:subscribe(hs.window.filter.windowMoved, with_id(on_moved))
     wf:subscribe(hs.window.filter.windowMinimized, with_id(on_min))
     wf:subscribe(hs.window.filter.windowUnminimized, with_id(on_unmin))
+    wf:subscribe(hs.window.filter.windowTitleChanged, with_id(on_title))
     local sw = hs.screen.watcher.new(on_change)
     sw:start()
     return { wf, sw }

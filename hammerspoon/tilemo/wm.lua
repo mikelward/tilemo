@@ -57,6 +57,9 @@ M.FLOAT_CAP = 0.8
 -- Command, a focus tilemo asked for) an activation still counts as yours.
 M.GRANT = 10
 M.GRACE = 1
+-- How long after tilemo first sees a window a new title still decides it
+-- again: a browser's popup can open before its page has named it.
+M.SETTLE = 3
 -- How long the place of a window whose app quit, or that the last run saved
 -- and hasn't come back, is kept for a window of that app to take
 -- (SPEC.md §6.3), and how many such places are kept at most.
@@ -734,7 +737,12 @@ function M:add(id)
     local kind = rules.decide(f, self.rules)
     -- `seen`: when tilemo found it, so the focus guard can tell a window a
     -- launch opened from one that was already there.
-    local w = { id = id, app = f.app, name = f.name, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title }
+    -- `opened`: the frame it opened at, which a tile no longer has, so one
+    -- decided again (M:retitled) floats at the size it asked for.
+    local w = {
+        id = id, app = f.app, name = f.name, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title,
+        opened = f.frame,
+    }
     self.windows[id] = w
     if kind == "ignore" then
         return kind
@@ -2151,6 +2159,65 @@ function M:focused_window(id)
     end
 end
 
+-- Take tile `id` out of its workspace's layout and float it, placed as a
+-- new float is. The caller retiles.
+function M:float_tile(id, f)
+    local w = self.windows[id]
+    w.floating = true
+    w.big = nil
+    layout.remove(self.workspaces[w.ws], id)
+    self.floats[#self.floats + 1] = id
+    if f then
+        self:place_float(id, f)
+    end
+end
+
+-- Window `id`'s title changed. One tilemo tiled by its rules, in its first
+-- M.SETTLE, is decided again with the new title, as if it had opened with
+-- it: a browser's popup, such as Bitwarden's sign-in, autofill and passkey
+-- prompts, can open before its page names it. Only a tile that should
+-- float moves; one you placed with Super+Shift+F stays yours.
+function M:retitled(id)
+    local w = self.windows[id]
+    if not (w and w.ws) or w.floating or w.chosen or self.a.now() - w.seen > M.SETTLE then
+        return
+    end
+    local f = self.a.facts(id)
+    if not f then
+        return
+    end
+    w.title = f.title
+    if rules.decide(f, self.rules) ~= "float" then
+        return
+    end
+    w.kind = "float"
+    -- A float doesn't ask for a name (M:add); one already asking keeps its
+    -- prompt.
+    for i = #self.asking, 1, -1 do
+        if self.asking[i].window == id then
+            table.remove(self.asking, i)
+        end
+    end
+    local placed = {}
+    for k, v in pairs(f) do
+        placed[k] = v
+    end
+    placed.frame = w.opened or f.frame
+    self:float_tile(id, placed)
+    -- As a float named at once would, it goes where its parent is (M:add),
+    -- which may not be where it opened as a tile, and shows if that does.
+    local n = self:parent_ws(id, f)
+    if n and n ~= w.ws then
+        remove_value(self.mru[w.ws], id)
+        w.ws = n
+        local list = self.mru[n]
+        list[#list + 1] = id
+    end
+    self:reconcile()
+    self:retile()
+    self:changed()
+end
+
 -- After a close, something keeps focus: the window under the pointer, as
 -- tide's focus_on_close, else the last used window left on that workspace,
 -- else any tile you can see there. The fallback means a window that reached
@@ -2289,16 +2356,14 @@ function A.toggle_float(self)
     if not w or not w.ws then
         return
     end
+    -- Yours now: a late title doesn't decide it again (M:retitled).
+    w.chosen = true
     if w.floating then
         w.floating = false
         remove_value(self.floats, id)
         layout.insert(self.workspaces[w.ws], id, nil, self.layout)
     else
-        w.floating = true
-        w.big = nil
-        layout.remove(self.workspaces[w.ws], id)
-        self.floats[#self.floats + 1] = id
-        self:place_float(id, self.a.facts(id))
+        self:float_tile(id, self.a.facts(id))
     end
     self:retile()
 end

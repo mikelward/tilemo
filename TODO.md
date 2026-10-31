@@ -359,6 +359,16 @@ tests and the bar page's test cover it. **Check on a Mac:**
   Chrome's find bar and tooltips, is left alone, where it used to float and
   be centered on Chrome's window. Reversible: drop the subrole check from
   step 4 in `rules.decide`, or a user rule per app.
+- **Bitwarden's pop-outs are found by their title,** exactly "Bitwarden",
+  in Chrome and Brave (SPEC.md §5.1). A pop-out of another extension, or a
+  site's sign-in popup, still tiles: telling a browser's popup window from
+  its ordinary ones needs a look at what Accessibility says about each on
+  a real Mac. Reversible: the two rules in `rules.defaults`.
+- **A tile's new title decides it again for its first 3 s**
+  (`wm.SETTLE`), tile to float only, so a popup named after it opens
+  floats once named. It shows as a tile for that moment. One you tiled or
+  floated with Super+Shift+F stays as you put it. Reversible:
+  `wm.retitled`.
 - **A window with no close button from an app out of the Dock is left
   alone** (SPEC.md §5.1, step 3), as AeroSpace does: Notification Center,
   Control Center, Spotlight, menu bar apps' panels. A menu bar app whose

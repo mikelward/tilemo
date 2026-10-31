@@ -184,6 +184,8 @@ function M.start(config)
         self.wm:minimized(id)
     end, function(id)
         self.wm:unminimized(id)
+    end, function(id)
+        self.wm:retitled(id)
     end)
     -- Quitting or reloading Hammerspoon brings back every hidden window.
     hs.shutdownCallback = function()

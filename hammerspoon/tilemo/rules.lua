@@ -1,6 +1,7 @@
 -- Which windows tile, float or are left alone (SPEC.md §5.1). Each new
 -- window is decided once, from facts the adapter reads through
--- Accessibility, and the first rule that matches wins.
+-- Accessibility, and the first rule that matches wins; a tile whose title
+-- changes as it opens is decided again (wm.retitled).
 
 local M = {}
 
@@ -19,6 +20,12 @@ M.defaults = {
     -- System Settings is a fixed width, though its height can change, so a
     -- tile would leave a gap beside it.
     { app = "com.apple.systempreferences", action = "float" },
+    -- Bitwarden's extension asks you to sign in, fill or use a passkey in a
+    -- popup window of the browser, showing its own page, titled
+    -- "Bitwarden". The vault's own tab, and the desktop app, are titled
+    -- otherwise or are another app.
+    { app = "com.google.Chrome", title = "^Bitwarden$", action = "float" },
+    { app = "com.brave.Browser", title = "^Bitwarden$", action = "float" },
     -- Notification Center's banners, alerts and widgets are macOS's own,
     -- over every window: floated, one would be moved to the middle of the
     -- display, and focus follows mouse would focus it.

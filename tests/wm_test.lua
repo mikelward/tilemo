@@ -217,6 +217,43 @@ t.test("Super+Shift+F floats a tile and tiles it again", function()
     t.eq(wm.workspaces["in"].order, { 1, 2 })
 end)
 
+-- Bitwarden's extension opens its sign-in, autofill and passkey prompts in
+-- a Chrome popup window, which may open before its page has named it.
+t.test("a new window named after it opens is decided again, and floats if its name says so", function()
+    local a, wm = setup(1)
+    a.add(2, { app = "com.google.Chrome", pid = 200, title = "", frame = { x = 1500, y = 60, w = 380, h = 630 } })
+    wm:sync()
+    wm:retile()
+    t.eq(wm.workspaces["in"].order, { 1, 2 }, "tiled at first")
+    a.clock = a.clock + 1
+    a.wins[2].title = "Bitwarden"
+    wm:retitled(2)
+    t.eq(wm.windows[2].floating, true, "floats")
+    t.eq(wm.workspaces["in"].order, { 1 })
+    t.eq(frame(a, 1).w, 1920, "the tile left takes the room")
+    t.eq(frame(a, 2).w, 380, "at its own size")
+end)
+
+t.test("a window renamed after it settled, or one you placed, isn't decided again", function()
+    local a, wm = setup(1)
+    a.add(2, { app = "com.google.Chrome", pid = 200, title = "New Tab" })
+    wm:sync()
+    a.clock = a.clock + wm_mod.SETTLE + 1
+    a.wins[2].title = "Bitwarden" -- a tab of that name, much later
+    wm:retitled(2)
+    t.eq(wm.windows[2].floating or false, false, "settled")
+
+    a, wm = setup(1)
+    a.add(2, { app = "com.google.Chrome", pid = 200, title = "" })
+    wm:sync()
+    a.focus_ = 2
+    wm:act("toggle_float")
+    wm:act("toggle_float") -- you tiled it
+    a.wins[2].title = "Bitwarden"
+    wm:retitled(2)
+    t.eq(wm.windows[2].floating, false, "yours")
+end)
+
 t.test("each display gets its own workspace, and windows tile on theirs", function()
     local a = fake.new()
     a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
