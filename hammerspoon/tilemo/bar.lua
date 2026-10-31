@@ -73,16 +73,17 @@ function M.pointer_at(frames, x, y)
     return nil
 end
 
--- The full title's tip, below bar `frame` and centered at `x` in it, `w` by
--- `h`, kept on the bar's display with M.TIP_GAP to spare (SPEC.md §8).
+-- A bar item's tip, or the full title's, below bar `frame` and centered at
+-- `x` in it, `w` by `h`, kept on the bar's display with M.TIP_GAP to spare
+-- (SPEC.md §8).
 M.TIP_GAP = 6
-function M.title_tip_frame(frame, x, w, h)
+function M.tip_frame(frame, x, w, h)
     local left = frame.x + x - w / 2
     left = math.max(frame.x + M.TIP_GAP, math.min(left, frame.x + frame.w - M.TIP_GAP - w))
     return { x = math.floor(left), y = frame.y + frame.h + M.TIP_GAP, w = w, h = h }
 end
 
--- Whether a title tip drawn under display `owner`'s bar, when its frame was
+-- Whether a tip drawn under display `owner`'s bar, when its frame was
 -- `frame`, has lost its bar: `views` (by display uuid, each with its frame
 -- and whether it's hidden) has none there now, or that bar is hidden, as
 -- for a full-screen window, or has moved.
@@ -432,7 +433,7 @@ end
 -- B's bar brings a hidden workspace to B with its window, its clocks open the
 -- dashboard on B, and a double-click on its title maximizes the focused
 -- window only if that window is on B, where the title shows. `act` holds what needs Hammerspoon: open(url),
--- dashboard(uuid), toggle(what), volume(step) and title_tip(uuid, tip).
+-- dashboard(uuid), toggle(what), volume(step) and tip(uuid, tip).
 function M.handle(wm, body, act)
     local uuid = body.uuid
     if body.show then
@@ -460,8 +461,8 @@ function M.handle(wm, body, act)
         act.toggle(body.toggle)
     elseif body.volume then
         act.volume(tonumber(body.volume))
-    elseif type(body.titleTip) == "table" and act.title_tip then
-        act.title_tip(uuid, body.titleTip)
+    elseif type(body.tip) == "table" and act.tip then
+        act.tip(uuid, body.tip)
     elseif body.clockErrors and act.clock_errors then
         act.clock_errors(body.clockErrors)
     elseif body.goodClocks and act.good_clocks then

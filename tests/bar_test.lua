@@ -155,24 +155,25 @@ t.test("a bar's clocks, kept while a file is wrong, go to Hammerspoon", function
     t.eq(kept, { { zone = "Asia/Tokyo", label = "TYO" } })
 end)
 
-t.test("hovering a bar's title asks Hammerspoon for its tip, naming the display", function()
+t.test("hovering a bar's title or an item with a tip asks Hammerspoon for it, naming the display", function()
     local _, wm = two_displays()
     local got = {}
     local act = {
-        title_tip = function(uuid, tip)
+        tip = function(uuid, tip)
             got[#got + 1] = { uuid, tip.text, tip.x }
         end,
     }
-    bar.handle(wm, { uuid = "B", titleTip = { text = "A long title", x = 500 } }, act)
-    bar.handle(wm, { uuid = "B", titleTip = { text = "" } }, act)
-    t.eq(got, { { "B", "A long title", 500 }, { "B", "" } })
+    bar.handle(wm, { uuid = "B", tip = { text = "A long title", x = 500 } }, act)
+    bar.handle(wm, { uuid = "B", tip = { text = "" } }, act)
+    bar.handle(wm, { uuid = "B", tip = { text = "Microphone", x = 1800 } }, act)
+    t.eq(got, { { "B", "A long title", 500 }, { "B", "" }, { "B", "Microphone", 1800 } })
 end)
 
-t.test("the title's tip sits below the bar, centered on the title, on its display", function()
+t.test("a tip sits below the bar, centered on its item, on its display", function()
     local frame = { x = 1920, y = 25, w = 1920, h = 30 }
-    t.eq(bar.title_tip_frame(frame, 960, 400, 26), { x = 1920 + 760, y = 25 + 30 + 6, w = 400, h = 26 })
-    t.eq(bar.title_tip_frame(frame, 50, 400, 26).x, 1920 + 6, "held off the left edge")
-    t.eq(bar.title_tip_frame(frame, 1900, 400, 26).x, 1920 + 1920 - 6 - 400, "and the right")
+    t.eq(bar.tip_frame(frame, 960, 400, 26), { x = 1920 + 760, y = 25 + 30 + 6, w = 400, h = 26 })
+    t.eq(bar.tip_frame(frame, 50, 400, 26).x, 1920 + 6, "held off the left edge")
+    t.eq(bar.tip_frame(frame, 1900, 400, 26).x, 1920 + 1920 - 6 - 400, "and the right")
 end)
 
 t.test("the title's tip goes with its bar: hidden, removed or moved", function()

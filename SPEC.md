@@ -1244,6 +1244,12 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     tray's tips are (§6.7). With no title there's no tip. The tip goes
     with its bar: when that bar hides for a full-screen window, its
     display is removed, or it moves.
+  - **Every other tip takes the same path,** centered on its item: a
+    status item's (its state, the Wi-Fi network's name, the battery's time
+    left), the camera's, though it's no click target, and a chip's whole
+    name when the chip cuts it. A whole name has no tip, nor does a window
+    icon. The page keeps each tip in `data-tip`, not `title`, so no
+    WebKit tooltip could ever show beside tilemo's.
   - A first click isn't spent on bringing Hammerspoon forward:
     `hs.webview`'s view accepts the first mouse (its `acceptsFirstMouse`
     returns yes, in Hammerspoon 1.4.27's `libwebview.m`), so it reaches the
