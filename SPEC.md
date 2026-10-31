@@ -1044,7 +1044,12 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     uses, which tilemo registers. Physical Ctrl+Tab stays the apps' next
     tab.
   - So physical Alt+Tab no longer switches apps. The switcher's Windows
-    tab (§9) stands in, and a Mac keyboard's own Cmd+Tab still works.
+    tab (§9) stands in. So does physical right Ctrl+Tab, on a keyboard
+    that has a right Ctrl: the rotation makes it Cmd+Tab, and conf's Tab
+    rule only takes left Ctrl.
+  - A Mac keyboard's Cmd+Tab doesn't switch apps. `setup-macos` applies
+    the rotation to every keyboard, the built-in one included, so its
+    Command key sends Option.
   - Without Karabiner, tilemo doesn't take Ctrl+Tab, since that would take
     every app's next tab. Swap with the master has no key then *(a guess,
     to confirm)*.
