@@ -33,7 +33,7 @@ first being home, "in" by default) and home's apps (`home_apps`),
 dashboard and the switch sign, the name prompt, `TIDE_WORKSPACE`, and a
 launch's window going to the workspace it was launched for, and the keys:
 `Super+Return`, `Super+Tab`, `Super+End`, Alt+Tab, `Super+A` and the Super
-tap. The rest:
+tap, and the switcher's tabs. The rest:
 
 - **Follow-up: several displays** (SPEC.md §19, question 12). The
   direction: a workspace spans every display, each display with its own
@@ -57,9 +57,25 @@ tap. The rest:
 - **Check on a Mac:** `open --env` on macOS 26, kitty's socket path, and
   how slow a pattern run through `hs.osascript.javascript` is (SPEC.md
   §6.2, §6.3).
-- **The switcher's tabs:** Launch, Workspaces, Windows (with Chrome's and
-  Safari's tabs, in place of the Tabs scope) and Attention, each key
-  opening its own (SPEC.md §9).
+
+## Minimizing by key
+
+To do, not built:
+
+- **A key to minimize the focused window,** Super+Delete or Super+Z.
+- **A bottom bar for the minimized windows:** while any window on the
+  current workspace is minimized, every display shows a bar along the
+  bottom listing their titles.
+- **Restoring:** clicking a title in that bar, or choosing the window in
+  the switcher's Windows tab, restores it.
+- **Open points:**
+  - **Which key.** Super+Delete may mean forward delete or Backspace,
+    and Super+Backspace already closes the window.
+  - **Telling the two kinds of minimized window apart.** tilemo minimizes
+    windows itself to hide the other workspaces, so the bar must list only
+    the windows you minimized. `wm.lua` already flags those as `mine`, and
+    keeps them minimized when their workspace comes back. The bar and the
+    Windows tab need to read that flag, not macOS's minimized state.
 
 ## Launcher looks
 
@@ -124,9 +140,20 @@ tap. The rest:
   `tilemo.json`.
 - **`Super+Tab` and `Super+End` remember shown workspaces across
   displays,** one list, not one per display. Reversible: `wm.used_ws`.
-- **The Workspaces tab is a scope of the launcher's chooser** for now,
-  listing each workspace's apps and where it's showing, without icons.
-  Reversible: `launcher_hs.lua`'s `workspaces`.
+- **The switcher's tabs are scopes of one `hs.chooser`,** as the launcher's
+  were: Launch, Workspaces, Windows and Attention. The Workspaces tab
+  lists each workspace's apps by name, without icons. Reversible:
+  `launcher.lua`'s scopes and `launcher_hs.lua`.
+- **A browser tab finds its window by the window's name,** which
+  AppleScript and Accessibility both give, since their window numbers
+  differ; two windows with one name leave the tab without a workspace
+  *(unverified that the names always agree)*. Reversible:
+  `launcher.tab_window`.
+- **Browser tabs arrive after the switcher opens,** through `osascript`
+  as a task, and a browser that hasn't answered in 2 s is skipped this
+  time. Reversible: `launcher_hs.lua`'s `fetch_tabs` and `TAB_TIMEOUT`.
+- **The Windows tab lists windows most recently used first,** then the
+  rest by id. Reversible: `launcher_hs.lua`'s `windows`.
 - **Launches from home that ask:** apps from the switcher, app keys and
   Cmd+Return. Settings panes, commands and tabs don't. Calendar, Chat and
   YouTube Music's keys are marked as home's apps. Reversible: `keys.APPS`

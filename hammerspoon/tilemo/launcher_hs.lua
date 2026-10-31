@@ -1,10 +1,11 @@
--- The launcher on Hammerspoon: an hs.chooser over launcher.lua's ranking
--- (SPEC.md §9). Apps come from the Applications folders and System
--- Settings' panes from its extensions (launcher.scan_apps and
--- scan_settings), tabs from Chrome and Safari through AppleScript
--- (Automation, asked for the first time), the windows wanting attention
--- from the window manager, and commands from launcher.COMMANDS. Tab and
--- Shift+Tab move between its scopes. Not runnable outside Hammerspoon.
+-- The switcher on Hammerspoon: an hs.chooser over launcher.lua's ranking,
+-- with tabs (SPEC.md §9). Apps come from the Applications folders and
+-- System Settings' panes from its extensions (launcher.scan_apps and
+-- scan_settings); the workspaces, windows and the windows wanting attention
+-- from the window manager; browser tabs from Chrome and Safari through
+-- AppleScript (Automation, asked for the first time), arriving after the
+-- switcher opens; and commands from launcher.COMMANDS. Tab and Shift+Tab
+-- move between its tabs. Not runnable outside Hammerspoon.
 
 local launcher = require("tilemo.launcher")
 local saved = require("tilemo.saved")
@@ -51,16 +52,18 @@ end
 
 local SETTINGS_BUNDLE = "com.apple.systempreferences"
 
--- Each browser's tabs, as { title, url, browser, window, tab }. A browser
--- that isn't running, or that Automation hasn't been granted for, gives
--- none.
+-- Each browser's tabs, one per line (launcher.parse_tabs). A browser that
+-- isn't running isn't asked, since an Apple Event would launch it; one that
+-- Automation hasn't been granted for gives none.
 local TAB_SCRIPTS = {
     ["Google Chrome"] = [[
         set out to ""
         tell application "Google Chrome"
             repeat with w from 1 to count windows
+                set n to name of window w
+                set i to id of window w
                 repeat with t from 1 to count tabs of window w
-                    set out to out & w & tab & t & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
+                    set out to out & w & tab & t & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
                 end repeat
             end repeat
         end tell
@@ -69,55 +72,136 @@ local TAB_SCRIPTS = {
         set out to ""
         tell application "Safari"
             repeat with w from 1 to count windows
+                set n to name of window w
+                set i to id of window w
                 repeat with t from 1 to count tabs of window w
-                    set out to out & w & tab & t & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
+                    set out to out & w & tab & t & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
                 end repeat
             end repeat
         end tell
         return out]],
 }
+local BROWSER_BUNDLES = { ["Google Chrome"] = "com.google.Chrome", Safari = "com.apple.Safari" }
 
-local function tabs()
-    local out = {}
+-- How long a browser has to list its tabs before it's skipped this time
+-- (SPEC.md §9): a busy browser can hold an Apple Event for a long time.
+M.TAB_TIMEOUT = 2
+
+-- Ask each running browser for its tabs, without waiting: `done(tabs)` is
+-- called once per browser that answers in time, with each tab's tilemo
+-- window and workspace where its window's name finds them. osascript runs
+-- as a task, so the switcher shows at once and a stuck browser holds up
+-- nothing.
+local running_tasks = {}
+local function fetch_tabs(tilemo, done)
     for browser, script in pairs(TAB_SCRIPTS) do
-        if hs.application.get(browser) then
-            local ok, text = hs.osascript.applescript(script)
-            if ok and type(text) == "string" then
-                for line in text:gmatch("[^\n]+") do
-                    local w, t, url, title = line:match("^(%d+)\t(%d+)\t([^\t]*)\t(.*)$")
-                    if w then
-                        out[#out + 1] = { browser = browser, window = tonumber(w), tab = tonumber(t), url = url, title = title }
+        if hs.application.get(BROWSER_BUNDLES[browser]) then
+            local task, timer
+            task = hs.task.new("/usr/bin/osascript", function(code, out, err)
+                running_tasks[task] = nil
+                if timer then
+                    timer:stop()
+                end
+                if code ~= 0 then
+                    -- Automation refused, or the browser quit: no tabs from it.
+                    tilemo.adapter.log("tabs from " .. browser .. ": " .. tostring(err))
+                    return
+                end
+                local list = launcher.parse_tabs(browser, out)
+                local windows = {}
+                for id, w in pairs(tilemo.wm.windows) do
+                    if w.ws then
+                        windows[#windows + 1] = { id = id, app = w.app, title = tilemo.adapter.title(id) or w.title, ws = w.ws }
                     end
                 end
+                for _, t in ipairs(list) do
+                    local w = launcher.tab_window(t, BROWSER_BUNDLES[browser], windows)
+                    if w then
+                        t.win, t.ws = w.id, w.ws
+                    end
+                end
+                done(list)
+            end, { "-e", script })
+            if task and task:start() then
+                running_tasks[task] = true
+                timer = hs.timer.doAfter(M.TAB_TIMEOUT, function()
+                    if running_tasks[task] then
+                        tilemo.adapter.log("tabs from " .. browser .. ": no answer in " .. M.TAB_TIMEOUT .. " s")
+                        running_tasks[task] = nil
+                        task:terminate()
+                    end
+                end)
+            else
+                tilemo.adapter.log("tabs from " .. browser .. ": couldn't run osascript")
             end
         end
+    end
+end
+
+-- Every window on every workspace, most recently used first, for the
+-- Windows tab.
+local function windows(tilemo)
+    local wm = tilemo.wm
+    local out, seen = {}, {}
+    local function add(id)
+        local w = wm.windows[id]
+        if w and w.ws and not seen[id] then
+            seen[id] = true
+            out[#out + 1] = {
+                id = id,
+                title = tilemo.adapter.title(id) or w.title,
+                app_name = w.name or (w.app and hs.application.nameForBundleID(w.app)) or w.app,
+                ws = w.ws,
+            }
+        end
+    end
+    for _, id in ipairs(wm.history) do
+        add(id)
+    end
+    local rest = {}
+    for id in pairs(wm.windows) do
+        if not seen[id] then
+            rest[#rest + 1] = id
+        end
+    end
+    table.sort(rest, function(a, b)
+        return tostring(a) < tostring(b)
+    end)
+    for _, id in ipairs(rest) do
+        add(id)
     end
     return out
 end
 
 -- The tab's window may be minimized, on a workspace tilemo has hidden, so it's
 -- restored too: tilemo sees a window you restored and brings its workspace
--- along with it.
-local BROWSER_BUNDLES = { ["Google Chrome"] = "com.google.Chrome", Safari = "com.apple.Safari" }
+-- along with it. Where tilemo knows the window, it goes there first.
 
 local function open_tab(tilemo, item)
+    -- The window by its id, which stays put, not its number, which is its
+    -- place front to back and changes as soon as anything raises a window:
+    -- such as tilemo going to it, below.
+    local win = item.window_id and ("window id %d"):format(item.window_id) or ("window %d"):format(item.window)
+    if item.win and tilemo.wm.windows[item.win] then
+        tilemo.wm:activate(item.win)
+    end
     -- The browser activating is the launch you made (SPEC.md §14.1).
     tilemo.wm:grant(BROWSER_BUNDLES[item.browser])
     local set, restore
     if item.browser == "Safari" then
-        set = ("set current tab of window %d to tab %d of window %d"):format(item.window, item.tab, item.window)
-        restore = ("set miniaturized of window %d to false"):format(item.window)
+        set = ("set current tab of %s to tab %d of %s"):format(win, item.tab, win)
+        restore = ("set miniaturized of %s to false"):format(win)
     else
-        set = ("set active tab index of window %d to %d"):format(item.window, item.tab)
-        restore = ("set minimized of window %d to false"):format(item.window)
+        set = ("set active tab index of %s to %d"):format(win, item.tab)
+        restore = ("set minimized of %s to false"):format(win)
     end
     local ok, _, err = hs.osascript.applescript(([[
         tell application "%s"
             %s
             %s
-            set index of window %d to 1
+            set index of %s to 1
             activate
-        end tell]]):format(item.browser, set, restore, item.window))
+        end tell]]):format(item.browser, set, restore, win))
     if not ok then
         tilemo.adapter.notify("Couldn't open that " .. item.browser .. " tab: " .. hs.inspect(err))
     end
@@ -263,6 +347,9 @@ function M.new(tilemo)
             tilemo.adapter.open_url(item.url)
         elseif item.kind == "tab" then
             open_tab(tilemo, item)
+        elseif item.kind == "window" then
+            -- With its workspace, as an app key brings it.
+            tilemo.wm:activate(item.window)
         elseif item.kind == "workspace" then
             -- Made, if it's a standing workspace not made yet.
             tilemo.wm:show(item.title)
@@ -333,11 +420,30 @@ function M.new(tilemo)
         end
         before = tilemo.adapter.focused()
         local apps, settings = M.scan()
-        items = launcher.items(apps, tabs(), launcher.COMMANDS, settings, attention(tilemo), workspaces(tilemo))
-        by_id = {}
-        for _, item in ipairs(items) do
-            by_id[item.id] = item
+        local wins = windows(tilemo)
+        local found_tabs = {}
+        local function fill()
+            items = launcher.items(apps, found_tabs, launcher.COMMANDS, settings, attention(tilemo), workspaces(tilemo), wins)
+            by_id = {}
+            for _, item in ipairs(items) do
+                by_id[item.id] = item
+            end
         end
+        fill()
+        -- The windows show at once; each browser's tabs join them when it
+        -- answers, while the switcher's still open.
+        local opened = {}
+        self.opened = opened
+        fetch_tabs(tilemo, function(list)
+            if self.opened ~= opened or not chooser:isVisible() then
+                return
+            end
+            for _, t in ipairs(list) do
+                found_tabs[#found_tabs + 1] = t
+            end
+            fill()
+            chooser:choices(choices(chooser:query()))
+        end)
         tilemo.wm:hold("launcher", true)
         fresh = false
         open_keys = {

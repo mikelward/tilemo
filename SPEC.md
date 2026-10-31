@@ -30,6 +30,19 @@ checked against a source or a Mac is marked *(unverified)*.
   personal one shouldn't have to.
 - **Say what can't be done,** as tileco §2 does for chromeOS, so nobody spends
   a week finding out (§13).
+- **Never degrade silently.** Fallbacks are tilemo's to choose: Option for
+  Super without Karabiner (§7.1), Cmd+N for a kitty window without its
+  socket (§6.3), the title for a workspace name without its patterns
+  (§6.2). But whenever something a feature depends on is missing or out of
+  date (Karabiner or its rule, a permission, an app, a config file, a
+  helper), tilemo says so where you'll see it:
+  - a notification, once each time it changes, naming what's missing and
+    what stops working, and how to fix it;
+  - a line in `tilemo doctor` saying the same, for as long as it lasts
+    (§15).
+
+  A key that does nothing, or a feature quietly turned off, is the
+  failure this rules out.
 
 ## 2. What macOS allows
 
@@ -1203,7 +1216,14 @@ tab, the search field naming the tab you're in.
   - **Workspaces, windows and attention** are tilemo's own state, so they
     cost nothing to list.
   - **Browser tabs** come from Chrome and Safari through AppleScript, run
-    with `hs.osascript` (§2.5).
+    by `/usr/bin/osascript` as an `hs.task` rather than `hs.osascript`,
+    which would hold Hammerspoon until the browser answers (§2.5).
+  - **A tab's workspace** is its window's. AppleScript's window numbers
+    aren't Accessibility's, so tilemo finds the window by its name, which
+    both give *(unverified that they always agree)*.
+  - **Choosing a tab** addresses its browser window by AppleScript's window
+    id, collected with the tabs, not its number, which changes as soon as
+    tilemo raises the window.
 - **Browser tabs, cost and reliability:**
   - **Permission:** macOS asks once per browser for Automation, the first
     time the Windows tab lists its tabs (§11.1). Refused, that browser's
@@ -1212,7 +1232,7 @@ tab, the search field naming the tab you're in.
     slower with many tabs, and slow or stuck while the browser is busy
     *(unverified how slow)*. So tilemo asks when the switcher opens, shows
     the windows at once, and adds the tabs when they arrive. The call gets
-    a timeout, and a browser that misses it is skipped this time.
+    a 2 s timeout, and a browser that misses it is skipped this time.
   - **A browser that isn't running** isn't asked, since an Apple Event to it
     would launch it.
   - **Cost:** nothing in money, no network, and no work at all while the
@@ -1488,7 +1508,9 @@ Each one names a workaround, or says there is none.
 - **One owner per job** (tide §5): tilemo tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.
-- **`tilemo doctor`** checks what usually goes wrong:
+- **`tilemo doctor`** checks what usually goes wrong. Each problem it finds
+  is also a notification when it starts, as §1's "never degrade silently"
+  asks, naming what stops working and the fix:
   - each permission (§11.1), and whether the event tap is still on (§16);
   - another tiler running: Amethyst, Rectangle, yabai, AeroSpace;
   - a symbolichotkey holding one of tilemo's keys (§7.3), and any key that

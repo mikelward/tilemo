@@ -1,6 +1,7 @@
--- The launcher's matching and ranking (SPEC.md §9), a port of tileco's
--- src/launcher.js: apps, System Settings' panes, tilemo's commands, open
--- tabs and the windows wanting attention, in scopes Tab moves between,
+-- The switcher's matching and ranking (SPEC.md §9), a port of tileco's
+-- src/launcher.js: apps, System Settings' panes, tilemo's commands, the
+-- workspaces, every window and open tab, and the windows wanting attention,
+-- in tabs Tab moves between,
 -- filtered by a fuzzy match and ordered by how well they match, then by how
 -- recently you used them. Also where the apps and panes are found. Pure
 -- Lua; launcher_hs.lua draws it with hs.chooser.
@@ -52,28 +53,29 @@ local function item_score(query, item)
     return math.max(title or -math.huge, extra and extra - 2 or -math.huge)
 end
 
+-- The switcher's tabs (SPEC.md §9), each listing these kinds.
 M.SCOPES = {
     launch = { app = true, setting = true, command = true },
     workspaces = { workspace = true },
-    tabs = { tab = true },
+    windows = { window = true, tab = true },
     attention = { attention = true },
 }
 
 -- The order Tab moves through them, and what each lists. Each key opens
 -- the switcher on its own (SPEC.md §9).
-M.SCOPE_ORDER = { "launch", "workspaces", "tabs", "attention" }
-M.SCOPE_NAMES = { launch = "Launch", workspaces = "Workspaces", tabs = "Tabs", attention = "Attention" }
+M.SCOPE_ORDER = { "launch", "workspaces", "windows", "attention" }
+M.SCOPE_NAMES = { launch = "Launch", workspaces = "Workspaces", windows = "Windows", attention = "Attention" }
 M.SCOPE_LISTS = {
     launch = "apps, settings and commands",
     workspaces = "every workspace",
-    tabs = "Chrome and Safari tabs",
+    windows = "every window, and Chrome and Safari tabs",
     attention = "windows wanting attention",
 }
--- What an empty scope shows instead.
+-- What an empty tab shows instead, in a row that can't be chosen.
 M.SCOPE_EMPTY = {
     launch = "Nothing to launch",
     workspaces = "No workspaces",
-    tabs = "No Chrome or Safari tabs, or no Automation access to them",
+    windows = "No windows",
     attention = "Nothing wants attention",
 }
 
@@ -94,7 +96,7 @@ function M.placeholder(scope)
         M.SCOPE_NAMES[M.next_scope(scope)])
 end
 
-local KIND_ORDER = { attention = 0, workspace = 1, tab = 2, app = 3, setting = 4, command = 5 }
+local KIND_ORDER = { attention = 0, workspace = 1, window = 2, tab = 3, app = 4, setting = 5, command = 6 }
 
 local function rank_all(query, items, limit, recency)
     local q = query:match("^%s*(.-)%s*$")
@@ -128,12 +130,19 @@ local function rank_all(query, items, limit, recency)
     return out
 end
 
+-- How many rows a tab shows at most, unless `opts.limit` says. Only Launch,
+-- with every app and pane on the Mac, is capped: the other tabs list
+-- tilemo's own state, and every window, tab and workspace there must stay
+-- reachable however many there are.
+M.LIMITS = { launch = 20 }
+M.LIMIT = 20
+
 -- Items in `scope` matching `query`, best first; ties go to the most
 -- recently used (`recency` maps an item's key to when). A query that matches
 -- nothing in its scope looks in every scope instead.
 function M.rank(query, items, opts)
     opts = opts or {}
-    local limit = opts.limit or 20
+    local limit = opts.limit or (opts.scope and (M.LIMITS[opts.scope] or math.huge)) or M.LIMIT
     local recency = opts.recency or {}
     local in_scope = items
     if opts.scope then
@@ -167,7 +176,9 @@ end
 -- The line under an item's title in the switcher.
 function M.subtitle(item)
     if item.kind == "tab" then
-        return join(item.browser, item.extra)
+        return join(item.browser, item.extra, item.ws)
+    elseif item.kind == "window" then
+        return join(item.app, item.ws)
     elseif item.kind == "setting" then
         return "System Settings"
     elseif item.kind == "attention" then
@@ -183,15 +194,70 @@ local function host(url)
     return (url or ""):match("^%a[%w+.-]*://([^/?#]+)")
 end
 
+-- A browser's tabs from TAB_SCRIPTS' output, one per line: window index,
+-- tab index, the window's id, its name, the tab's address and its title,
+-- separated by tabs. Returns { browser, window, tab, window_id,
+-- window_name, url, title }.
+function M.parse_tabs(browser, text)
+    local out = {}
+    for line in (text or ""):gmatch("[^\n]+") do
+        local w, t, id, wname, url, title = line:match("^(%d+)\t(%d+)\t(%d+)\t([^\t]*)\t([^\t]*)\t(.*)$")
+        if w then
+            out[#out + 1] = {
+                browser = browser,
+                window = tonumber(w),
+                tab = tonumber(t),
+                window_id = tonumber(id),
+                window_name = wname,
+                url = url,
+                title = title,
+            }
+        end
+    end
+    return out
+end
+
+-- The tilemo window a browser tab is in: of `windows`, { id, app, title,
+-- ws }, the one of the browser's app (`bundle`) whose title is the tab's
+-- window's name. AppleScript's window numbers aren't Accessibility's, so
+-- the name is what's shared *(unverified that they always agree)*. Nil if
+-- none or several match.
+function M.tab_window(tab, bundle, windows)
+    local found
+    for _, w in ipairs(windows) do
+        if w.app == bundle and w.title == tab.window_name and tab.window_name ~= "" then
+            if found then
+                return nil
+            end
+            found = w
+        end
+    end
+    return found
+end
+
 -- Items from what the adapter found: apps { name, path }, tabs { title, url,
--- browser, window, tab }, commands { title, action, arg, quick }, System
+-- browser, window, tab, win, ws }, commands { title, action, arg, quick }, System
 -- Settings' panes { name, id }, the windows wanting attention { window,
--- title, app, ws }, newest first, and the workspaces { name, apps, where },
--- in bar order. Each gets a stable key, for remembering
+-- title, app, ws }, newest first, the workspaces { name, apps, where }, in
+-- bar order, and every window { id, title, app_name, ws }, most recently
+-- used first. Each gets a stable key, for remembering
 -- when it was used, and an id that's unique among the items, for choosing
 -- it: two tabs on the same page share a key but not an id.
-function M.items(apps, tabs, commands, settings, attention, workspaces)
+function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
     local out = {}
+    -- Most recently used first, as listed, which they keep.
+    for i, w in ipairs(windows or {}) do
+        out[#out + 1] = {
+            kind = "window",
+            title = (w.title or "") ~= "" and w.title or (w.app_name or ""),
+            extra = w.app_name,
+            app = w.app_name,
+            window = w.id,
+            ws = w.ws,
+            order = i,
+            key = "window:" .. tostring(w.id),
+        }
+    end
     -- In bar order, which they keep, as the attention list keeps its own.
     for i, w in ipairs(workspaces or {}) do
         out[#out + 1] = {
@@ -223,7 +289,10 @@ function M.items(apps, tabs, commands, settings, attention, workspaces)
             extra = host(t.url),
             browser = t.browser,
             window = t.window,
+            window_id = t.window_id,
             tab = t.tab,
+            win = t.win,
+            ws = t.ws,
             key = "tab:" .. (t.url or t.title or ""),
             id = string.format("tab:%s:%s:%s", t.browser, t.window, t.tab),
         }
@@ -380,8 +449,6 @@ M.COMMANDS = {
     { title = "Reload tilemo", quick = "reload" },
     { title = "Check tilemo (doctor)", quick = "doctor" },
 }
-for n = 1, 9 do
-    M.COMMANDS[#M.COMMANDS + 1] = { title = "Workspace " .. n, action = "show", arg = n }
-end
+-- Workspaces are in the Workspaces tab, by name, not commands by number.
 
 return M
