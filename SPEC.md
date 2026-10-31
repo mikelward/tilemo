@@ -796,10 +796,28 @@ the home workspace, the first standing one (§6.1), which is "in" unless
   - **kitty** on Super+T: Cmd+N to a running kitty starts a shell with
     kitty's environment from when it launched. tilemo instead asks kitty
     for the window through its remote control, `kitten @ launch
-    --type=os-window --env TIDE_WORKSPACE=…`, which needs conf's
-    `kitty.conf` to allow remote control on a socket *(unverified)*. With
-    none, it falls back to Cmd+N, and the shell reads the name from
-    tilemo's file (below).
+    --type=os-window --env TIDE_WORKSPACE=…`. With no socket, it falls
+    back to Cmd+N, and the shell reads the name from tilemo's file
+    (below).
+    - **The socket is private.** conf's `kitty.conf` sets, on a Mac only,
+      `allow_remote_control socket-only` and `listen_on unix:kitty`. kitty
+      0.27.0 or later is needed, for the Mac-only include.
+    - A relative `listen_on` lands in kitty's temporary folder, and kitty
+      adds its process ID, so the socket is `$TMPDIR/kitty-<pid>` (kitty's
+      `expand_listen_on`). `$TMPDIR` is your own folder, mode 700, where
+      `/tmp` is shared. That kitty, started from the Dock, has `$TMPDIR` is
+      *(unverified)*.
+    - kitty doesn't set the socket's mode, so the mode is whatever the
+      umask leaves. macOS only lets a process connect to a socket it can
+      write (`unp_connect`). So the folder is what keeps other users out.
+    - **tilemo checks before it connects.** It takes the socket only if
+      the socket and its folder are owned by your user ID, and no one else
+      can write to the folder (`kitty.lua`). Anything else is refused, with
+      a notice saying why, and the window comes from Cmd+N. Remote control
+      runs anything as you, and tilemo sends the workspace's name, so a
+      socket someone else made is never used.
+    - Your user ID comes from one `id -u`, the first time there's a socket
+      to check.
 - **A running process can't see later changes.** It keeps the name it
   started with, after a rename or a move to another workspace, as on tide.
 - **Scripts read the current name from a file:**
@@ -1698,8 +1716,8 @@ Each one names a workaround, or says there is none.
     physical Alt+Tab going to tilemo (§7.2);
   - the shell's shpool and tmux startup, which reads `TIDE_WORKSPACE`, and
     on a Mac reads tilemo's workspace file when it's missing (§6.3);
-  - `kitty.conf`'s remote control socket, for `TIDE_WORKSPACE` in new kitty
-    windows (§6.3);
+  - `kitty.conf`'s remote control socket, private to you, on a Mac only,
+    for `TIDE_WORKSPACE` in new kitty windows (§6.3);
   - `amethyst.yml` retired;
   - the Hammerspoon config, if tilemo starts as route B (§3).
 - **scripts:** `setup-macos`. It installs tilemo, frees the keys in §7.3,

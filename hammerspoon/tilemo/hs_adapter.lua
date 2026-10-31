@@ -3,6 +3,7 @@
 -- Not runnable outside Hammerspoon.
 
 local atomic = require("tilemo.atomic")
+local kitty = require("tilemo.kitty")
 local saved = require("tilemo.saved")
 local shots = require("tilemo.shots")
 
@@ -351,17 +352,34 @@ function M.new()
     end
 
     -- kitty's remote control socket, if conf's kitty.conf turned it on:
-    -- `listen_on unix:/tmp/kitty`, which kitty may suffix with its pid
-    -- *(unverified which, so both are tried)*.
+    -- `listen_on unix:kitty`, which kitty makes `$TMPDIR/kitty-<pid>`.
+    -- kitty.lua says whether it's safe to use; one that isn't is refused
+    -- with a notice, and Cmd+N used instead. Your user ID is asked once,
+    -- the first time a socket is there to check.
     local KITTEN = "/Applications/kitty.app/Contents/MacOS/kitten"
-    local function kitty_socket(app)
-        local pid = app and app:pid()
-        for _, path in ipairs({ pid and ("/tmp/kitty-" .. pid), "/tmp/kitty" }) do
-            local attr = path and hs.fs.attributes(path)
-            if attr and attr.mode == "socket" then
-                return "unix:" .. path
+    local my_uid
+    local function uid()
+        if my_uid == nil then
+            local out, ok = hs.execute("/usr/bin/id -u")
+            my_uid = ok and tonumber(out and out:match("%d+")) or false
+            if not my_uid then
+                a.log("couldn't run id -u: " .. tostring(out))
             end
         end
+        return my_uid or nil
+    end
+    local function kitty_socket(app)
+        local pid = app and app:pid()
+        local tmpdir = os.getenv("TMPDIR")
+        local path = kitty.path(tmpdir, pid)
+        if not (path and hs.fs.attributes(path)) then
+            return nil
+        end
+        local socket, why = kitty.socket(tmpdir, pid, uid(), hs.fs.attributes)
+        if not socket and why then
+            a.notify("Not using kitty's remote control: " .. why .. ". Opened the window with Cmd+N")
+        end
+        return socket
     end
 
     -- A new window of a running app. kitty is asked for an OS window through
