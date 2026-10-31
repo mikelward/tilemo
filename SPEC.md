@@ -212,7 +212,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | A new window on "in" asks for a workspace name (tide §6.5) | tilemo's name prompt, an `hs.chooser` (§6.2) | **yes** |
 | `TIDE_WORKSPACE` in launched apps (tide §6.5) | `hs.task`'s environment, `open --env`, and kitty's remote control (§6.3) | **partial**: an app already running keeps its own |
 | One workspace per monitor from a shared pool (tide §6.5) | tilemo tracks which display shows each workspace, as tileco does (§6) | **yes** |
-| Dim inactive, 0.07, not a lone window or video (tide §6.2) | one dark layer behind the focused window (§5.6) | **partial**: dims the desktop too, as HazeOver does *(unverified)* |
+| Dim inactive, 0.07, not a lone window or video (tide §6.2) | one dark layer behind the focused window (§5.6) | **not built**; when built, **partial**: dims the desktop too, as HazeOver does *(unverified)* |
 | No borders, no gaps | gaps 0; title bars stay | **partial** |
 | Maximize, fullscreen, restore (tide §6.3) | tilemo's own, on the same workspace (§5.4) | **yes**; native full screen is its own Space (§13) |
 | Picture-in-picture pinned bottom-right on every workspace (tide §6.4) | left alone and never minimized (§5.5) | **partial**: its place is the app's |
@@ -245,7 +245,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Key repeat: 600 ms, 25 a second | `InitialKeyRepeat` and `KeyRepeat` (§10) | **partial**: macOS's steps |
 | Caps Lock as Compose | no Compose; Karabiner can map key sequences | **partial** |
 | Setup checklist (tileco §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
-| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | tilemo reads the same files (§15) | **yes** |
+| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | tilemo reads the same files (§15) | **partial**: Clocks, Start at login, Clipboard and the muted list are built; Layouts, Workspaces, Keys and the checklist aren't, and the layouts and standing workspaces are still `start()` options |
 | `tide doctor` (tide §5.4) | `tilemo doctor` (§15) | **yes** |
 | Workspace swipe, three fingers (conf `hyprland.lua`) | no public gesture API (§13) | **no** |
 | kitty, Ubuntu Mono, shell config | native, through `setup` and `conf` | **yes** |
