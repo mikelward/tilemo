@@ -122,7 +122,7 @@ t.test("Super+Shift+J moves the window and retiles", function()
     t.eq(frame(a, 2).x, 0)
 end)
 
-t.test("Super+Return swaps with the master", function()
+t.test("Alt+Tab swaps with the master", function()
     local a, wm = setup(3)
     a.focus_ = 3
     wm:act("swap_master")

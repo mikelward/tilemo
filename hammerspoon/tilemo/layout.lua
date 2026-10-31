@@ -117,13 +117,24 @@ function M.move(ws, ids, wid, delta)
     end
 end
 
--- dwm's zoom: the master swaps with the next window; any other window
--- swaps with the master.
+-- Alt+Tab (tide's, SPEC.md §7.2): any other window swaps with the master,
+-- which the workspace remembers; the master swaps with the window that was
+-- master before it, or with the next window, as dwm's zoom, if that one's
+-- gone.
 function M.swap_master(ws, ids, wid)
     if #ids < 2 or not index_of(ids, wid) then
         return
     end
-    local other = ids[1] == wid and ids[2] or ids[1]
+    local other, displaced
+    if ids[1] == wid then
+        local prev = ws.prev_master
+        other = prev ~= wid and index_of(ids, prev) and prev or ids[2]
+        displaced = wid
+    else
+        other = ids[1]
+        displaced = other
+    end
+    ws.prev_master = displaced
     swap(ws.order, wid, other)
 end
 

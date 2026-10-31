@@ -638,64 +638,21 @@ t.test("Cmd+Return launches a new window here, with no empty workspace to use", 
     t.eq(a.fresh[1], true)
 end)
 
-t.test("Super+Tab goes to the window wanting attention, with its workspace", function()
+t.test("choosing a window from the Attention tab goes there, with its workspace", function()
     local a, wm = setup(2)
     a.focus_ = 2
     wm:act("send", "3")
     wm.attention:title(2, "com.example.app", "Chat (1)")
     a.focus_ = 1
-    wm:act("attention")
+    wm:activate(wm:attention_windows()[1])
     t.eq(wm.screen_ws.A, "3")
     t.eq(a.focus_, 2)
 end)
 
-t.test("Super+Tab again with Super held goes to the next; letting go starts over", function()
-    local a, wm = setup(3)
-    wm.attention:title(2, "x", "b (1)")
-    wm.attention:title(3, "y", "c (1)")
-    a.focus_ = 1
-    wm:act("attention")
-    t.eq(a.focus_, 3)
-    wm:focused(3)
-    wm:act("attention")
-    t.eq(a.focus_, 2)
-    wm:focused(2)
-    wm:end_round()
-    wm:act("attention")
-    t.eq(a.focus_, 3, "nothing waiting: the window you were last in")
-end)
-
-t.test("with nothing waiting, Super+Tab goes back to the window you were last in", function()
-    local a, wm = setup(2)
-    wm:focused(1)
-    wm:focused(2)
-    a.focus_ = 2
-    wm:act("attention")
-    t.eq(a.focus_, 1)
-end)
-
-t.test("a badged app that quit doesn't stop Super+Tab going back", function()
-    local a, wm = setup(2)
-    wm:focused(1)
-    wm:focused(2)
-    a.focus_ = 2
+t.test("a badged app that quit isn't listed as wanting attention", function()
+    local _, wm = setup(2)
     wm.attention:badge("com.example.gone", "3")
-    wm:act("attention")
-    t.eq(a.focus_, 1)
-end)
-
-t.test("a window marked by both its badge and its title comes once in a round", function()
-    local a, wm = setup(3)
-    a.wins[2].app = "com.example.chat"
-    wm.windows[2].app = "com.example.chat"
-    wm.attention:title(3, "x", "Mail (1)")
-    wm.attention:title(2, "com.example.chat", "Chat (1)")
-    wm.attention:badge("com.example.chat", "1")
-    a.focus_ = 1
-    wm:act("attention")
-    t.eq(a.focus_, 2)
-    wm:act("attention")
-    t.eq(a.focus_, 3)
+    t.eq(wm:attention_windows(), {})
 end)
 
 t.test("the windows wanting attention, as the launcher lists them, come newest first and once each", function()
@@ -738,20 +695,9 @@ t.test("a badged app's mark goes to its last used window, whichever workspace it
     a.focus_ = 3
     wm:focused(3)
     wm.attention:badge("com.example.chat", "1")
-    wm:act("attention")
+    wm:activate(wm:attention_windows()[1])
     t.eq(a.focus_, 2)
     t.eq(wm.screen_ws.A, "4")
-end)
-
-t.test("on an empty workspace, Super+Tab goes back to the last window you were in", function()
-    local a, wm = setup(2)
-    wm:focused(1)
-    wm:focused(2)
-    wm:show("5", nil, true)
-    a.tick()
-    a.focus_ = nil
-    wm:act("attention")
-    t.eq(a.focus_, 2)
 end)
 
 t.test("the menu bar state marks here, occupied and wanting attention", function()
@@ -1068,6 +1014,95 @@ t.test('a dialog of one of "in"\'s apps stays with its parent on another workspa
     wm:sync()
     t.eq(wm.windows[2].ws, "web", "the dialog, with its parent")
     t.eq(wm.windows[3].ws, "in", "a new main window still goes to \"in\"")
+end)
+
+-- Super+Tab, Super+End and Super+Return (SPEC.md §7.2) ---------------------
+
+-- Three workspaces with a window each besides home: web, docs and mail.
+local function three(a, wm)
+    for id, n in pairs({ [2] = "web", [3] = "docs" }) do
+        a.focus_ = id
+        wm:act("send", n)
+    end
+end
+
+t.test("Super+Tab goes home from anywhere, and from home back to the last workspace", function()
+    local a, wm = setup(3)
+    three(a, wm)
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "in", "nowhere to go back to yet")
+    wm:act("show", "web")
+    wm:act("show", "docs")
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "in")
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "docs", "back")
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "in", "and again: it toggles")
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "docs")
+end)
+
+t.test("Super+End goes to the last workspace other than home and this one", function()
+    local a, wm = setup(3)
+    three(a, wm)
+    wm:act("show", "web")
+    wm:act("show", "docs")
+    wm:act("last")
+    t.eq(wm.screen_ws.A, "web", "the task workspace before")
+    wm:act("last")
+    t.eq(wm.screen_ws.A, "docs", "and back")
+    wm:act("home")
+    wm:act("last")
+    t.eq(wm.screen_ws.A, "docs", "from home, where Super+Tab goes")
+    wm:act("home")
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "docs")
+end)
+
+t.test("Super+End and Super+Tab pass over a workspace that's gone", function()
+    local a, wm = setup(3)
+    three(a, wm)
+    wm:act("show", "web")
+    wm:act("show", "docs")
+    -- docs' window closes while it's hidden: docs goes.
+    wm:act("home")
+    a.drop(3)
+    wm:schedule()
+    a.tick()
+    t.eq(wm:find("docs"), nil)
+    wm:act("flip")
+    t.eq(wm.screen_ws.A, "web")
+end)
+
+t.test("Super+Return asks for a workspace and sends the window there, focus staying", function()
+    local a, wm = setup(2)
+    local asked
+    wm.ask_move = function(done)
+        asked = done
+    end
+    wm:focused(1)
+    wm:focused(2)
+    a.focus_ = 2
+    wm:act("move_to")
+    t.eq(wm.holding_keyboard, true)
+    asked("Web")
+    t.eq(wm.windows[2].ws, "Web")
+    t.eq(wm.screen_ws.A, "in", "Send: you stay")
+    t.eq(a.focus_, 1)
+    t.eq(wm.holding_keyboard, false)
+    -- Esc leaves it.
+    a.focus_ = 1
+    wm:act("move_to")
+    asked(nil)
+    t.eq(wm.windows[1].ws, "in")
+    -- Home takes only its own apps.
+    wm:act("show", "Web")
+    a.focus_ = 2
+    wm:act("move_to")
+    asked("IN")
+    t.eq(wm.windows[2].ws, "Web")
+    t.eq(#a.notes, 1)
 end)
 
 t.done("workspaces")

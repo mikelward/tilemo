@@ -65,18 +65,36 @@ t.test("a scope with no match falls back to every scope", function()
     t.eq(#launcher.rank("lock", sample(), { scope = "tabs" }), 1)
 end)
 
-t.test("Tab moves through Launch, Tabs and Attention, and round again; Shift+Tab goes back", function()
+t.test("Tab moves through Launch, Workspaces, Tabs and Attention, and round again; Shift+Tab goes back", function()
     t.eq(launcher.SCOPE_ORDER[1], "launch")
-    t.eq(launcher.next_scope("launch"), "tabs")
+    t.eq(launcher.next_scope("launch"), "workspaces")
+    t.eq(launcher.next_scope("workspaces"), "tabs")
     t.eq(launcher.next_scope("tabs"), "attention")
     t.eq(launcher.next_scope("attention"), "launch")
     t.eq(launcher.next_scope("launch", true), "attention")
-    t.eq(launcher.next_scope("tabs", true), "launch")
+    t.eq(launcher.next_scope("workspaces", true), "launch")
 end)
 
 t.test("the search field names the scope, what it lists, and where Tab goes", function()
-    t.eq(launcher.placeholder("launch"), "Launch: apps, settings and commands (Tab: Tabs)")
+    t.eq(launcher.placeholder("launch"), "Launch: apps, settings and commands (Tab: Workspaces)")
     t.eq(launcher.placeholder("attention"), "Attention: windows wanting attention (Tab: Launch)")
+end)
+
+t.test("the Workspaces tab lists every workspace in bar order, by name or by an app on it", function()
+    local items = launcher.items({ { name = "Safari", path = "/Applications/Safari.app" } }, {}, {}, {}, {}, {
+        { name = "in", apps = "Mail", where = "here" },
+        { name = "re", apps = "", where = "empty" },
+        { name = "web", apps = "Google Chrome, Safari" },
+    })
+    local found = launcher.rank("", items, { scope = "workspaces" })
+    local names = {}
+    for i, item in ipairs(found) do
+        names[i] = item.title
+        t.eq(item.kind, "workspace")
+    end
+    t.eq(names, { "in", "re", "web" })
+    t.eq(launcher.rank("chrome", items, { scope = "workspaces" })[1].title, "web")
+    t.eq(launcher.rank("re", items, { scope = "workspaces" })[1].title, "re")
 end)
 
 local function waiting()
@@ -150,6 +168,18 @@ t.test("every command names a window manager action or a quick action", function
     for _, c in ipairs(launcher.COMMANDS) do
         t.eq(c.quick ~= nil or type(wm.actions[c.action]) == "function", true, c.title)
     end
+end)
+
+t.test("a row's subtitle leaves out what's missing, wherever it is", function()
+    t.eq(launcher.subtitle({ kind = "workspace", extra = "Mail, Safari" }), "Mail, Safari", "no where: a hidden workspace")
+    t.eq(launcher.subtitle({ kind = "workspace", where = "here", extra = "" }), "here")
+    t.eq(launcher.subtitle({ kind = "workspace", where = "empty", extra = "" }), "empty")
+    t.eq(launcher.subtitle({ kind = "workspace" }), "")
+    t.eq(launcher.subtitle({ kind = "attention", app = "Slack", ws = "web" }), "Slack · web")
+    t.eq(launcher.subtitle({ kind = "attention", ws = "web" }), "web")
+    t.eq(launcher.subtitle({ kind = "tab", browser = "Safari" }), "Safari")
+    t.eq(launcher.subtitle({ kind = "setting" }), "System Settings")
+    t.eq(launcher.subtitle({ kind = "command" }), "command")
 end)
 
 -- A disk for scan_apps and scan_settings: each path a folder (true) or a

@@ -125,6 +125,12 @@ function M.new(tilemo)
         open("Workspace to open it on", default, on_done, nil, true)
     end
 
+    -- Super+Return: any workspace, home included, which takes only its own
+    -- apps' windows.
+    function self.choose(on_done)
+        open("Move the window to", "", on_done, nil, false)
+    end
+
     -- For CI's smoke test: the rows shown, and Esc.
     function self.rows()
         return rows(chooser:query())

@@ -31,24 +31,27 @@ one switcher with tabs (SPEC.md §6, §7.2, §9, §14.2), as tide's does.
 first being home, "in" by default) and home's apps (`home_apps`),
 `Super+Home`, the saved state, names on the bar, the menu bar item, the
 dashboard and the switch sign, the name prompt, `TIDE_WORKSPACE`, and a
-launch's window going to the workspace it was launched for. The rest:
+launch's window going to the workspace it was launched for, and the keys:
+`Super+Return`, `Super+Tab`, `Super+End`, Alt+Tab, `Super+A` and the Super
+tap. The rest:
 
-- **To decide: keep `Super+1…9` and `Super+Shift+1…9`?** The user leans
-  toward dropping them, now that the switcher and `Super+Return` cover
-  both. If they stay, they take the first nine in bar order. Until it's
-  settled, the spec leaves them out of the key map.
-- **To decide: what `Super+End` does.** It pairs with `Super+Home`, which
-  goes to "in".
-- **To rethink: several displays.** Whether a workspace can span several
-  displays, and how per-display workspaces should work with names, needs
-  more design (SPEC.md §19, question 12). Until then each display shows
-  one workspace, as before, and a second display gets one named by its
-  number (below).
-- **`Super+Return`** moves the window to a workspace by name; **Alt+Tab**
-  swaps with the master; **`Super+A`** lists attention; **`Super+Tab`** and
-  the Super tap open the workspace list (SPEC.md §7.2).
-- **conf:** Karabiner's Alt+Tab rule sends tilemo's combination instead of
-  Cmd+Tab; `kitty.conf` allows remote control on a socket; the shell reads
+- **Follow-up: several displays** (SPEC.md §19, question 12). The
+  direction: a workspace spans every display, each display with its own
+  layout within it. Open:
+  - moving between displays. The candidate: `Super+Left` / `Right` select
+    the window left or right of this one, wrapping at a display's edge to
+    the nearest window on the next display that way, and
+    `Super+Shift+Left` / `Right` move the window the same way;
+  - whether the edge wrap is doable, across displays of different sizes
+    and offsets;
+  - if it is, those keys replace previous / next workspace and carry,
+    which they are now. Previous / next stays on `Super+PgUp` / `PgDn`,
+    and carry needs another key or goes.
+  Until then each display shows one workspace, and a second display gets
+  one named by its number (below).
+- **conf:** Karabiner sends physical Alt+Tab as tilemo's
+  `Ctrl+Option+Shift+Tab` instead of Cmd+Tab, and the lone Super tap as
+  `Super+F20` (conf's PR for this goes with tilemo's keys PR); `kitty.conf` allows remote control on a socket; the shell reads
   `~/Library/Caches/tilemo/workspace` on a Mac when `TIDE_WORKSPACE` is
   missing (SPEC.md §6.3, §17).
 - **Check on a Mac:** `open --env` on macOS 26, kitty's socket path, and
@@ -104,6 +107,17 @@ launch's window going to the workspace it was launched for. The rest:
   helper with none, as the next new window of any app, within the launch's
   10 s grant, once. A window from elsewhere opening in that time could be
   taken for it. Reversible: `wm.launch_to`.
+- **Alt+Tab is `Ctrl+Option+Shift+Tab`** as Karabiner sends it: without
+  Command, so physical Win+anything can't make it. Reversible:
+  `keys.karabiner_only` and conf's `tilemo.json`.
+- **The lone Super tap is `Super+F20`** as Karabiner sends it, told apart
+  from `Super+Space`. Reversible: one line in `keys.map` and conf's
+  `tilemo.json`.
+- **`Super+Tab` and `Super+End` remember shown workspaces across
+  displays,** one list, not one per display. Reversible: `wm.used_ws`.
+- **The Workspaces tab is a scope of the launcher's chooser** for now,
+  listing each workspace's apps and where it's showing, without icons.
+  Reversible: `launcher_hs.lua`'s `workspaces`.
 - **Launches from home that ask:** apps from the switcher, app keys and
   Cmd+Return. Settings panes, commands and tabs don't. Calendar, Chat and
   YouTube Music's keys are marked as home's apps. Reversible: `keys.APPS`
