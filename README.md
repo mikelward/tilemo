@@ -79,7 +79,9 @@ home workspace, made at start, where Super+Home goes; each of the rest is
 made the first time you go to it or send a window there.
 
 `home_apps` names the apps whose windows always open on the home workspace,
-by app name. It defaults to mail, chat, calendar and music:
+by app name. It defaults to mail, chat, calendar and music, as both the Mac's
+apps and Google's web apps. A list you set also starts at login, once a
+login, in the background, skipping any app that's running:
 
 ```lua
 tilemo.start({ home_apps = { "Mail", "Messages", "Calendar", "Music" } })

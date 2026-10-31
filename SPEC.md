@@ -773,6 +773,23 @@ the home workspace, the first standing one (§6.1), which is "in" unless
     Calendar; Music, YouTube Music.
   - The list is tilemo's, not shared with tide: tide names apps by their
     Wayland app ID, which a Mac doesn't have.
+  - **A list you set starts at login,** as tide's home starts its apps
+    (tide §6.5): once a login, told apart as Start at login's list is
+    (§15), each app by name with `open -g -a`, so none takes focus, in
+    order, and before that list, which doesn't wait for them. An app
+    already running isn't opened again, and one that won't open is a
+    notification naming it. The two keep their logins apart, so a list
+    file that can't be read doesn't hold home's apps back.
+    - **tilemo's default list starts nothing.** It names a Mac app and a
+      web app for each of the four, so it would open both, including
+      Mail's and Messages' first-run setup on a Mac that uses Google's
+      *(a guess, to confirm)*.
+    - **Entries stay app names,** not tide's programs and web addresses
+      (tide §6.5). A `chrome --app=URL` window on a Mac is Google Chrome's
+      own, which tilemo can't tell from a browser window, so a web address
+      would match nothing; Chrome's installed web apps have names of their
+      own, which the list already takes. A `scripts` launcher such as
+      `google-calendar` can go in Start at login's list (§15) instead.
   - A web app open in a plain Chrome tab isn't its app. Only the installed
     web app's own window counts.
   - Sending another app's window to "in" is refused, with a short notice

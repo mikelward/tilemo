@@ -481,6 +481,24 @@ function M.new()
         end
     end
 
+    -- One of home's apps by name, at login (SPEC.md §6.2): in the
+    -- background (`open -g`), so it doesn't take focus. One that won't open,
+    -- such as a name with no app, says so, with what open printed.
+    function a.open_in_background(name)
+        if not run("/usr/bin/open", { "-g", "-a", name }, function(code, err)
+            if code ~= 0 then
+                a.notify("Couldn't open " .. name .. " on home: " .. ((err or ""):match("[^\n]+") or ("exit " .. code)))
+            end
+        end) then
+            a.notify("Couldn't open " .. name .. " on home")
+        end
+    end
+
+    -- Whether an app of that exact name is running.
+    function a.app_running(name)
+        return hs.application.get(name) ~= nil
+    end
+
     -- An app's name, from its bundle ID, for the name prompt's default.
     function a.app_name(bundle)
         return hs.application.nameForBundleID(bundle)

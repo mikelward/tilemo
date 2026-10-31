@@ -14,7 +14,7 @@
 -- removed, the first being home (SPEC.md §6.1); it defaults to
 -- wm.STANDING, home being "in". `home_apps` names the apps, by app name,
 -- whose windows always open on home (SPEC.md §6.2); it defaults to
--- wm.HOME_APPS.
+-- wm.HOME_APPS. A list you set also starts at login.
 -- tilemo.toggle_focus_follows_mouse() turns focus follows mouse off and on.
 -- tilemo.workspace() gives the current workspace's TIDE_WORKSPACE. Scripts
 -- read it from ~/Library/Caches/tilemo/workspace instead (SPEC.md §6.3):
@@ -318,6 +318,17 @@ function M.start(config)
         end, function(command)
             self.adapter.launch({ run = command })
         end, self.adapter.log)
+    end
+    -- Home's apps (SPEC.md §6.2): the `home_apps` you set start once a
+    -- login, in the background, before the list, which doesn't wait for
+    -- them. Nothing here may stop tilemo loading.
+    local ok_home, err_home = pcall(function()
+        startup.home_at_login(config.home_apps, hs.settings, self.adapter.login(), self.adapter.app_running,
+            self.adapter.open_in_background, self.adapter.log)
+    end)
+    if not ok_home then
+        self.adapter.log("Starting home's apps failed: " .. tostring(err_home))
+        self.adapter.notify("Starting home's apps failed: " .. tostring(err_home))
     end
     -- Nothing here may stop tilemo loading.
     local function run_startup()
