@@ -1438,6 +1438,13 @@ workspaces, every window, and the windows wanting attention. It's the
 launcher's `hs.chooser` with tileco's scopes (tileco §9.4), one scope per
 tab, the search field naming the tab you're in.
 
+- **The search field's hint names only the keys that work on that tab,**
+  as tide's footer does (tide §8.1): `Tab` and the tab it goes to on all
+  four, `Cmd+Return`'s new workspace on Launch, and `Cmd+M`'s mute on
+  Windows and Attention. Elsewhere `Cmd+Return` does what Return does, and
+  `Cmd+M` has no row to mute. `hs.chooser` has no footer, so the hint is
+  the one place to say it.
+
 - **Tabs,** in this order *(the order is a guess, to confirm)*:
   - **Launch:** apps, System Settings' panes and tilemo's commands.
   - **Workspaces:** every workspace by name, in bar order, with its app
