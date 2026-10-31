@@ -129,6 +129,14 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **Start at login tells one login from the next by when `loginwindow`
+  started,** kept in `hs.settings`, so a Hammerspoon reload runs nothing.
+  A login it can't tell runs nothing. The alternatives are a file in
+  `$TMPDIR`, which outlives a logout, or a Login Item that runs the list
+  itself. Reversible: `startup.due` and `a.login`.
+- **Start at login has no page in tilemo yet;** tide's page or a hand
+  edit changes the list. The settings window could list it as it lists
+  the muted apps. It's an addition.
 - **A default name's first word loses `.` `,` `:` `;` `!` `?` `|` `…` and
   dashes from its end, a word with no letter or digit is passed over, and a
   title with no such word gives the app's name,** matching tide's list.
