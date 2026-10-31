@@ -223,6 +223,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Focus follows mouse (KDE) | tilemo's own (§5.2) | **yes**, but focusing raises (§13) |
 | Nothing steals focus (tide §14) | macOS activation rules, plus tilemo's focus guard (§14) | **partial**: apps can still activate themselves |
 | Super+A lists the windows wanting attention, newest first (tide §14.4, tileco §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
+| Minimize by key, restore from a tray of icons in the corner (tide's design) | `Super+Z` and an `hs.canvas` tray per display (§6.7) | **yes** *(unverified on a Mac)* |
 | Full-width bar with workspaces and urgency (tide §7) | tilemo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
 | SYD / LAX / NYC / LON clocks (tileco `src/clocks.js`) | bar clocks, and tileco's clock panel in the dashboard | **yes** |
 | One switcher with tabs: launcher, workspaces, windows, attention (tide §8) | tilemo's switcher, an `hs.chooser`; the lone Super tap needs an event tap or Karabiner (§7, §9) | **yes** |
@@ -688,8 +689,8 @@ then minimizes the rest, so the screen is never empty in between.
 | **Carry** a window to the next or previous (`Super+Shift+Left`, `Right`) | Send, then show that workspace. | that window |
 | **Activate**: an app key, the switcher, Cmd+Tab, a Dock click, a notification click | If the window's workspace isn't showing, show it on the focused display. | that window |
 | **Moved to another display** by you | It joins the stack of the workspace showing there. | that window |
-| **Minimize** by you (Cmd+M, the yellow button) | Set the flag. | macOS decides |
-| **Restore** by you, from the Dock or Cmd+Tab | Clear the flag. If its workspace is hidden, this is Activate. | that window |
+| **Minimize** by you (`Super+Z`, Cmd+M, the yellow button) | Set the flag. The window joins its display's tray (§6.7). | `Super+Z`: the workspace's last used window still showing; otherwise macOS decides |
+| **Restore** by you, from the tray (§6.7), the switcher's Windows tab (§9), the Dock or Cmd+Tab | Clear the flag. If its workspace is hidden, this is Activate. | that window |
 | **Hide** an app (Cmd+H) | Nothing: hidden apps are macOS's, and come back where they were. | macOS decides |
 
 - **The current Mac setup follows a thrown window**
@@ -822,7 +823,7 @@ the home workspace, the first standing one (§6.1), which is "in" unless
   tilemo matches each to its old place by app and title, closest first, as
   tileco matches by tab addresses (tileco §14.2). A window it can't match joins
   the workspace showing.
-- **If tilemo quits,** it restores every hidden window first, so nothing is
+- **If tilemo quits,** it restores every window it hid first, so nothing is
   left stranded in the Dock.
 - **If it crashes,** the next start restores what it can't place and
   reconciles the rest. `tilemo restore` does it by hand (§16).
@@ -853,7 +854,59 @@ The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
   Option, the second would fight Super+drag (§5.3).
 - **"Click wallpaper to reveal desktop"** set to "Only in Stage Manager".
 
-### 6.7 The alternatives, to revisit if minimizing doesn't work out
+### 6.7 Windows you minimized
+
+**Decided: floating icons in the bottom-right corner,** option C of tide's
+mock of five (tide's `docs/mocks/minimized.html`), as tide does.
+
+- **`Super+Z` minimizes the focused window** (§7.2).
+  - Decided over `Super+Delete`: a PC keyboard's Delete can arrive as
+    forward delete or as Backspace, and `Super+Backspace` already closes
+    the window.
+  - It sets the window's flag (§6.1), so the window stays down when its
+    workspace comes back, and focus moves to the workspace's last used
+    window still showing.
+  - Floats and dialogs minimize too. A window tilemo doesn't manage is left
+    alone.
+- **Only windows you minimized count.** tilemo minimizes windows itself to
+  hide the other workspaces, and those never show here. `wm.lua` flags
+  yours as `mine`: from `Super+Z`, Cmd+M, the yellow button, or a window
+  already minimized when tilemo first saw it. The tray and the Windows tab
+  read that flag, not macOS's minimized state.
+- **The tray** sits in the bottom-right corner of each display, 12 px in
+  from the edges of its work area, over the Dock's side of the screen:
+  - one app icon per window you minimized from the workspace showing on
+    that display, 28 px, in a row on the bar's background, 5 px of padding
+    and 6 px between icons;
+  - in the order you minimized them, the newest at the right, nearest the
+    corner;
+  - an app with no icon shows a blank square, as on the bar (§8);
+  - as many as fit across the display; the rest are in the Windows tab;
+  - shown only while that workspace has such windows: a workspace with
+    none shows nothing.
+- **Hovering an icon shows its title,** in a tip just above it.
+- **Clicking an icon restores the window:** Restore (§6.1), which clears
+  the flag, puts the window back in its place in the stack, and focuses it.
+- **It floats over the windows and doesn't change the tiling.** The cost:
+  it covers the corner of whichever window is under it.
+- **On Hammerspoon,** it's an `hs.canvas` per display at the floating
+  window level, joining every Space, that takes clicks but doesn't make
+  Hammerspoon the front app (`clickActivating(false)`) *(unverified that a
+  click there leaves focus where it was)*. The tip is a second canvas, drawn
+  on the pointer entering an icon, since a canvas element's own tooltip may
+  only show while Hammerspoon is in front *(unverified)*.
+- **Focus follows mouse pauses over it,** as over the bar (§5.2).
+- **It hides with the bar,** under a full-screen window on that display
+  (§8).
+- **The Windows tab** (§9) lists every window you minimized, marked
+  "minimized", and Return restores it, with its workspace.
+- **A workspace holding only windows you minimized isn't empty** (§6.1), so
+  it stays, and its tray shows them when it's back.
+- **Saved across restarts:** the flag is saved with the window (§6.5), and
+  quitting tilemo leaves your minimized windows down, restoring only the
+  ones it hid (§6.5).
+
+### 6.8 The alternatives, to revisit if minimizing doesn't work out
 
 1. **Native Spaces, one per workspace:**
    - Switching uses symbolichotkeys, as `setup-macos` does now.
@@ -938,6 +991,7 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
 | `Super+T` / `W` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
+| `Super+Z` | minimize the window, to the tray (§6.7) | hotkey |
 | `Super+L` | lock | hotkey; macOS's lock screen |
 | `Super+Shift+E` | log out | hotkey; System Events, which asks first |
 | `Super+Home` | show "in" (§6.2) | hotkey |
@@ -1056,7 +1110,7 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     menu bar's level.
   - **Option 2 stays as the fallback,** with `bar = false` in `start()`: a
     tilemo menu bar item draws the workspaces' names as text, current,
-    occupied, and wanting attention. A click switches. It sits on the right, since
+    occupied, and wanting attention, with no app icons. A click switches. It sits on the right, since
     the menu bar's left side is the Apple menu and the app's menus.
   - Either way, the workspace's name shows briefly, large, in the middle
     of the screen on each switch.
@@ -1064,12 +1118,17 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - a flush 36 px strip, one per display, with the tiling area starting
     below it;
   - workspace chips in list order, each with its name, that show current,
-    occupied (up to five app icons, then `+n`), showing on another display,
-    and wanting attention. A long name is cut with an ellipsis at 16
-    characters *(a guess, to confirm)*. The only empty chips are "in" and
+    occupied, showing on another display, and wanting attention. A long
+    name is cut with an ellipsis at 16 characters *(a guess, to confirm)*. The only empty chips are "in" and
     the standing workspaces, dimmed: any other empty workspace goes once
     you leave it (§6.1);
-  - a click shows that workspace, and scrolling steps through them;
+  - **no app icons, except for attention.** Decided with tide: a chip is
+    its name alone, plus the app icon of each window there wanting
+    attention (§14.2), up to five, then `+n`. A click on that icon focuses
+    the window, bringing its workspace along. The chips used to show an
+    icon per window, which crowded the bar once workspaces had names;
+  - a click elsewhere on a chip shows that workspace, and scrolling steps
+    through them;
   - the title only on the display the focused window is on, where
     double-clicking it maximizes;
   - the clocks shrink to local time alone when the title would get narrower
@@ -1080,11 +1139,14 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   state as JSON on every change, on the attention poll (for titles that
   change without focus moving) and when the icons change. Each page only
   redraws when what it was sent changed.
-  - Each occupied chip shows one app icon per window, tiles in layout
-    order then floats, up to five, then `+n`. Icons come from
+  - A chip shows one app icon per window there wanting attention, tiles
+    in layout order then floats, up to five, then `+n`. Icons come from
     `hs.image.imageFromAppBundle`, sent as 32 px PNG data URLs, made once
     per bundle id and sent once per app, not per window. An app with no
     icon shows as a blank square, so the count still reads.
+  - A click on an icon names its bar's display and the window. tilemo shows
+    the window's workspace on that display if it isn't showing anywhere,
+    then activates the window (§6.1).
   - Double-clicking the title maximizes the focused window, or puts it
     back (§5.4). The message names its bar's display, and tilemo acts only
     if the focused window is there, where the title shows.
@@ -1160,8 +1222,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     pages loaded, so a page opened while a file is wrong shows them too.
 - **The dashboard, on Hammerspoon,** is a borderless `hs.webview` over the
   display you're on, from `Super+Shift+Space`:
-  - It shows tileco's bar (the workspace chips, the focused window's title,
-    the clocks) over tileco's clock panel: each zone's day strip, the next
+  - It shows tileco's bar (the workspace chips, by name alone, the focused
+    window's title, the clocks) over tileco's clock panel: each zone's day strip, the next
     DST change, and a month calendar.
   - tileco's `clocks.js`, `calendar.js`, `clockview.js` and `launcher.css` are
     copied unchanged, and CI checks they still match tileco's.
@@ -1186,7 +1248,9 @@ tab, the search field naming the tab you're in.
     exist. Return shows it, making a standing one the first time (§6.1).
   - **Windows:** every window on every workspace, by title, with its app
     and workspace, and every Chrome and Safari tab, with its window's
-    workspace. Return on a window activates it with its workspace (§6.1).
+    workspace. A window you minimized is marked "minimized" (§6.7). Return
+    on a window activates it with its workspace (§6.1), restoring it if
+    you'd minimized it.
     Return on a tab brings that tab forward in its window, then does the
     same. This takes in the old Tabs scope.
   - **Attention:** the windows wanting attention on any workspace (§14.2),
@@ -1469,6 +1533,10 @@ Each one names a workaround, or says there is none.
   `Super+A`'s list (§9) shows the window, or the app's last-used window.
 - **A mark clears** when you focus the window or app, as on tide
   (tide §14.4).
+- **Where it shows:** the app icon of each marked window on its
+  workspace's chip in the bar, which a click focuses (§8); the chip's
+  attention color; the `!` on the menu bar item's name; and `Super+A`'s
+  list.
 - **The list covers every workspace,** most recent first. With nothing
   waiting, it says so.
 - **What changed:** `Super+Tab` used to step through the waiting windows,

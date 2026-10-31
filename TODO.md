@@ -60,22 +60,27 @@ tap, and the switcher's tabs. The rest:
 
 ## Minimizing by key
 
-To do, not built:
+**Decided** (SPEC.md §6.7): option C of tide's mock, floating icons in the
+bottom-right corner. To do, not built:
 
-- **A key to minimize the focused window,** Super+Delete or Super+Z.
-- **A bottom bar for the minimized windows:** while any window on the
-  current workspace is minimized, every display shows a bar along the
-  bottom listing their titles.
-- **Restoring:** clicking a title in that bar, or choosing the window in
-  the switcher's Windows tab, restores it.
-- **Open points:**
-  - **Which key.** Super+Delete may mean forward delete or Backspace,
-    and Super+Backspace already closes the window.
-  - **Telling the two kinds of minimized window apart.** tilemo minimizes
-    windows itself to hide the other workspaces, so the bar must list only
-    the windows you minimized. `wm.lua` already flags those as `mine`, and
-    keeps them minimized when their workspace comes back. The bar and the
-    Windows tab need to read that flag, not macOS's minimized state.
+- **`Super+Z` minimizes the focused window,** setting its `mine` flag, and
+  focus moves to the workspace's last used window still showing.
+- **The tray:** an `hs.canvas` per display, at the floating level, taking
+  clicks, with one app icon per window you minimized from the workspace
+  showing there. Hovering shows the title; a click restores the window.
+- **The Windows tab** marks the windows you minimized, and Return restores
+  them.
+- **The rule check** (`keys.rule_gaps`) flags a tilemo rule without
+  `Super+Z`. conf's rule already sends Win+Z, so conf needs no change.
+- **Check on a Mac:** that a click on the tray leaves focus where it was,
+  and that the tip shows while another app is in front.
+
+## The bar's workspace strip
+
+**Decided** (SPEC.md §8, §14.2): a chip is its name alone, plus the app
+icon of each window there wanting attention, which a click focuses. The
+menu bar item and the dashboard already show names alone. To do, not
+built: `bar.lua`'s state and `bar.js`'s chips, and the mocks.
 
 ## Launcher looks
 
@@ -88,6 +93,22 @@ To do, not built:
 
 ## Decisions needing review
 
+- **Minimize is `Super+Z`, not `Super+Delete`:** a PC keyboard's Delete
+  may arrive as forward delete or as Backspace, and `Super+Backspace`
+  already closes the window. Reversible: one line in `keys.map`.
+- **Each display's tray shows the windows you minimized from the workspace
+  showing on that display,** not every display showing the focused
+  workspace's. Each display shows its own workspace, so that's what it
+  can restore into. Reversible: the tray's state in `tray.lua`.
+- **The tray's icons are in the order you minimized them, newest at the
+  right,** nearest the corner, and as many as fit across the display; the
+  rest are only in the Windows tab. Reversible: `tray.lua`.
+- **The tray's tip is a second canvas** drawn on the pointer entering an
+  icon, not a canvas element's `toolTip`, which may only show while
+  Hammerspoon is in front *(unverified)*. Reversible: `tray_hs.lua`.
+- **conf's Karabiner rule needs no change for `Super+Z`:** it has sent
+  Win+Z as Ctrl+Option+Command+Z since it was first added. tilemo's rule
+  check still flags a copy without it. Reversible: `keys.RULE_FEATURES`.
 - **An out-of-date tilemo rule in Karabiner is flagged, not worked
   around:** tilemo reads the enabled copy in `karabiner.json`, and if
   Alt+Tab's or the tap's Super+F20 manipulator is missing it says which,
@@ -184,10 +205,14 @@ To do, not built:
   swipes, so a full-screen window swiped away from but still focused may
   keep the bar hidden *(unverified)*. The alternative is tracking Spaces
   through `hs.spaces`. Reversible: `bar.hidden` in `bar.lua`.
-- **A chip's icons are its tiles in layout order, then its floats by
-  window id;** an app with no icon is a blank square rather than left out,
-  so the count matches the windows. Reversible: `apps_of` in `bar.lua` and
-  `renderWorkspaces` in `bar.js`.
+- **A chip's attention icons are in layout order, then floats by window
+  id, up to five, then `+n`,** as the chips' icons were before they showed
+  only attention; an app with no icon is a blank square rather than left
+  out, so the count matches the windows. Reversible: `apps_of` in `bar.lua`
+  and `renderWorkspaces` in `bar.js`.
+- **A click on an attention icon shows the window's workspace on that
+  bar's display** if no display shows it, then focuses the window. One
+  showing on another display stays there. Reversible: `bar.handle`.
 - **A click on the bar may make Hammerspoon the front app** *(unverified)*,
   emptying the title until focus moves. Reversible: hand focus back after
   a click, as the dashboard does on closing.
