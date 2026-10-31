@@ -245,6 +245,23 @@ local function check_launcher_attention()
         else
             say("launcher: Attention lists %s (%s)", row.text, row.subText)
         end
+        -- The Windows tab lists every window, with its app and workspace
+        -- (SPEC.md §9).
+        tilemo.launcher.show("windows")
+        local listed = false
+        for n = 1, 50 do
+            local r = tilemo.launcher.row(n)
+            if not r then
+                break
+            end
+            listed = listed or (r.text == want and tostring(r.subText):find("TextEdit", 1, true) ~= nil)
+        end
+        tilemo.launcher.cancel()
+        if not listed then
+            fail("launcher: the Windows tab doesn't list %s", tostring(want))
+        else
+            say("launcher: Windows lists %s", want)
+        end
     end, debug.traceback)
     if not ok then
         fail("launcher: %s", err)

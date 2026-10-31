@@ -62,14 +62,14 @@ end)
 t.test("a scope with no match falls back to every scope", function()
     local found = launcher.rank("google chat", sample(), { scope = "launch" })
     t.eq(found[1].kind, "tab")
-    t.eq(#launcher.rank("lock", sample(), { scope = "tabs" }), 1)
+    t.eq(#launcher.rank("lock", sample(), { scope = "windows" }), 1)
 end)
 
-t.test("Tab moves through Launch, Workspaces, Tabs and Attention, and round again; Shift+Tab goes back", function()
-    t.eq(launcher.SCOPE_ORDER[1], "launch")
+t.test("Tab moves through Launch, Workspaces, Windows and Attention, and round again; Shift+Tab goes back", function()
+    t.eq(launcher.SCOPE_ORDER, { "launch", "workspaces", "windows", "attention" })
     t.eq(launcher.next_scope("launch"), "workspaces")
-    t.eq(launcher.next_scope("workspaces"), "tabs")
-    t.eq(launcher.next_scope("tabs"), "attention")
+    t.eq(launcher.next_scope("workspaces"), "windows")
+    t.eq(launcher.next_scope("windows"), "attention")
     t.eq(launcher.next_scope("attention"), "launch")
     t.eq(launcher.next_scope("launch", true), "attention")
     t.eq(launcher.next_scope("workspaces", true), "launch")
@@ -148,8 +148,8 @@ t.test("a search of every scope orders windows wanting attention among the rest 
     end
 end)
 
-t.test("the Launch and Tabs scopes leave the windows wanting attention out", function()
-    for _, scope in ipairs({ "launch", "tabs" }) do
+t.test("the Launch and Windows tabs leave the windows wanting attention out", function()
+    for _, scope in ipairs({ "launch", "windows" }) do
         for _, item in ipairs(launcher.rank("", waiting(), { scope = scope })) do
             t.eq(item.kind ~= "attention", true, scope)
         end
@@ -161,6 +161,12 @@ t.test("items have stable keys", function()
     t.eq(items[1].key, "app:/Applications/Safari.app")
     t.eq(items[3].key, "tab:https://chat.google.com/x")
     t.eq(items[4].key, "command:Lock")
+end)
+
+t.test("no command shows a workspace by number, now that they have names", function()
+    for _, c in ipairs(launcher.COMMANDS) do
+        t.eq(c.action ~= "show", true, c.title)
+    end
 end)
 
 t.test("every command names a window manager action or a quick action", function()
@@ -180,6 +186,105 @@ t.test("a row's subtitle leaves out what's missing, wherever it is", function()
     t.eq(launcher.subtitle({ kind = "tab", browser = "Safari" }), "Safari")
     t.eq(launcher.subtitle({ kind = "setting" }), "System Settings")
     t.eq(launcher.subtitle({ kind = "command" }), "command")
+end)
+
+-- The Windows tab (SPEC.md §9) ----------------------------------------------
+
+local function wins()
+    return {
+        { id = 7, title = "Inbox - Mail", app_name = "Mail", ws = "in" },
+        { id = 3, title = "", app_name = "kitty", ws = "tilemo" },
+        { id = 9, title = "Design doc - Google Chrome", app_name = "Google Chrome", ws = "web" },
+    }
+end
+
+t.test("the Windows tab lists every window, most recently used first, and the browsers' tabs", function()
+    local items = launcher.items({}, {
+        { title = "Pull requests", url = "https://github.com/x", browser = "Google Chrome", window = 1, tab = 2, win = 9, ws = "web" },
+    }, {}, {}, {}, {}, wins())
+    local found = launcher.rank("", items, { scope = "windows" })
+    t.eq(found[1].window, 7)
+    t.eq(found[2].title, "kitty", "no title: the app's name")
+    t.eq(found[2].ws, "tilemo")
+    t.eq(found[3].window, 9)
+    t.eq(found[4].kind, "tab")
+    t.eq(found[4].ws, "web", "a tab carries its window's workspace")
+    t.eq(launcher.rank("github", items, { scope = "windows" })[1].kind, "tab")
+    t.eq(launcher.rank("kitty", items, { scope = "windows" })[1].window, 3, "by app too")
+    -- From Launch, text that matches nothing there finds a window.
+    t.eq(launcher.rank("inbox", items, { scope = "launch" })[1].window, 7)
+end)
+
+t.test("the Windows tab shows every window and every tab, however many", function()
+    local windows, tabs = {}, {}
+    for i = 1, 30 do
+        windows[i] = { id = i, title = "Window " .. i, app_name = "App", ws = "in" }
+        tabs[i] = { title = "Tab " .. i, url = "https://example.com/" .. i, browser = "Safari", window = 1, tab = i }
+    end
+    local items = launcher.items({}, tabs, {}, {}, {}, {}, windows)
+    local found = launcher.rank("", items, { scope = "windows" })
+    t.eq(#found, 60)
+    t.eq(found[60].kind, "tab", "the last tab too")
+    t.eq(#launcher.rank("tab", items, { scope = "windows" }), 30)
+    -- Launch keeps its cap: it lists every app and pane on the Mac.
+    local apps = {}
+    for i = 1, 30 do
+        apps[i] = { name = "App " .. i, path = "/Applications/App " .. i .. ".app" }
+    end
+    t.eq(#launcher.rank("", launcher.items(apps), { scope = "launch" }), launcher.LIMITS.launch)
+end)
+
+t.test("each browser's tab list is read line by line, with its window's name", function()
+    local text = "1\t1\t4021\tDocs - Google Chrome\thttps://docs.example.com/\tDocs\n"
+        .. "1\t2\t4021\tDocs - Google Chrome\thttps://x.example.com/a\tA title\twith a tab\n"
+        .. "garbage\n"
+        .. "2\t1\t77\t\t\t\n"
+    local list = launcher.parse_tabs("Google Chrome", text)
+    t.eq(#list, 3)
+    t.eq(list[1], {
+        browser = "Google Chrome", window = 1, tab = 1, window_id = 4021, window_name = "Docs - Google Chrome",
+        url = "https://docs.example.com/", title = "Docs",
+    })
+    t.eq(list[3].window_id, 77)
+    t.eq(list[2].title, "A title\twith a tab", "the title is the rest of the line")
+    t.eq(list[3].window, 2)
+    t.eq(launcher.parse_tabs("Safari", nil), {})
+end)
+
+t.test("a tab finds its tilemo window by its browser and its window's name, if just one has it", function()
+    local windows = {
+        { id = 1, app = "com.google.Chrome", title = "Docs - Google Chrome", ws = "web" },
+        { id = 2, app = "com.google.Chrome", title = "Mail - Google Chrome", ws = "in" },
+        { id = 3, app = "com.apple.Safari", title = "Docs - Google Chrome", ws = "x" },
+    }
+    local tab = { window_name = "Docs - Google Chrome" }
+    t.eq(launcher.tab_window(tab, "com.google.Chrome", windows).id, 1)
+    t.eq(launcher.tab_window({ window_name = "Nope" }, "com.google.Chrome", windows), nil)
+    t.eq(launcher.tab_window({ window_name = "" }, "com.google.Chrome", windows), nil)
+    windows[2].title = "Docs - Google Chrome"
+    t.eq(launcher.tab_window(tab, "com.google.Chrome", windows), nil, "two alike: neither")
+end)
+
+t.test("a window's and a tab's subtitles name their workspace", function()
+    t.eq(launcher.subtitle({ kind = "window", app = "Mail", ws = "in" }), "Mail · in")
+    t.eq(launcher.subtitle({ kind = "window", ws = "in" }), "in")
+    t.eq(launcher.subtitle({ kind = "tab", browser = "Safari", extra = "github.com", ws = "web" }), "Safari · github.com · web")
+    t.eq(launcher.subtitle({ kind = "tab", browser = "Safari", ws = "web" }), "Safari · web", "no host")
+    -- about:blank has no host: the item's extra is nil, and its row still
+    -- draws.
+    local items = launcher.items({}, {
+        { title = "", url = "about:blank", browser = "Google Chrome", window = 1, tab = 1, window_id = 9 },
+    })
+    t.eq(items[1].extra, nil)
+    t.eq(items[1].window_id, 9, "the window's id travels with the tab")
+    t.eq(launcher.subtitle(items[1]), "Google Chrome")
+end)
+
+t.test("every tab says what it is when it's empty", function()
+    for _, scope in ipairs(launcher.SCOPE_ORDER) do
+        t.eq(type(launcher.SCOPE_EMPTY[scope]), "string", scope)
+        t.eq(launcher.placeholder(scope):find(launcher.SCOPE_NAMES[scope], 1, true), 1, scope)
+    end
 end)
 
 -- A disk for scan_apps and scan_settings: each path a folder (true) or a
