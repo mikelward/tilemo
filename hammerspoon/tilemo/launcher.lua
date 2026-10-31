@@ -90,10 +90,24 @@ function M.next_scope(scope, back)
     return M.SCOPE_ORDER[1]
 end
 
--- The search field's hint: the scope, what it lists, and where Tab goes.
+-- The keys that work on each tab besides Return, Tab and Esc, as
+-- { key, what it does }, as tide's footer shows them (tide §8.1): Cmd+Return's
+-- new workspace is Launch's alone, since elsewhere it does what Return does,
+-- and Cmd+M mutes only a window, a tab or an Attention row.
+M.SCOPE_KEYS = {
+    launch = { { "Cmd+Return", "new workspace" } },
+    windows = { { "Cmd+M", "mute" } },
+    attention = { { "Cmd+M", "mute" } },
+}
+
+-- The search field's hint: the scope, what it lists, where Tab goes, and
+-- the tab's own keys.
 function M.placeholder(scope)
-    return string.format("%s: %s (Tab: %s)", M.SCOPE_NAMES[scope], M.SCOPE_LISTS[scope],
-        M.SCOPE_NAMES[M.next_scope(scope)])
+    local keys = { "Tab: " .. M.SCOPE_NAMES[M.next_scope(scope)] }
+    for _, k in ipairs(M.SCOPE_KEYS[scope] or {}) do
+        keys[#keys + 1] = k[1] .. ": " .. k[2]
+    end
+    return string.format("%s: %s (%s)", M.SCOPE_NAMES[scope], M.SCOPE_LISTS[scope], table.concat(keys, ", "))
 end
 
 local KIND_ORDER = { attention = 0, workspace = 1, window = 2, tab = 3, app = 4, setting = 5, command = 6 }

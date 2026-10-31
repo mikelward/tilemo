@@ -75,9 +75,21 @@ t.test("Tab moves through Launch, Workspaces, Windows and Attention, and round a
     t.eq(launcher.next_scope("workspaces", true), "launch")
 end)
 
-t.test("the search field names the scope, what it lists, and where Tab goes", function()
-    t.eq(launcher.placeholder("launch"), "Launch: apps, settings and commands (Tab: Workspaces)")
-    t.eq(launcher.placeholder("attention"), "Attention: windows wanting attention (Tab: Launch)")
+t.test("the search field names the scope, what it lists, where Tab goes, and the tab's own keys", function()
+    t.eq(launcher.placeholder("launch"),
+        "Launch: apps, settings and commands (Tab: Workspaces, Cmd+Return: new workspace)")
+    t.eq(launcher.placeholder("workspaces"), "Workspaces: every workspace (Tab: Windows)")
+    t.eq(launcher.placeholder("windows"),
+        "Windows: every window, and Chrome and Safari tabs (Tab: Attention, Cmd+M: mute)")
+    t.eq(launcher.placeholder("attention"), "Attention: windows wanting attention (Tab: Launch, Cmd+M: mute)")
+end)
+
+t.test("the hint offers Cmd+Return only on Launch and Cmd+M only where a row can be muted", function()
+    for _, scope in ipairs(launcher.SCOPE_ORDER) do
+        local hint = launcher.placeholder(scope)
+        t.eq(hint:find("Cmd+Return", 1, true) ~= nil, scope == "launch", scope)
+        t.eq(hint:find("Cmd+M:", 1, true) ~= nil, scope == "windows" or scope == "attention", scope)
+    end
 end)
 
 t.test("the Workspaces tab lists every workspace in bar order, by name or by an app on it", function()

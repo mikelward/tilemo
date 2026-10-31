@@ -129,6 +129,14 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **The switcher's tab keys go in the search field's hint,** after where
+  Tab goes: "Cmd+Return: new workspace" on Launch, "Cmd+M: mute" on
+  Windows and Attention (SPEC.md §9), since `hs.chooser` has no footer to
+  put them in as tide does. The longest hint is now 80 characters
+  *(unverified that it fits the chooser's default width on a Mac)*. The
+  alternatives are a wider chooser (`chooser:width`), or the keys as a
+  row of their own. Reversible: `launcher.SCOPE_KEYS`.
+
 - **tilemo's settings are one window with sections, not tide's pages**
   (SPEC.md §15): Clocks, Start at login, Clipboard and Muted, each with its own
   launcher row that scrolls there. It's one short window, and an
