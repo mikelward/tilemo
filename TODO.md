@@ -151,11 +151,6 @@ tests and the bar page's test cover it. **Check on a Mac:**
   why only in Hammerspoon's console, as tide's says it only in the shell's
   log. The alternative is a notification. Reversible: one line in
   `wm.lua`'s `A.move_to`.
-- **`Super+Shift+Return` keeps tilemo's Send: focus stays put,** where
-  tide's move now follows the window. tilemo's SPEC.md §6.1 had Send stay
-  put "as on tide", a guess to confirm. The alternative is following it,
-  as Carry does. Reversible: `move_answer` would call `send` and `show`
-  as `A.carry` does.
 - **A chip's tip shows only when the chip cuts its name** (SPEC.md §8),
   since a whole name would say it again. The alternative is a tip on
   every chip, as the old `title` attribute had. Reversible: one line in

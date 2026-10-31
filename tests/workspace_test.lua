@@ -1105,7 +1105,7 @@ t.test("Super+End and Super+Tab pass over a workspace that's gone", function()
     t.eq(wm.screen_ws.A, "web")
 end)
 
-t.test("Super+Shift+Return asks for a workspace and sends the window there, focus staying", function()
+t.test("Super+Shift+Return asks for a workspace and moves the window there, following it", function()
     local a, wm = setup(2)
     local asked
     wm.ask_move = function(done)
@@ -1116,22 +1116,27 @@ t.test("Super+Shift+Return asks for a workspace and sends the window there, focu
     a.focus_ = 2
     wm:act("move_to")
     t.eq(wm.holding_keyboard, true)
+    a.calls = {}
     asked("Web")
     t.eq(wm.windows[2].ws, "Web")
-    t.eq(wm.screen_ws.A, "in", "Send: you stay")
-    t.eq(a.focus_, 1)
+    t.eq(wm.screen_ws.A, "Web", "you follow it, as on tide")
+    for _, c in ipairs(a.calls) do
+        t.eq(c ~= "minimize 2" and c ~= "unminimize 2", true, "the moving window never hides on the way: " .. c)
+    end
+    t.eq(a.focus_, 2, "still on the window you moved")
+    t.eq(a.wins[2].minimized == true, false, "showing")
+    t.eq(a.wins[1].minimized, true, "the workspace left is hidden")
     t.eq(wm.holding_keyboard, false)
-    -- Esc leaves it.
-    a.focus_ = 1
+    -- Esc leaves it, and you stay.
     wm:act("move_to")
     asked(nil)
-    t.eq(wm.windows[1].ws, "in")
-    -- Home takes only its own apps.
-    wm:act("show", "Web")
-    a.focus_ = 2
+    t.eq(wm.windows[2].ws, "Web")
+    t.eq(wm.screen_ws.A, "Web")
+    -- Home takes only its own apps: refused, nothing moves or shows.
     wm:act("move_to")
     asked("IN")
     t.eq(wm.windows[2].ws, "Web")
+    t.eq(wm.screen_ws.A, "Web")
     t.eq(#a.notes, 1)
 end)
 
