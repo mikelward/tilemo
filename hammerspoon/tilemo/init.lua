@@ -9,6 +9,11 @@
 -- ones (tilemo/rules.lua), and `keep_focus` names more apps, by bundle ID,
 -- that keep focus while they're in front. `bar = false` leaves out the bar
 -- along the top and shows the workspaces in the menu bar instead.
+-- `workspaces` names the standing workspaces, always listed and never
+-- removed, the first being home (SPEC.md §6.1); it defaults to
+-- wm.STANDING, home being "in". `home_apps` names the apps, by app name,
+-- whose windows always open on home (SPEC.md §6.2); it defaults to
+-- wm.HOME_APPS.
 -- tilemo.toggle_focus_follows_mouse() turns focus follows mouse off and on.
 
 local keys = require("tilemo.keys")
@@ -228,7 +233,7 @@ function M.start(config)
             self.wm:key_down(key, flags.cmd or false)
         end
     end)
-    -- The workspaces, in the bar or else in the menu bar, and the number
+    -- The workspaces, in the bar or else in the menu bar, and the name
     -- shown on each switch (SPEC.md §8).
     if config.bar ~= false then
         self.bar = bar_hs.new(self)
@@ -244,9 +249,9 @@ function M.start(config)
         end
         self.menubar:setMenu(function()
             local items = {}
-            for n = 1, wm_mod.WORKSPACES do
+            for _, n in ipairs((self.wm:listed())) do
                 items[#items + 1] = {
-                    title = "Workspace " .. n,
+                    title = n,
                     fn = function()
                         self.wm:act("show", n)
                     end,
@@ -264,7 +269,7 @@ function M.start(config)
     end
     self.wm.on_show = function(n, uuid)
         hs.alert.closeAll(0)
-        hs.alert.show(tostring(n), { textSize = 96, radius = 24 }, hs.screen.find(uuid) or hs.screen.mainScreen(), 0.5)
+        hs.alert.show(n, { textSize = 96, radius = 24 }, hs.screen.find(uuid) or hs.screen.mainScreen(), 0.5)
     end
     self.wm:changed()
     self.attention_timer = hs.timer.doEvery(M.ATTENTION_POLL, function()

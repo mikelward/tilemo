@@ -15,8 +15,10 @@ It brings tide's desktop to macOS:
 - tide's layouts and window keys (SPEC.md §5, §7.2);
 - the mouse: edge drags, Super+drag and resize mode;
 - focus follows mouse;
-- nine workspaces shared across displays. SPEC.md §6 now specs named
-  workspaces in their place, which TODO.md tracks;
+- named workspaces shared across displays, in the order you made them,
+  with "in" first for the apps you keep open all day (§6). An empty one
+  goes once you leave it. A state saved with timo's or tilemo's old numbered
+  workspaces is read once into ones named "1" to "9";
 - the launcher, with Tab moving between apps and commands, open tabs, and
   the windows wanting attention, and app keys (§9);
 - tide's bar along the top: the workspaces, the window's title, the clocks
@@ -50,6 +52,18 @@ alone (§7.1). By hand:
 
 `tilemo.start({ bar = false })` leaves the bar out and shows the workspaces in
 the menu bar instead.
+
+`workspaces` names the standing workspaces, which are always on the bar and
+never removed. It defaults to `{ "in", "re", "oc", "me" }`. The first is the
+home workspace, made at start, where Super+Home goes; each of the rest is
+made the first time you go to it or send a window there.
+
+`home_apps` names the apps whose windows always open on the home workspace,
+by app name. It defaults to mail, chat, calendar and music:
+
+```lua
+tilemo.start({ home_apps = { "Mail", "Messages", "Calendar", "Music" } })
+```
 
 `start()` takes float rules, checked when it starts:
 

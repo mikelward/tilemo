@@ -26,8 +26,12 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 ## Named workspaces
 
 SPEC.md now has named workspaces in place of the nine numbered ones, and
-one switcher with tabs (SPEC.md §6, §7.2, §9, §14.2), as tide's does. None
-of it is built yet:
+one switcher with tabs (SPEC.md §6, §7.2, §9, §14.2), as tide's does.
+**Built:** workspaces by name, the standing workspaces (`workspaces`, the
+first being home, "in" by default) and home's apps (`home_apps`),
+`Super+Home`, the saved
+state, and names on the bar, the menu bar item, the dashboard and the switch
+sign. The rest:
 
 - **To decide: keep `Super+1…9` and `Super+Shift+1…9`?** The user leans
   toward dropping them, now that the switcher and `Super+Return` cover
@@ -35,20 +39,21 @@ of it is built yet:
   settled, the spec leaves them out of the key map.
 - **To decide: what `Super+End` does.** It pairs with `Super+Home`, which
   goes to "in".
-- **Workspaces by name** in `wm.lua`: creation order, "in" first and fixed,
-  an empty workspace removed once you leave it, Next and Previous in bar
-  order (SPEC.md §6.1).
-- **"in" and its apps:** `in_apps` in `start()`, by app name, defaulting to
-  mail, chat, calendar and music; their windows always open on "in"
-  (SPEC.md §6.2).
+- **To rethink: several displays.** Whether a workspace can span several
+  displays, and how per-display workspaces should work with names, needs
+  more design (SPEC.md §19, question 12). Until then each display shows
+  one workspace, as before, and a second display gets one named by its
+  number (below).
+- **Pulled back to the workspace you launched from:** a launch's window
+  that opens after you've moved on goes to the workspace you launched it
+  from, marked (SPEC.md §6.1, §14.1). Not built yet: it opens where you are.
 - **The name prompt:** an `hs.chooser` for a window opening on "in", with
   the default from tide's title patterns, run through
   `hs.osascript.javascript` and checked at load. Esc closes the window,
   or cancels a launch tilemo was about to make (SPEC.md §6.2).
 - **`Super+Return`** moves the window to a workspace by name; **Alt+Tab**
-  swaps with the master; **`Super+A`** lists attention; **`Super+Home`**
-  goes to "in"; **`Super+Tab`** and the Super tap open the workspace list
-  (SPEC.md §7.2).
+  swaps with the master; **`Super+A`** lists attention; **`Super+Tab`** and
+  the Super tap open the workspace list (SPEC.md §7.2).
 - **conf:** Karabiner's Alt+Tab rule sends tilemo's combination instead of
   Cmd+Tab; `kitty.conf` allows remote control on a socket; the shell asks
   `hs -c 'tilemo.workspace()'` on a Mac when `TIDE_WORKSPACE` is missing
@@ -56,18 +61,9 @@ of it is built yet:
 - **`TIDE_WORKSPACE`** in `hs.task`'s environment, `open --env` and
   `kitten @ launch --env`, and `tilemo.workspace()` over `hs.ipc`
   (SPEC.md §6.3). Check `open --env` on macOS 26.
-- **Saved state:** save names in `tilemo.state`, and read a numbered state
-  once into "1" to "9" after "in" (SPEC.md §6.5).
 - **The switcher's tabs:** Launch, Workspaces, Windows (with Chrome's and
   Safari's tabs, in place of the Tabs scope) and Attention, each key
   opening its own (SPEC.md §9).
-- **The bar and the menu bar item** show names, and the switch sign shows
-  the name (SPEC.md §8).
-- **Redo the mocks:** `mocks/page.lua`'s states show numbered chips, so
-  `bar-apps.png`, `bar-crowded.png`, `bar-quiet.png` and `bar-wide.png` need
-  re-rendering with named chips, "in" first, once the bar shows names.
-- **README** still describes the nine numbered workspaces; update it when
-  this lands.
 
 ## Launcher looks
 
@@ -79,6 +75,27 @@ of it is built yet:
   on the Mac.
 
 ## Decisions needing review
+
+- **A second display shows a workspace of its own, named by the lowest
+  free number from 2** ("2", then "3"), the number it had before names.
+  SPEC.md doesn't say what a display shows before anything is named for
+  it; tide leaves it open too (tide §21). Its workspace goes once left
+  empty, like any other. Reversible: `wm.map_screens`.
+- **Cmd+Return opens a new window where you are** until the name prompt is
+  built, since there's no empty workspace to use any more (SPEC.md §9).
+  Reversible: `wm.actions.app`.
+- **The dashboard no longer shows a workspace on a digit key,** since
+  workspaces have names. Reversible: `dashboard.js`'s keydown.
+- **Names are compared with a built-in case folding** for Latin (Latin-1
+  and Extended-A), Greek and Cyrillic letters; other scripts compare as
+  written. Lua has no Unicode case mapping of its own. Reversible:
+  `wm.fold`.
+- **A dialog stays with its parent:** a new dialog joins its parent's
+  workspace, its parent being its app's focused window, before home's
+  apps are routed home. Reversible: `wm.parent_ws`.
+- **Names are one line, with runs of space made one and the ends
+  trimmed;** a blank name moves nothing. SPEC.md sets no length; tide caps
+  names at 32 characters. Reversible: `wm.clean_name`.
 
 - **The bar floats at the floating window level,** above every app's
   windows and below the menu bar, so the auto-hidden menu bar still shows
@@ -156,8 +173,8 @@ of it is built yet:
   rest may land out of order around the ones already back. That's the
   price of a stack you've rearranged since staying put. Reversible:
   `wm.match`, `wm.KEEP` and `wm.snapshot`.
-- **A display that goes away hides its workspace;** Super+N brings it back
-  on the display that's left. Reversible: `wm.map_screens`.
+- **A display that goes away hides its workspace;** the bar, Next and
+  Previous bring it back on the display that's left. Reversible: `wm.map_screens`.
 - **App keys run tide's helpers** (`browser1`, `google-calendar`, …)
   through `runenv`, as tide does. Each has a macOS branch in scripts:
   `chrome` opens Google Chrome with `open -na`, so the browsers and web apps

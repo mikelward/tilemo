@@ -99,9 +99,9 @@ end
 -- good clocks the pages reported, kept while a file is wrong.
 function M.state(wm, adapter, uuid, clock_files, good_clocks)
     local ws = {}
-    for n, s in ipairs(wm:bar_state(uuid)) do
-        ws[n] = {
-            n = n,
+    for i, s in ipairs(wm:bar_state(uuid)) do
+        ws[i] = {
+            n = s.name,
             current = s.here or false,
             elsewhere = s.elsewhere or false,
             occupied = s.occupied or false,

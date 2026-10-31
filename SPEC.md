@@ -615,21 +615,36 @@ chromeOS, with tide's named workspaces (tide §6.5) in place of nine
 numbered ones:
 
 - **Workspaces have names, not numbers.** A workspace exists once it has a
-  name, and the list is in creation order. The bar lists them by name (§8).
-- **"in" comes first.** tilemo makes it at start. It can't be removed or
-  renamed (§6.2).
+  name. The bar lists them by name (§8), in bar order: the standing
+  workspaces, then the rest in the order they were made.
+- **Standing workspaces** are a setting, `workspaces` in `start()` (§15),
+  "in", "re", "oc" and "me" by default.
+- **The first is the home workspace,** "in" by default. It's the first
+  standing workspace that's special, not the name "in": whatever the list
+  names first gets everything this spec says of "in". tilemo makes it at
+  start. It can't be removed or renamed, holds the apps you keep open all
+  day, and asks for a name for any other window (§6.2).
+- **The other standing workspaces:**
+  - they're always listed, on the bar and in the switcher, in the
+    setting's order, even before they exist;
+  - each is made the first time you show it or send a window to it, not
+    at start;
+  - they're never removed, even when empty;
+  - a name typed at a prompt that matches one, ignoring case, is that
+    workspace.
 - **`Super+Home` goes to "in"** (§7.2).
 - **Whether Super+1…9 stay is undecided.** With names, the switcher and
   `Super+Return` replace them. If they stay, they'd go to and send to the
   first nine in bar order, and a digit past the last would do nothing
   (TODO.md).
-- **An empty workspace is removed once you leave it,** other than "in".
-  Leaving means no display shows it any more. A workspace holding only
+- **An empty workspace is removed once you leave it,** other than "in" and
+  the standing ones. Leaving means no display shows it any more. A workspace holding only
   windows you minimized isn't empty.
 - **Names are tilemo's own.** Its workspaces are minimized windows, not
   Spaces, so a name is just tilemo state, saved with the rest (§6.5). Two
   workspaces can't share a name; names are compared ignoring case
-  *(a guess, to confirm)*.
+  *(a guess, to confirm)*, with Unicode's case folding for Latin, Greek
+  and Cyrillic letters, so "Équipe" and "équipe" are one workspace.
 - **Shared across displays.** Each display shows one at a time. Decided, as
   tide decided (tide §6.5): per display, not one desktop spanning every
   display.
@@ -673,7 +688,9 @@ then minimizes the rest, so the screen is never empty in between.
 
 ### 6.2 "in" and the name prompt
 
-This is tide's (tide §6.5), on tilemo's own workspaces.
+This is tide's (tide §6.5), on tilemo's own workspaces. "in" here means
+the home workspace, the first standing one (§6.1), which is "in" unless
+`workspaces` names another first.
 
 - **"in" holds the apps you keep open all day:** mail, chat, calendar and
   music by default. Their windows always open there, and only theirs.
@@ -797,7 +814,7 @@ This is tide's (tide §6.5), on tilemo's own workspaces.
 - **Moving on from numbered workspaces:** a saved state whose workspaces
   are numbers is read once, then saved by name *(a guess, to confirm)*:
   - each numbered workspace with windows becomes one named by its number,
-    "1" to "9", in that order after "in";
+    "1" to "9", in that order after "in" and the standing workspaces;
   - a window of one of "in"'s apps goes to "in" instead;
   - an empty number is dropped;
   - a display showing a number shows that workspace, or "in" if it was
@@ -1032,8 +1049,9 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - workspace chips in list order, each with its name, that show current,
     occupied (up to five app icons, then `+n`), showing on another display,
     and wanting attention. A long name is cut with an ellipsis at 16
-    characters *(a guess, to confirm)*. There's no empty chip: an empty
-    workspace other than "in" goes once you leave it (§6.1);
+    characters *(a guess, to confirm)*. The only empty chips are "in" and
+    the standing workspaces, dimmed: any other empty workspace goes once
+    you leave it (§6.1);
   - a click shows that workspace, and scrolling steps through them;
   - the title only on the display the focused window is on, where
     double-clicking it maximizes;
@@ -1147,7 +1165,8 @@ tab, the search field naming the tab you're in.
 - **Tabs,** in this order *(the order is a guess, to confirm)*:
   - **Launch:** apps, System Settings' panes and tilemo's commands.
   - **Workspaces:** every workspace by name, in bar order, with its app
-    icons and where it's showing. Return shows it (§6.1).
+    icons and where it's showing, the standing ones included before they
+    exist. Return shows it, making a standing one the first time (§6.1).
   - **Windows:** every window on every workspace, by title, with its app
     and workspace, and every Chrome and Safari tab, with its window's
     workspace. Return on a window activates it with its workspace (§6.1).
@@ -1443,9 +1462,13 @@ Each one names a workaround, or says there is none.
   - **The workspace-name patterns** (§6.2) are tide's setting, in the same
     file tide reads them from *(its name to match tide's)*, so one list
     names workspaces on both desktops.
-- **"in"'s apps are tilemo's own setting,** `in_apps` in `start()`, a list
-  of app names (§6.2). tide's list names Wayland app IDs, which a Mac
-  doesn't have.
+- **The home workspace's apps are tilemo's own setting,** `home_apps` in
+  `start()`, a list of app names (§6.2). tide's list names Wayland app IDs,
+  which a Mac doesn't have.
+- **The standing workspaces are tilemo's own setting,** `workspaces` in
+  `start()`, a list of names, `{ "in", "re", "oc", "me" }` by default
+  (§6.1). The first is the home workspace. An empty list, or one naming a
+  workspace twice, is an error at load.
 - **A bad value is an error at load,** naming the setting, not a failure
   later. A pattern that doesn't compile is one (§6.2).
 - **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
@@ -1551,6 +1574,12 @@ Each one names a workaround, or says there is none.
     (§7.2)?
 11. **Physical Alt+Tab:** tilemo's swap with the master takes it from
     macOS's app switcher (§7.2). Is the Windows tab enough in its place?
+12. **Several displays, with names:** the user wants to rethink how
+    workspaces and displays fit together: whether a workspace can span
+    several displays, and how per-display workspaces should work (§6.1,
+    §6.4). Until then tilemo keeps one workspace per display, as now; a
+    second display shows a workspace of its own, named by its number
+    (TODO.md).
 
 ## Sources
 

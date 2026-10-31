@@ -17,8 +17,8 @@ try {
   process.exit(0);
 }
 
-const ws = (spec) =>
-  Array.from({ length: 9 }, (_, i) => ({ n: i + 1, ...(spec[i + 1] || {}) }));
+// The workspaces in bar order, by name, "in" first (SPEC.md §6.1).
+const ws = (list) => list.map(([n, rest]) => ({ n, ...(rest || {}) }));
 
 // Stand-in app icons: a rounded square in a color with a letter, as SVG
 // data URLs, so the mocks need no real app's artwork.
@@ -43,12 +43,12 @@ const STATES = [
     width: 1920,
     state: {
       uuid: "A",
-      workspaces: ws({
-        1: { current: true, occupied: true, apps: ["mail", "web"] },
-        2: { occupied: true, apps: ["term", "term"] },
-        3: { elsewhere: true, occupied: true, apps: ["code"] },
-        5: { occupied: true, urgent: true, apps: ["chat"] },
-      }),
+      workspaces: ws([
+        ["in", { current: true, occupied: true, apps: ["mail", "chat"] }],
+        ["tilemo", { occupied: true, apps: ["term", "term"] }],
+        ["ABC-123", { elsewhere: true, occupied: true, apps: ["code"] }],
+        ["review", { occupied: true, urgent: true, apps: ["web"] }],
+      ]),
       title: "Inbox (3) — Mail",
       app_icons: APP_ICONS,
       icons: {
@@ -68,13 +68,13 @@ const STATES = [
     width: 1280,
     state: {
       uuid: "A",
-      workspaces: ws({
-        1: { occupied: true, apps: ["web"] },
-        2: { current: true, occupied: true, apps: ["notes"] },
-        4: { occupied: true, apps: ["term"] },
-        6: { occupied: true, apps: ["chat"] },
-        9: { occupied: true, apps: ["mail"] },
-      }),
+      workspaces: ws([
+        ["in", { occupied: true, apps: ["mail"] }],
+        ["design doc", { current: true, occupied: true, apps: ["notes"] }],
+        ["dotfiles", { occupied: true, apps: ["term"] }],
+        ["the quarterly planning spreadsheet", { occupied: true, apps: ["web"] }],
+        ["standup", { occupied: true, apps: ["chat"] }],
+      ]),
       app_icons: APP_ICONS,
       title: "A very long document title that won't fit in the middle of the bar — Notes",
       icons: {
@@ -93,10 +93,10 @@ const STATES = [
     width: 1440,
     state: {
       uuid: "A",
-      workspaces: ws({
-        1: { current: true, occupied: true, apps: ["term", "web", "code", "term", "unknown"], more: 3 },
-        2: { occupied: true, apps: ["mail"] },
-      }),
+      workspaces: ws([
+        ["in", { occupied: true, apps: ["mail"] }],
+        ["src", { current: true, occupied: true, apps: ["term", "web", "code", "term", "unknown"], more: 3 }],
+      ]),
       title: "~/src — Terminal",
       app_icons: APP_ICONS,
       icons: {
@@ -110,7 +110,7 @@ const STATES = [
     width: 1440,
     state: {
       uuid: "A",
-      workspaces: ws({ 1: { current: true } }),
+      workspaces: ws([["in", { current: true }]]),
       title: "",
       icons: {
         awake: { on: false },

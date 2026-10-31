@@ -193,7 +193,7 @@ function M.new(tilemo)
                 text = item.title,
                 subText = item.kind == "tab" and (item.browser .. " · " .. (item.extra or ""))
                     or item.kind == "setting" and "System Settings"
-                    or item.kind == "attention" and ((item.app or "") .. " · workspace " .. tostring(item.ws))
+                    or item.kind == "attention" and ((item.app or "") .. " · " .. tostring(item.ws))
                     or item.kind,
                 id = item.id,
             }
@@ -218,12 +218,6 @@ function M.new(tilemo)
             if bundle then
                 tilemo.wm.actions.app(tilemo.wm, { bundle = bundle }, fresh)
             else
-                if fresh then
-                    local n = tilemo.wm:first_empty()
-                    if n then
-                        tilemo.wm:show(n)
-                    end
-                end
                 -- No bundle ID to say which app's window is the launch's.
                 tilemo.wm:grant(nil)
                 hs.application.launchOrFocus(item.path)

@@ -5,28 +5,28 @@ local ffm_mod = require("tilemo.ffm")
 local dashboard = require("tilemo.dashboard")
 local bar = require("tilemo.bar")
 
-local function ws(spec)
-    local out = {}
-    for n = 1, 9 do
-        out[n] = spec[n] or {}
-    end
-    return out
-end
-
-t.test("the menu bar shows this display's workspace, others showing, and occupied ones", function()
-    t.eq(bar.title(ws({ { here = true }, { occupied = true }, { elsewhere = true }, nil, { occupied = true, urgent = true } })),
-        "[1] 2 (3) 5!")
+t.test("the menu bar names each workspace: this display's, others showing, and the rest", function()
+    t.eq(bar.title({
+        { name = "in", here = true },
+        { name = "docs", occupied = true },
+        { name = "web", elsewhere = true },
+        { name = "chat", occupied = true, urgent = true },
+    }), "[in] docs (web) chat!")
 end)
 
-t.test("empty workspaces that aren't showing are left out", function()
-    t.eq(bar.title(ws({ nil, { here = true } })), "[2]")
+t.test("a long name is cut at 16 characters with an ellipsis", function()
+    t.eq(bar.short("ABC-123 fix the login page"), "ABC-123 fix the …")
+    t.eq(bar.short("sixteen chars ok"), "sixteen chars ok")
+    t.eq(bar.short("ééééééééééééééééé"), "éééééééééééééééé…", "by character, not byte")
+    t.eq(bar.title({ { name = "a much longer name than that", here = true } }), "[a much longer na…]")
 end)
 
 local function two_displays(top)
     local a = fake.new()
     a.screens_[2] = { uuid = "B", area = { x = 1920, y = 25, w = 1920, h = 1055 }, full = { x = 1920, y = 0, w = 1920, h = 1080 } }
     a.add(1, { title = "Notes" })
-    local wm = wm_mod.new(a, { top = top or bar.HEIGHT })
+    -- No standing workspaces past "in", so B's comes second.
+    local wm = wm_mod.new(a, { top = top or bar.HEIGHT, workspaces = { "in" } })
     wm:sync()
     wm:reconcile()
     wm:retile()
@@ -70,7 +70,7 @@ t.test("each display's bar marks its own workspace, and the title shows on the f
     local sa = bar.state(wm, "A", "Notes", {})
     local sb = bar.state(wm, "B", "Notes", {})
     t.eq(sa.workspaces[1], {
-        n = 1,
+        n = "in",
         current = true,
         elsewhere = false,
         occupied = true,
@@ -78,6 +78,7 @@ t.test("each display's bar marks its own workspace, and the title shows on the f
         apps = { "com.example.app" },
         more = 0,
     })
+    t.eq(sa.workspaces[2].n, "2")
     t.eq(sa.workspaces[2].elsewhere, true)
     t.eq(sb.workspaces[2].current, true)
     t.eq(sb.workspaces[1].elsewhere, true)
@@ -91,8 +92,8 @@ t.test("the title follows the focused window, not where the keys act", function(
     a.focus_ = 1
     -- Swapping an empty workspace in carries window 1 to B, with focus,
     -- while the keys stay on A.
-    wm:act("show", 2)
-    t.eq(wm.screen_ws, { A = 2, B = 1 })
+    wm:show("2", nil, true)
+    t.eq(wm.screen_ws, { A = "2", B = "in" })
     t.eq(wm:current_screen(), "A")
     t.eq(bar.state(wm, "A", "Notes", {}).title, "")
     t.eq(bar.state(wm, "B", "Notes", {}).title, "Notes")
@@ -113,10 +114,14 @@ t.test("a bar's messages act on its own display, not where the keys are", functi
     }
     bar.handle(wm, { uuid = "B", dashboard = true }, act)
     t.eq(dash, { "B" })
-    bar.handle(wm, { uuid = "B", show = 4 }, act)
-    t.eq(wm.screen_ws, { A = 1, B = 4 })
-    bar.handle(wm, { uuid = "B", step = 1 }, act)
-    t.eq(wm.screen_ws, { A = 1, B = 5 })
+    wm:ensure_ws("4")
+    bar.handle(wm, { uuid = "B", show = "4" }, act)
+    t.eq(wm.screen_ws, { A = "in", B = "4" })
+    bar.handle(wm, { uuid = "B", show = "nothing" }, act)
+    t.eq(wm.screen_ws, { A = "in", B = "4" }, "a name with no workspace does nothing")
+    t.eq(wm.names, { "in", "4" }, "B's empty 2 went once left")
+    bar.handle(wm, { uuid = "B", step = -1 }, act)
+    t.eq(wm.screen_ws, { A = "4", B = "in" }, "a step to the one on A swaps the two")
     bar.handle(wm, { uuid = "B", open = "wifi" }, act)
     bar.handle(wm, { uuid = "B", open = "nothing" }, act)
     t.eq(opened, { bar.PANES.wifi })
@@ -164,7 +169,7 @@ t.test("a chip names its windows' apps in layout order, up to five, then how man
         return app ~= "app3" and ("data:" .. app) or nil
     end)
     local order = {}
-    for i, id in ipairs(wm.workspaces[1].order) do
+    for i, id in ipairs(wm.workspaces["in"].order) do
         if i <= bar.CHIP_APPS then
             order[i] = wm.windows[id].app
         end
@@ -234,12 +239,14 @@ t.test("double-clicking a bar's title maximizes the focused window on that displ
     t.eq(wm.windows[1].big, nil, "again puts it back")
 end)
 
-t.test("scrolling steps from that display's workspace, stopping at 1 and 9", function()
+t.test("scrolling steps from that display's workspace in bar order, stopping at the first and last", function()
     local _, wm = two_displays()
-    t.eq(bar.step(wm, "B", 1), 3)
-    t.eq(bar.step(wm, "A", -1), 1)
-    wm.screen_ws.B = 9
-    t.eq(bar.step(wm, "B", 1), 9)
+    wm:ensure_ws("3")
+    t.eq(bar.step(wm, "B", 1), "3")
+    t.eq(bar.step(wm, "B", -1), "in")
+    t.eq(bar.step(wm, "A", -1), "in")
+    wm.screen_ws.B = "3"
+    t.eq(bar.step(wm, "B", 1), "3")
 end)
 
 t.test("the battery shows its rounded percentage and whether it's charging", function()

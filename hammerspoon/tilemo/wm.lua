@@ -5,11 +5,15 @@
 -- is the full, slower read used to decide a new window; `state` is the
 -- quick one used on every retile.
 --
--- Workspaces (SPEC.md §6.1) are tileco's: nine, shared by every display,
--- each display showing one. A window on a workspace that isn't showing is
--- minimized. Every operation changes only which workspace each display
--- shows and which workspace each window is on; then reconcile() makes the
--- screen match, restoring first so the screen never goes empty.
+-- Workspaces (SPEC.md §6.1) are tileco's model with tide's names: the
+-- home workspace ("in" by default) first and always there, then the
+-- standing ones, then the rest in the order they were made, shared by
+-- every display, each display showing one. An empty workspace that isn't
+-- standing goes once no display shows it. A window on a workspace that
+-- isn't showing is minimized. Every operation changes only which workspace
+-- each display shows and which workspace each window is on; then
+-- reconcile() makes the screen match, restoring first so the screen never
+-- goes empty.
 
 local attention = require("tilemo.attention")
 local bar = require("tilemo.bar")
@@ -30,7 +34,14 @@ end
 
 local set_big_on
 
-M.WORKSPACES = 9
+-- The standing workspaces (SPEC.md §6.1): always listed, never removed.
+-- The first is the home workspace, "in" by default, made at start and
+-- never renamed, where the apps below always open, by app name (SPEC.md
+-- §6.2); the rest are made the first time you show one or send a window
+-- to it. Which names stand for mail, chat, calendar and music is a guess,
+-- to confirm.
+M.STANDING = { "in", "re", "oc", "me" }
+M.HOME_APPS = { "Mail", "Gmail", "Messages", "Google Chat", "Calendar", "Google Calendar", "Music", "YouTube Music" }
 -- How long tilemo waits for macOS to report a minimize or restore it asked for.
 M.EXPECT = 2
 
@@ -50,8 +61,166 @@ M.GRACE = 1
 M.KEEP = 600
 M.KEEP_MAX = 50
 
+-- `name` folded for comparing ignoring case: ASCII, Latin-1, Latin
+-- Extended-A, Greek and Cyrillic capitals go to their small letters, as
+-- Unicode's simple case folding does for them; other characters are kept.
+-- Lua's own lower() is byte by byte, so it misses everything past ASCII.
+function M.fold(name)
+    local ok, out = pcall(function()
+        local cps = {}
+        for _, c in utf8.codes(name) do
+            if (c >= 0x41 and c <= 0x5A) or (c >= 0xC0 and c <= 0xDE and c ~= 0xD7)
+                or (c >= 0x391 and c <= 0x3AB and c ~= 0x3A2) or (c >= 0x410 and c <= 0x42F) then
+                c = c + 32
+            elseif c >= 0x400 and c <= 0x40F then
+                c = c + 80
+            elseif (c >= 0x100 and c <= 0x137 and c ~= 0x130) or (c >= 0x14A and c <= 0x177)
+                or (c >= 0x460 and c <= 0x481) or (c >= 0x48A and c <= 0x4BF) then
+                -- Capital and small alternate, capital first.
+                if c % 2 == 0 then
+                    c = c + 1
+                end
+            elseif (c >= 0x139 and c <= 0x148) or (c >= 0x179 and c <= 0x17E) then
+                -- Here the capital is odd.
+                if c % 2 == 1 then
+                    c = c + 1
+                end
+            elseif c == 0x178 then
+                c = 0xFF
+            end
+            cps[#cps + 1] = utf8.char(c)
+        end
+        return table.concat(cps)
+    end)
+    -- Not valid UTF-8: compare it byte by byte.
+    return ok and out or name:lower()
+end
+
+-- `workspaces`, the standing workspaces' names, is checked when tilemo
+-- starts: a list of at least one name, the first being home, none named
+-- twice. Anything else is an error naming the setting.
+function M.check_standing(list)
+    if type(list) ~= "table" then
+        error("workspaces must be a list of names", 3)
+    end
+    for k in pairs(list) do
+        if math.type(k) ~= "integer" or k < 1 or k > #list then
+            error("workspaces must be a list of names, not " .. tostring(k), 3)
+        end
+    end
+    if #list == 0 then
+        error("workspaces must name at least one workspace, the home one", 3)
+    end
+    local out, seen = {}, {}
+    for i, name in ipairs(list) do
+        local n = M.clean_name(name)
+        if not n then
+            error(string.format("workspaces[%d] must be a name", i), 3)
+        end
+        local f = M.fold(n)
+        if seen[f] then
+            error(string.format("workspaces[%d]: %q is already workspaces[%d]", i, n, seen[f]), 3)
+        end
+        seen[f] = i
+        out[#out + 1] = n
+    end
+    return out
+end
+
+-- `home_apps` is checked when tilemo starts, so a typo is an error naming the
+-- setting rather than a window opening in the wrong place.
+function M.check_home_apps(list)
+    if type(list) ~= "table" then
+        error("home_apps must be a list of app names", 3)
+    end
+    local set = {}
+    for i, name in ipairs(list) do
+        if type(name) ~= "string" or name == "" then
+            error(string.format("home_apps[%d] must be an app's name", i), 3)
+        end
+        set[name] = true
+    end
+    for k in pairs(list) do
+        if math.type(k) ~= "integer" or k < 1 or k > #list then
+            error("home_apps must be a list of app names, not " .. tostring(k), 3)
+        end
+    end
+    return set
+end
+
+-- A saved state from before named workspaces names each workspace by its
+-- number (SPEC.md §6.5). It's read once: each number with windows becomes
+-- the workspace named by it, "1" to "9" in that order after the standing
+-- ones; an empty number is dropped, and a display showing one shows `home`.
+-- Each window from it is marked `numbered`, so one of home's apps goes home
+-- when it comes back, which needs its app's name, not saved then. Returns
+-- the state as names, and whether it was numbered.
+function M.migrate(saved, home)
+    saved = saved or {}
+    if saved.names then
+        return saved, false
+    end
+    local numbered = false
+    local used = {}
+    -- The settings store may give a number back as a float.
+    local function name_of(ws)
+        if type(ws) == "number" then
+            numbered = true
+            return tostring(math.tointeger(ws) or ws)
+        end
+        return ws
+    end
+    local windows = {}
+    for k, v in pairs(saved.windows or {}) do
+        local c = {}
+        for f, x in pairs(v) do
+            c[f] = x
+        end
+        c.ws = name_of(v.ws)
+        windows[k] = c
+    end
+    local gone = {}
+    for i, g in ipairs(saved.gone or {}) do
+        local c = {}
+        for f, x in pairs(g) do
+            c[f] = x
+        end
+        c.ws = name_of(g.ws)
+        gone[i] = c
+    end
+    local screens = {}
+    for uuid, n in pairs(saved.screens or {}) do
+        screens[uuid] = name_of(n)
+    end
+    if not numbered then
+        return { windows = windows, gone = gone, screens = screens }, false
+    end
+    for _, list in ipairs({ windows, gone }) do
+        for _, v in pairs(list) do
+            if v.ws then
+                v.numbered = true
+                used[v.ws] = true
+            end
+        end
+    end
+    local names = { home }
+    for n = 1, 9 do
+        if used[tostring(n)] then
+            names[#names + 1] = tostring(n)
+        end
+    end
+    for uuid, name in pairs(screens) do
+        if not used[name] then
+            screens[uuid] = home
+        end
+    end
+    return { windows = windows, gone = gone, screens = screens, names = names }, true
+end
+
 function M.new(adapter, config)
     config = config or {}
+    local standing = M.check_standing(config.workspaces or M.STANDING)
+    local saved, migrated = M.migrate(config.saved, standing[1])
     local self = setmetatable({
         a = adapter,
         layout = config.layout or layout.defaults,
@@ -59,11 +228,19 @@ function M.new(adapter, config)
         -- with the bar off (bar.lua).
         top = config.top or 0,
         rules = rules.check(config.rules or {}, "rules"),
-        windows = {},   -- id -> { id, app, ws, floating, big }
-        workspaces = {}, -- number -> layout state
-        screen_ws = {}, -- display uuid -> workspace number
+        home_apps = M.check_home_apps(config.home_apps or M.HOME_APPS),
+        standing = standing,
+        -- The home workspace: the first standing one, "in" by default.
+        home = standing[1],
+        windows = {},   -- id -> { id, app, name, ws, floating, big }
+        -- The workspaces that exist, in bar order: home, the standing
+        -- ones made so far in their order, then the rest in the order they
+        -- were made.
+        names = {},
+        workspaces = {}, -- name -> layout state
+        screen_ws = {}, -- display uuid -> workspace name
         floats = {},    -- float ids, bottom to top
-        mru = {},       -- workspace number -> ids, most recent first
+        mru = {},       -- workspace name -> ids, most recent first
         placed = {},    -- id -> the frame tilemo last gave it, as it landed
         -- id -> the minimizes and restores tilemo asked for that macOS hasn't
         -- reported yet, oldest first, each { kind = "min" or "unmin",
@@ -87,8 +264,17 @@ function M.new(adapter, config)
     -- What the last run saved (snapshot()). Window ids may come back as
     -- strings from the settings store. A saved window that doesn't come back
     -- by id is matched by app and title until M.KEEP after this start.
-    local saved = config.saved or {}
     self.started = adapter.now()
+    -- Home first, then the rest as saved.
+    self.names[1] = self.home
+    for _, name in ipairs(saved.names or {}) do
+        if type(name) == "string" and not self:find(name) then
+            self:add_name(name)
+        end
+    end
+    -- Numbered workspaces left empty once their windows are back go after
+    -- the first sync (SPEC.md §6.5).
+    self.migrated = migrated
     self.saved = {}
     for k, v in pairs(saved.windows or {}) do
         self.saved[tonumber(k) or k] = v
@@ -144,8 +330,105 @@ function M:screen_by_uuid(uuid)
     end
 end
 
--- Number each display's workspace in display order, keeping numbers already
--- given.
+-- A workspace name as typed: one line, runs of space made one, trimmed.
+-- Nil if nothing's left.
+function M.clean_name(name)
+    if type(name) ~= "string" then
+        return nil
+    end
+    name = name:gsub("%s+", " "):match("^ ?(.-) ?$")
+    return name ~= "" and name or nil
+end
+
+-- The workspace called `name` that exists, as it was made: names are
+-- compared ignoring case (SPEC.md §6.1).
+function M:find(name)
+    name = M.clean_name(name)
+    if not name then
+        return nil
+    end
+    local want = M.fold(name)
+    for _, n in ipairs(self.names) do
+        if M.fold(n) == want then
+            return n
+        end
+    end
+end
+
+-- The standing workspace called `name`, as the setting spells it, whether
+-- it exists yet or not.
+function M:standing_name(name)
+    name = M.clean_name(name)
+    if not name then
+        return nil
+    end
+    local want = M.fold(name)
+    for _, n in ipairs(self.standing) do
+        if M.fold(n) == want then
+            return n
+        end
+    end
+end
+
+-- The name a workspace called `name` has or would have: an existing one's,
+-- a standing one's as the setting spells it, or the name as typed.
+function M:canonical(name)
+    return self:find(name) or self:standing_name(name) or M.clean_name(name)
+end
+
+-- Add `name` to the workspaces that exist, in bar order: a standing one
+-- among the standing ones, in the setting's order, and any other at the
+-- end.
+function M:add_name(name)
+    local s = self:standing_name(name)
+    if not s then
+        self.names[#self.names + 1] = name
+        return name
+    end
+    local rank = {}
+    for i, n in ipairs(self.standing) do
+        rank[n] = i
+    end
+    local at = #self.names + 1
+    for i, n in ipairs(self.names) do
+        if not rank[n] or rank[n] > rank[s] then
+            at = i
+            break
+        end
+    end
+    table.insert(self.names, at, s)
+    return s
+end
+
+-- Every workspace the bar and the switcher list, in bar order: home, every
+-- standing one, made yet or not, then the rest in the order they were
+-- made. `made[name]` says which exist.
+function M:listed()
+    local out, made = {}, {}
+    for _, n in ipairs(self.names) do
+        made[n] = true
+    end
+    for _, n in ipairs(self.standing) do
+        out[#out + 1] = n
+    end
+    for _, n in ipairs(self.names) do
+        if not self:standing_name(n) then
+            out[#out + 1] = n
+        end
+    end
+    return out, made
+end
+
+-- Whether window `w` is one of home's apps, by its app's name.
+function M:is_home_app(w)
+    return w ~= nil and w.name ~= nil and self.home_apps[w.name] == true
+end
+
+-- Give each display a workspace, keeping the ones already given. The first
+-- display shows home; a display with nothing of its own gets a new empty
+-- workspace, named by the lowest number from 2 that's free, the number it
+-- had before names (a guess: SPEC.md doesn't say what a second display
+-- shows before anything is named for it).
 function M:map_screens()
     local used = {}
     local screens = self:screens()
@@ -153,10 +436,10 @@ function M:map_screens()
     for _, s in ipairs(screens) do
         present[s.uuid] = true
     end
-    -- A display that went away leaves its workspace hidden; Super+N
-    -- shows it on a display that's left.
+    -- A display that went away leaves its workspace hidden; Next and
+    -- Previous, the bar and the menu show it on a display that's left.
     for uuid, n in pairs(self.screen_ws) do
-        if present[uuid] then
+        if present[uuid] and self:find(n) then
             used[n] = true
         else
             self.screen_ws[uuid] = nil
@@ -164,7 +447,7 @@ function M:map_screens()
     end
     -- A display tilemo saw last run shows what it showed then.
     for _, s in ipairs(screens) do
-        local n = self.saved_screens[s.uuid]
+        local n = self:find(self.saved_screens[s.uuid])
         if not self.screen_ws[s.uuid] and n and not used[n] then
             used[n] = true
             self.screen_ws[s.uuid] = n
@@ -172,24 +455,88 @@ function M:map_screens()
     end
     for _, s in ipairs(screens) do
         if not self.screen_ws[s.uuid] then
-            local n = 1
-            while used[n] do
-                n = n + 1
+            local n = self.home
+            local i = 1
+            while used[n] or (n ~= self.home and self:find(n)) do
+                i = i + 1
+                n = tostring(i)
             end
             used[n] = true
             self.screen_ws[s.uuid] = n
         end
         self:ensure_ws(self.screen_ws[s.uuid], s.area)
     end
+    -- Every workspace has its layout state, in the default for the first
+    -- display if none shows it.
+    for _, n in ipairs(self.names) do
+        self:ensure_ws(n, screens[1] and screens[1].area)
+    end
 end
 
--- Workspace `n`, made in the default layout for `area` if it's new.
-function M:ensure_ws(n, area)
+-- Workspace `name`, made in its place in bar order (add_name), in the
+-- default layout for `area`, if it's new. Returns its name as it was made.
+function M:ensure_ws(name, area)
+    local n = self:find(name)
+    if not n then
+        n = M.clean_name(name)
+        if not n then
+            return nil
+        end
+        n = self:add_name(n)
+    end
     if not self.workspaces[n] then
         self.workspaces[n] = layout.new(n, area, self.layout)
-        self.mru[n] = {}
+        self.mru[n] = self.mru[n] or {}
     end
-    return self.workspaces[n]
+    return n
+end
+
+-- Whether any window is on workspace `n`, minimized by you or not.
+function M:occupied(n)
+    for _, w in pairs(self.windows) do
+        if w.ws == n then
+            return true
+        end
+    end
+    return false
+end
+
+-- Remove every empty workspace no display shows, other than the standing
+-- ones, home included (SPEC.md §6.1).
+function M:prune()
+    for i = #self.names, 1, -1 do
+        local n = self.names[i]
+        if not self:standing_name(n) and not self:shown(n) and not self:occupied(n) then
+            table.remove(self.names, i)
+            self.workspaces[n] = nil
+            self.mru[n] = nil
+        end
+    end
+end
+
+-- After the first sync from a numbered state: a number left with no
+-- windows, since its windows went home, is dropped, and a display showing
+-- it shows home if no other display does (SPEC.md §6.5).
+function M:finish_migration()
+    if not self.migrated then
+        return
+    end
+    self.migrated = false
+    for uuid, n in pairs(self.screen_ws) do
+        if not self:standing_name(n) and not self:occupied(n) and not self:shown(self.home) then
+            self.screen_ws[uuid] = self.home
+        end
+    end
+    self:prune()
+end
+
+-- Where `n` is in bar order, among the workspaces listed.
+function M:index_of_ws(n)
+    for i, m in ipairs((self:listed())) do
+        if m == n then
+            return i
+        end
+    end
 end
 
 -- The display showing workspace `n`, if one is.
@@ -210,7 +557,7 @@ end
 function M:current_ws()
     local kbd = self:kbd_screen()
     if kbd then
-        return self.screen_ws[kbd] or 1
+        return self.screen_ws[kbd] or self.home
     end
     local w = self.windows[self.a.focused() or false]
     -- An ignored window, such as picture-in-picture, has no workspace.
@@ -218,7 +565,7 @@ function M:current_ws()
         return w.ws
     end
     local uuid = self.a.pointer_screen()
-    return self.screen_ws[uuid] or 1
+    return self.screen_ws[uuid] or self.home
 end
 
 function M:screen_of_ws(n)
@@ -269,6 +616,14 @@ function M:place_float(id, f)
     self.a.set_frame(id, { x = x, y = y, w = w, h = h })
 end
 
+-- The workspace of a new float's parent: its app's focused window, as
+-- place_float centers it on, if tilemo manages it.
+function M:parent_ws(id, f)
+    local parent = self.a.app_focused(f.pid)
+    local p = parent and parent ~= id and self.windows[parent]
+    return p and p.ws
+end
+
 -- Start managing a window. Returns what it was decided to be.
 function M:add(id)
     if self.windows[id] then
@@ -281,7 +636,7 @@ function M:add(id)
     local kind = rules.decide(f, self.rules)
     -- `seen`: when tilemo found it, so the focus guard can tell a window a
     -- launch opened from one that was already there.
-    local w = { id = id, app = f.app, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title }
+    local w = { id = id, app = f.app, name = f.name, pid = f.pid, kind = kind, seen = self.a.now(), title = f.title }
     self.windows[id] = w
     if kind == "ignore" then
         return kind
@@ -292,16 +647,25 @@ function M:add(id)
     self.paired[id] = nil
     if saved and saved.ws then
         -- tilemo restarted, or the app relaunched: the window goes back where
-        -- it was.
-        w.ws = saved.ws
+        -- it was. One of home's apps from a numbered state goes home.
+        w.ws = (saved.numbered and self:is_home_app(w)) and self.home or saved.ws
         w.mine = saved.mine
         -- Its old index, and which save it's from: only indexes from the
         -- same save say which window went before which.
         w.saved_pos = saved.pos
         w.saved_at = saved.at or self.started
-        self:ensure_ws(w.ws, self:screen_for(f.frame).area)
+        w.ws = self:ensure_ws(w.ws, self:screen_for(f.frame).area)
+    elseif kind == "float" and self:parent_ws(id, f) then
+        -- A dialog goes where its parent is (SPEC.md §6.2), even for one of
+        -- home's apps whose window you moved elsewhere.
+        w.ws = self:parent_ws(id, f)
+        w.mine = f.minimized or false
+    elseif self:is_home_app(w) then
+        -- Home's apps always open there (SPEC.md §6.2).
+        w.ws = self.home
+        w.mine = f.minimized or false
     else
-        w.ws = self:ws_on_screen(self:screen_for(f.frame)) or 1
+        w.ws = self:ws_on_screen(self:screen_for(f.frame)) or self.home
         -- Minimized before tilemo knew it: you did that.
         w.mine = f.minimized or false
     end
@@ -577,6 +941,7 @@ function M:sync()
             self:add(id)
         end
     end
+    self:finish_migration()
     return lost
 end
 
@@ -633,6 +998,7 @@ function M:reconcile()
         expect(id, "min")
         self.a.minimize(id)
     end
+    self:prune()
     self:save()
 end
 
@@ -641,7 +1007,7 @@ end
 -- it comes back with a new id, and the places still kept for windows that
 -- haven't come back.
 function M:snapshot()
-    local out = { windows = {}, screens = {}, gone = {} }
+    local out = { windows = {}, screens = {}, gone = {}, names = nil }
     local now = self.a.now()
     -- A window's index is where it is now, so a stack you rearranged stays
     -- that way. (Windows still to come back after a restart partway through
@@ -662,6 +1028,7 @@ function M:snapshot()
             if s.ws and s.app and not self.windows[sid] then
                 out.gone[#out.gone + 1] = {
                     app = s.app, title = s.title, ws = s.ws, mine = s.mine, pos = s.pos, at = s.at or self.started,
+                    numbered = s.numbered,
                 }
             end
         end
@@ -673,6 +1040,10 @@ function M:snapshot()
     end
     for uuid, n in pairs(self.screen_ws) do
         out.screens[uuid] = n
+    end
+    out.names = {}
+    for i, n in ipairs(self.names) do
+        out.names[i] = n
     end
     return out
 end
@@ -795,12 +1166,18 @@ function M:current_screen()
     return self.a.pointer_screen() or (self:screens()[1] or {}).uuid
 end
 
--- Show workspace `n` on display `uuid`. If another display shows it, the
--- two swap, as on tide.
-function M:show(n, uuid)
+-- Show workspace `name` on display `uuid`. If another display shows it,
+-- the two swap, as on tide. A name with no workspace does nothing, unless
+-- `make` says to make it, as the name prompt does (SPEC.md §6.2).
+function M:show(name, uuid, make)
     uuid = uuid or self:current_screen()
     local s = self:screen_by_uuid(uuid)
-    if not s or n < 1 or n > M.WORKSPACES then
+    local n = self:find(name)
+    -- A standing workspace is made the first time it's shown.
+    if not n and (make or self:standing_name(name)) then
+        n = self:ensure_ws(self:canonical(name), s and s.area)
+    end
+    if not s or not n then
         return
     end
     local cur = self.screen_ws[uuid]
@@ -812,7 +1189,6 @@ function M:show(n, uuid)
         self.screen_ws[other] = cur
     end
     self.screen_ws[uuid] = n
-    self:ensure_ws(n, s.area)
     self:reconcile()
     self:retile()
     -- With nothing there to focus, focus stays put, perhaps on a window the
@@ -848,17 +1224,27 @@ function M:refocus_ws(n)
     return false
 end
 
--- Move window `id` to the end of workspace n's stack.
-function M:send(id, n)
+-- Move window `id` to the end of workspace `name`'s stack, making the
+-- workspace, at the end of the list, if the name is new. Only home's apps
+-- may be sent home (SPEC.md §6.2); another app's window is refused, with
+-- a notice. Says whether the window moved.
+function M:send(id, name)
     local w = self.windows[id or false]
-    if not w or not w.ws or w.ws == n or n < 1 or n > M.WORKSPACES then
-        return
+    local n = self:canonical(name)
+    if not w or not w.ws or not n or w.ws == n then
+        return false
+    end
+    if n == self.home and not self:is_home_app(w) then
+        if self.a.notify then
+            self.a.notify("Only the home workspace's apps go on " .. self.home)
+        end
+        return false
     end
     local from = w.ws
     layout.remove(self.workspaces[from], id)
     remove_value(self.mru[from], id)
     local s = self:screen_by_uuid(self:current_screen())
-    self:ensure_ws(n, s and s.area)
+    n = self:ensure_ws(n, s and s.area)
     w.ws = n
     w.big = nil
     if not w.floating then
@@ -869,6 +1255,7 @@ function M:send(id, n)
     table.insert(self.mru[n], 1, id)
     self:reconcile()
     self:retile()
+    return true
 end
 
 -- Bring a window forward, with its workspace if that isn't showing: app
@@ -966,20 +1353,21 @@ end
 -- and Super+Shift+Space; a bar or a dashboard on a given display names it.
 function M:bar_state(uuid)
     local here = self.screen_ws[uuid or self:current_screen()]
-    local out = {}
-    for n = 1, M.WORKSPACES do
-        out[n] = { here = n == here, elsewhere = n ~= here and self:shown(n) ~= nil }
+    local out, by = {}, {}
+    for i, n in ipairs((self:listed())) do
+        out[i] = { name = n, here = n == here, elsewhere = n ~= here and self:shown(n) ~= nil }
+        by[n] = out[i]
     end
     for _, w in pairs(self.windows) do
-        if w.ws and out[w.ws] then
-            out[w.ws].occupied = true
+        if w.ws and by[w.ws] then
+            by[w.ws].occupied = true
         end
     end
     for _, m in ipairs(self.attention:list()) do
         local ids = m.id and { m.id } or self:app_windows(m.app)
         local w = ids[1] and self.windows[ids[1]]
-        if w and w.ws and out[w.ws] then
-            out[w.ws].urgent = true
+        if w and w.ws and by[w.ws] then
+            by[w.ws].urgent = true
         end
     end
     return out
@@ -1619,12 +2007,23 @@ function A.send(self, n)
     end
 end
 
--- Super+Left/Right and PgUp/PgDn: the previous or next workspace, stopping
--- at 1 and 9.
+-- The workspace `d` steps from `cur` in bar order, stopping at the first
+-- and last.
+function M:step_from(cur, d)
+    local list = self:listed()
+    local i = self:index_of_ws(cur) or 1
+    return list[math.max(1, math.min(#list, i + d))]
+end
+
+-- Super+Left/Right and PgUp/PgDn: the previous or next workspace in bar
+-- order, stopping at the first and last.
 function A.step(self, d)
-    local cur = self.screen_ws[self:current_screen()] or 1
-    local n = math.max(1, math.min(M.WORKSPACES, cur + d))
-    self:show(n)
+    self:show(self:step_from(self.screen_ws[self:current_screen()] or self.home, d))
+end
+
+-- Super+Home: the home workspace (SPEC.md §6.1).
+function A.home(self)
+    self:show(self.home)
 end
 
 -- Super+Shift+Left/Right: carry the focused window there, and follow it.
@@ -1632,10 +2031,9 @@ function A.carry(self, d)
     local id = self.a.focused()
     -- The display it's carried from, noted before the window moves.
     local uuid = self:current_screen()
-    local cur = self.screen_ws[uuid] or 1
-    local n = math.max(1, math.min(M.WORKSPACES, cur + d))
-    if id and n ~= cur then
-        self:send(id, n)
+    local cur = self.screen_ws[uuid] or self.home
+    local n = self:step_from(cur, d)
+    if id and n ~= cur and self:send(id, n) then
         self:show(n, uuid)
         self:focus_window(id)
     end
@@ -1655,7 +2053,7 @@ function M:app_windows(bundle)
             out[#out + 1] = id
         end
     end
-    for n = 1, M.WORKSPACES do
+    for _, n in ipairs(self.names) do
         for _, id in ipairs(self.mru[n] or {}) do
             local w = self.windows[id]
             if w and w.app == bundle and w.ws and not seen[id] then
@@ -1672,32 +2070,12 @@ function M:app_windows(bundle)
     return out
 end
 
--- The lowest-numbered workspace with no windows.
-function M:first_empty()
-    local used = {}
-    for _, w in pairs(self.windows) do
-        if w.ws then
-            used[w.ws] = true
-        end
-    end
-    for n = 1, M.WORKSPACES do
-        if not used[n] then
-            return n
-        end
-    end
-end
-
 -- An app key: bring the app's window forward, with its workspace, or
--- launch it. `fresh` opens a new window on the first empty workspace
--- instead (Cmd+Return in the launcher), even if the app is running. A spec
--- marked `new` opens a new window every time, on this workspace, as tide's
--- terminal key does.
+-- launch it. `fresh` opens a new window instead (Cmd+Return in the
+-- launcher), even if the app is running. A spec marked `new` opens a new
+-- window every time, on this workspace, as tide's terminal key does.
 function A.app(self, spec, fresh)
     if fresh or spec.new then
-        local n = fresh and self:first_empty()
-        if n then
-            self:show(n)
-        end
         self:grant(spec.bundle)
         self.a.launch(spec, true)
         return

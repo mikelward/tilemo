@@ -22,7 +22,7 @@ end
 
 t.test("each module gets its own scope, with its imports and exports wired", function()
     local s = sources()
-    s["clocks.js"] = 'const DAY = 1;\nexport function a() { return DAY; }\nexport const B = 2;\n'
+    s["clocks.js"] = 'const DAY = 1;\nexport function a() { return DAY; }\nexport const B = "2";\n'
     s["calendar.js"] = 'const DAY = 3;\nexport async function c() {}\n'
     local js = dashboard.bundle(s)
     t.eq(js:find('modules["./clocks.js"] = (() => {', 1, true) ~= nil, true)
@@ -90,13 +90,15 @@ t.test("the state is the menu bar's, with the focused window's title", function(
     wm:reconcile()
     wm:retile()
     a.focus_ = 1
-    wm:act("send", 4)
+    wm:act("send", "4")
     a.focus_ = 2
     a.wins[2].title = "Chat (1)"
     local st = dashboard.state(wm, a)
-    t.eq(#st.workspaces, 9)
-    t.eq(st.workspaces[1], { n = 1, current = true, elsewhere = false, occupied = true, urgent = false })
-    t.eq(st.workspaces[4].occupied, true)
+    t.eq(#st.workspaces, 5)
+    t.eq(st.workspaces[1], { n = "in", current = true, elsewhere = false, occupied = true, urgent = false })
+    t.eq(st.workspaces[2], { n = "re", current = false, elsewhere = false, occupied = false, urgent = false })
+    t.eq(st.workspaces[5].n, "4")
+    t.eq(st.workspaces[5].occupied, true)
     t.eq(st.title, "Chat (1)")
 end)
 
@@ -109,10 +111,11 @@ t.test("a dashboard opened on one display marks that display's workspace current
     wm:reconcile()
     wm:retile()
     a.focus_ = 1
-    -- The keys are on A, showing 1; the dashboard opened from B's clocks.
+    -- The keys are on A, showing "in"; the dashboard opened from B's clocks.
     t.eq(wm:current_screen(), "A")
     local st = dashboard.state(wm, a, "B")
-    t.eq(st.workspaces[2].current, true)
+    t.eq(st.workspaces[5].n, "2")
+    t.eq(st.workspaces[5].current, true)
     t.eq(st.workspaces[1].current, false)
     t.eq(st.workspaces[1].elsewhere, true)
 end)
