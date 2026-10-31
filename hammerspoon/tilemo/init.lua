@@ -32,6 +32,7 @@ local shots = require("tilemo.shots")
 local tap_mod = require("tilemo.tap")
 local bar = require("tilemo.bar")
 local bar_hs = require("tilemo.bar_hs")
+local tray_hs = require("tilemo.tray_hs")
 local names = require("tilemo.names")
 local current = require("tilemo.current")
 local prompt_hs = require("tilemo.prompt_hs")
@@ -315,12 +316,16 @@ function M.start(config)
             self.adapter.notify("Couldn't write the workspace's name for scripts: " .. tostring(err))
         end
     end
+    -- The tray of windows you minimized, in each display's corner, with the
+    -- bar on or off (SPEC.md §6.7).
+    self.tray = tray_hs.new(self)
     -- The workspaces, in the bar or else in the menu bar, and the name
     -- shown on each switch (SPEC.md §8).
     if config.bar ~= false then
         self.bar = bar_hs.new(self)
         self.wm.on_change = function()
             self.bar.update()
+            self.tray.update()
             self.publish_workspace()
         end
     else
@@ -329,6 +334,7 @@ function M.start(config)
             if self.menubar then
                 self.menubar:setTitle(bar.title(self.wm:bar_state()))
             end
+            self.tray.update()
             self.publish_workspace()
         end
         self.menubar:setMenu(function()

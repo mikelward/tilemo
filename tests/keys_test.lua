@@ -197,6 +197,7 @@ t.test("the switcher's keys open it on their own tabs, and Super+Tab, End and Re
     t.eq(by["end"], { "last" })
     t.eq(by["return"], { "move_to" })
     t.eq(by.delete, { "close" })
+    t.eq(by.z, { "minimize" })
     t.eq(by.home, { "home" })
 end)
 
@@ -214,14 +215,19 @@ t.test("Alt+Tab swaps with the master only with Karabiner, which makes it from p
 end)
 
 -- An installed tilemo rule, as karabiner.json holds it: the Win key's
--- manipulator, with what its lone tap sends, and Alt+Tab's if `alt_tab`.
-local function rule(tap, alt_tab)
+-- manipulator, with what its lone tap sends, Alt+Tab's if `alt_tab`, and
+-- the letters a and z, unless `no_z`.
+local function rule(tap, alt_tab, no_z)
     local m = {
         { from = { key_code = "left_command", modifiers = { optional = { "any" } } }, to = { { key_code = "left_command" } },
             to_if_alone = { { key_code = tap, modifiers = { "left_option", "left_command", "left_control" } } } },
         { from = { key_code = "a", modifiers = { mandatory = { "left_command" }, optional = { "shift" } } },
             to = { { key_code = "a", modifiers = { "left_option", "left_command", "left_control" } } } },
     }
+    if not no_z then
+        m[#m + 1] = { from = { key_code = "z", modifiers = { mandatory = { "left_command" }, optional = { "shift" } } },
+            to = { { key_code = "z", modifiers = { "left_option", "left_command", "left_control" } } } }
+    end
     if alt_tab then
         m[#m + 1] = { from = { key_code = "tab", modifiers = { mandatory = { "left_option" } } },
             to = { { key_code = "tab", modifiers = { "shift", "left_command", "left_option" } } } }
@@ -257,9 +263,16 @@ end)
 
 t.test("Alt+Tab's manipulator must send what tilemo binds", function()
     local r = rule("f20", true)
-    r.manipulators[3].to[1].modifiers = { "left_control" } -- the old Cmd+Tab
+    r.manipulators[4].to[1].modifiers = { "left_control" } -- the old Cmd+Tab
     local read = env({ [CONFIG] = profiles(profile(true, r)) }, {})
     t.eq(keys.rule_gaps(read, HOME, decode), { "Alt+Tab (swap with the master)" })
+end)
+
+t.test("a rule without Win+Z is missing Super+Z, so minimize has no key", function()
+    local read = env({ [CONFIG] = profiles(profile(true, rule("f20", true, true))) }, {})
+    local gaps = keys.rule_gaps(read, HOME, decode)
+    t.eq(gaps, { "Super+Z (minimize)" })
+    t.eq(keys.gaps_notice(gaps):find("Super+Z (minimize) doesn't work", 1, true) ~= nil, true)
 end)
 
 t.done("keys")

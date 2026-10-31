@@ -35,6 +35,9 @@ M.map = {
     -- A PC keyboard's Insert arrives as the Mac's Help key.
     { key = "help", action = "toggle_float" },
     { key = "delete", action = "close" },
+    -- Super+Z, not Super+Delete, which a PC keyboard may send as Backspace
+    -- (SPEC.md §6.7).
+    { key = "z", action = "minimize" },
     { key = "r", shift = true, action = "resize_mode" },
     { key = "left", action = "step", arg = -1 },
     { key = "right", action = "step", arg = 1 },
@@ -257,6 +260,15 @@ M.RULE_FEATURES = {
         has = function(m)
             local a = (m.to_if_alone or {})[1] or {}
             return (m.from or {}).key_code == "left_command" and a.key_code == "f20"
+        end,
+    },
+    {
+        what = "Super+Z (minimize)",
+        -- Physical Win+Z, sent as Ctrl+Option+Command+Z.
+        has = function(m)
+            local f, t = m.from or {}, (m.to or {})[1] or {}
+            return f.key_code == "z" and same_set((f.modifiers or {}).mandatory, { "left_command" })
+                and t.key_code == "z" and same_set(t.modifiers, { "left_option", "left_command", "left_control" })
         end,
     },
 }

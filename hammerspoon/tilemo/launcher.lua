@@ -178,7 +178,7 @@ function M.subtitle(item)
     if item.kind == "tab" then
         return join(item.browser, item.extra, item.ws)
     elseif item.kind == "window" then
-        return join(item.app, item.ws)
+        return join(item.app, item.ws, item.minimized and "minimized" or nil)
     elseif item.kind == "setting" then
         return "System Settings"
     elseif item.kind == "attention" then
@@ -239,8 +239,8 @@ end
 -- browser, window, tab, win, ws }, commands { title, action, arg, quick }, System
 -- Settings' panes { name, id }, the windows wanting attention { window,
 -- title, app, ws }, newest first, the workspaces { name, apps, where }, in
--- bar order, and every window { id, title, app_name, ws }, most recently
--- used first. Each gets a stable key, for remembering
+-- bar order, and every window { id, title, app_name, ws, minimized }, most
+-- recently used first, `minimized` for one you minimized (SPEC.md §6.7). Each gets a stable key, for remembering
 -- when it was used, and an id that's unique among the items, for choosing
 -- it: two tabs on the same page share a key but not an id.
 function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
@@ -254,6 +254,7 @@ function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
             app = w.app_name,
             window = w.id,
             ws = w.ws,
+            minimized = w.minimized or false,
             order = i,
             key = "window:" .. tostring(w.id),
         }

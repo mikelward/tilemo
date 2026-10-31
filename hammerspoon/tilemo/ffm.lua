@@ -12,7 +12,8 @@
 -- - A window's own dialog wins over the window.
 -- - It pauses while a menu is open, while a button is held, while Super is
 --   held, outside every
---   display's work area (the menu bar and the Dock), while tilemo's own
+--   display's work area (the menu bar and the Dock), over tilemo's own
+--   overlays (the tray), while tilemo's own
 --   launcher is open, and while an app that must keep focus is in front.
 
 local M = {}
@@ -73,6 +74,13 @@ end
 function M:paused(x, y, super_held)
     if super_held or self:blocked() then
         return true
+    end
+    -- tilemo's own floating overlays, such as the tray of windows you
+    -- minimized (SPEC.md §6.7), sit over the work area.
+    for _, box in ipairs(self.wm.overlays or {}) do
+        if inside(box, x, y) then
+            return true
+        end
     end
     -- Outside every work area is the menu bar, tilemo's bar or the Dock.
     for _, s in ipairs(self.wm:screens()) do
