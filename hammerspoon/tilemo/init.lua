@@ -93,10 +93,27 @@ local function resize_mode(self)
     return modal
 end
 
+-- With Karabiner's rule loaded, what an out-of-date copy of it is missing
+-- (keys.rule_gaps), said once each time that changes, so a key that can't
+-- work is flagged rather than silently dead.
+local function check_rule(self)
+    local gaps = self.karabiner and keys.rule_gaps(self.adapter.read, os.getenv("HOME") or "", self.adapter.decode)
+        or {}
+    self.rule_gaps = gaps
+    local said = table.concat(gaps, "\n")
+    if said ~= (self.said_gaps or "") then
+        self.said_gaps = said
+        if #gaps > 0 then
+            self.adapter.notify(keys.gaps_notice(gaps))
+        end
+    end
+end
+
 local function choose_super(self, announce)
     local super, karabiner = keys.super(self.adapter.read, self.adapter.running, os.getenv("HOME") or "",
         self.adapter.decode)
     if self.karabiner == karabiner then
+        check_rule(self)
         return
     end
     self.karabiner = karabiner
@@ -105,6 +122,24 @@ local function choose_super(self, announce)
     if not karabiner and announce then
         self.adapter.notify(keys.FALLBACK_NOTICE)
     end
+    check_rule(self)
+end
+
+-- What `tilemo doctor` (SPEC.md §15) checks so far: Karabiner and tilemo's
+-- rule. Each problem is one line, with what it costs and the fix; with
+-- none, one line saying so. From Hammerspoon's console, or the switcher's
+-- "Check tilemo".
+function M.doctor()
+    local lines = {}
+    if not M.karabiner then
+        lines[#lines + 1] = keys.FALLBACK_NOTICE
+    elseif #(M.rule_gaps or {}) > 0 then
+        lines[#lines + 1] = keys.gaps_notice(M.rule_gaps)
+    end
+    if #lines == 0 then
+        lines[1] = "Karabiner is running with tilemo's rule, up to date."
+    end
+    return table.concat(lines, "\n")
 end
 
 function M.start(config)

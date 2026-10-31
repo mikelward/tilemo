@@ -72,6 +72,15 @@ tap. The rest:
 
 ## Decisions needing review
 
+- **An out-of-date tilemo rule in Karabiner is flagged, not worked
+  around:** tilemo reads the enabled copy in `karabiner.json`, and if
+  Alt+Tab's or the tap's Super+F20 manipulator is missing it says which,
+  and how to re-add the rule, in a notification and in `tilemo.doctor()`.
+  It doesn't bind Super+Space's old tap or anything else in their place.
+  `tilemo doctor` is so far just this and the Karabiner check, from the
+  console or the switcher. Reversible: `keys.rule_gaps` and `init.lua`'s
+  `check_rule`.
+
 - **A second display shows a workspace of its own, named by the lowest
   free number from 2** ("2", then "3"), the number it had before names.
   SPEC.md doesn't say what a display shows before anything is named for

@@ -199,21 +199,96 @@ local function is_our_rule(description)
     return false
 end
 
--- Whether the selected Karabiner profile has tilemo's rule. Each profile keeps
--- its own rules, so a rule left in another profile doesn't count.
-local function profile_has_rule(config)
+-- tilemo's rule in the selected Karabiner profile, if it has one. Each
+-- profile keeps its own rules, so a rule left in another profile doesn't
+-- count.
+local function our_rule(config)
     for _, p in ipairs(type(config) == "table" and config.profiles or {}) do
         if p.selected then
             local cm = p.complex_modifications or {}
             for _, r in ipairs(cm.rules or {}) do
                 if is_our_rule(r.description) then
-                    return true
+                    return r
                 end
             end
+            return nil
+        end
+    end
+    return nil
+end
+
+local function profile_has_rule(config)
+    return our_rule(config) ~= nil
+end
+
+local function same_set(list, want)
+    if type(list) ~= "table" or #list ~= #want then
+        return false
+    end
+    local have = {}
+    for _, v in ipairs(list) do
+        have[v] = true
+    end
+    for _, v in ipairs(want) do
+        if not have[v] then
             return false
         end
     end
-    return false
+    return true
+end
+
+-- What conf's tilemo rule does that an older copy of it didn't, each with
+-- what's lost without it. Karabiner runs the copy it made when the rule was
+-- enabled, so pulling conf changes nothing until the rule is removed and
+-- added again.
+M.RULE_FEATURES = {
+    {
+        what = "Alt+Tab (swap with the master)",
+        -- Physical Alt+Tab, sent as Ctrl+Option+Shift+Tab (keys.karabiner_only).
+        has = function(m)
+            local f, t = m.from or {}, (m.to or {})[1] or {}
+            return f.key_code == "tab" and same_set((f.modifiers or {}).mandatory, { "left_option" })
+                and t.key_code == "tab" and same_set(t.modifiers, { "left_option", "left_command", "shift" })
+        end,
+    },
+    {
+        what = "the lone Super tap (the workspace list)",
+        -- The tap, sent as Super+F20.
+        has = function(m)
+            local a = (m.to_if_alone or {})[1] or {}
+            return (m.from or {}).key_code == "left_command" and a.key_code == "f20"
+        end,
+    },
+}
+
+-- What the installed tilemo rule is missing, as M.RULE_FEATURES' `what`s,
+-- in order; empty if it's up to date or there's no rule (karabiner_ready
+-- says that). Read from karabiner.json, as karabiner_ready reads it.
+function M.rule_gaps(read, home, decode)
+    local text = read(home .. "/.config/karabiner/karabiner.json")
+    local rule = text and our_rule(decode(text))
+    local out = {}
+    if not rule then
+        return out
+    end
+    for _, feature in ipairs(M.RULE_FEATURES) do
+        local found = false
+        for _, m in ipairs(rule.manipulators or {}) do
+            found = found or feature.has(m)
+        end
+        if not found then
+            out[#out + 1] = feature.what
+        end
+    end
+    return out
+end
+
+-- What a stale rule costs, said once per change, in a notification and by
+-- tilemo.doctor().
+function M.gaps_notice(gaps)
+    return "tilemo's Karabiner rule is out of date, so " .. table.concat(gaps, " and ")
+        .. (#gaps == 1 and " doesn't" or " don't") .. " work. In Karabiner-Elements, remove the"
+        .. " \"tilemo:\" rule under Complex Modifications and add it again."
 end
 
 -- Whether exactly Super's modifiers are held, Shift aside, in Hammerspoon's
