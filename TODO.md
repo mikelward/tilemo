@@ -10,7 +10,7 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
 3. Focus follows mouse (SPEC.md §5.2).
 4. Workspaces by minimizing, displays and restarts (SPEC.md §6).
 5. The launcher, app keys and the Super tap (SPEC.md §7.2, §9).
-6. The menu bar workspaces, the sign on switching, attention and Super+Tab
+6. The menu bar workspaces, the sign on switching, and attention
    (SPEC.md §8, §14.2).
 7. The dashboard: tileco's bar and clock panel in an `hs.webview`, on
    Super+Shift+Space (SPEC.md §8).
@@ -22,6 +22,52 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    Ctrl+Option+Command+key (description starting `tilemo:`), and
    `setup-macos --wm tilemo` in scripts installs Hammerspoon and tilemo, frees
    the keys in SPEC.md §7.3, and hides the menu bar for tilemo's bar.
+
+## Named workspaces
+
+SPEC.md now has named workspaces in place of the nine numbered ones, and
+one switcher with tabs (SPEC.md §6, §7.2, §9, §14.2), as tide's does. None
+of it is built yet:
+
+- **To decide: keep `Super+1…9` and `Super+Shift+1…9`?** The user leans
+  toward dropping them, now that the switcher and `Super+Return` cover
+  both. If they stay, they take the first nine in bar order. Until it's
+  settled, the spec leaves them out of the key map.
+- **To decide: what `Super+End` does.** It pairs with `Super+Home`, which
+  goes to "in".
+- **Workspaces by name** in `wm.lua`: creation order, "in" first and fixed,
+  an empty workspace removed once you leave it, Next and Previous in bar
+  order (SPEC.md §6.1).
+- **"in" and its apps:** `in_apps` in `start()`, by app name, defaulting to
+  mail, chat, calendar and music; their windows always open on "in"
+  (SPEC.md §6.2).
+- **The name prompt:** an `hs.chooser` for a window opening on "in", with
+  the default from tide's title patterns, run through
+  `hs.osascript.javascript` and checked at load. Esc closes the window,
+  or cancels a launch tilemo was about to make (SPEC.md §6.2).
+- **`Super+Return`** moves the window to a workspace by name; **Alt+Tab**
+  swaps with the master; **`Super+A`** lists attention; **`Super+Home`**
+  goes to "in"; **`Super+Tab`** and the Super tap open the workspace list
+  (SPEC.md §7.2).
+- **conf:** Karabiner's Alt+Tab rule sends tilemo's combination instead of
+  Cmd+Tab; `kitty.conf` allows remote control on a socket; the shell asks
+  `hs -c 'tilemo.workspace()'` on a Mac when `TIDE_WORKSPACE` is missing
+  (SPEC.md §6.3, §17).
+- **`TIDE_WORKSPACE`** in `hs.task`'s environment, `open --env` and
+  `kitten @ launch --env`, and `tilemo.workspace()` over `hs.ipc`
+  (SPEC.md §6.3). Check `open --env` on macOS 26.
+- **Saved state:** save names in `tilemo.state`, and read a numbered state
+  once into "1" to "9" after "in" (SPEC.md §6.5).
+- **The switcher's tabs:** Launch, Workspaces, Windows (with Chrome's and
+  Safari's tabs, in place of the Tabs scope) and Attention, each key
+  opening its own (SPEC.md §9).
+- **The bar and the menu bar item** show names, and the switch sign shows
+  the name (SPEC.md §8).
+- **Redo the mocks:** `mocks/page.lua`'s states show numbered chips, so
+  `bar-apps.png`, `bar-crowded.png`, `bar-quiet.png` and `bar-wide.png` need
+  re-rendering with named chips, "in" first, once the bar shows names.
+- **README** still describes the nine numbered workspaces; update it when
+  this lands.
 
 ## Launcher looks
 
