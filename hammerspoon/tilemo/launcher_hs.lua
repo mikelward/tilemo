@@ -2,7 +2,7 @@
 -- with tabs (SPEC.md §9). Apps come from the Applications folders and
 -- System Settings' panes from its extensions (launcher.scan_apps and
 -- scan_settings); the workspaces, windows and the windows wanting attention
--- from the window manager; browser tabs from Chrome and Safari through
+-- from the window manager; browser tabs from Chrome, Brave and Safari through
 -- AppleScript (Automation, asked for the first time), arriving after the
 -- switcher opens; and commands from launcher.COMMANDS. Tab and Shift+Tab
 -- move between its tabs. Not runnable outside Hammerspoon.
@@ -53,42 +53,9 @@ end
 
 local SETTINGS_BUNDLE = "com.apple.systempreferences"
 
--- Each browser's tabs, one per line (launcher.parse_tabs). A browser that
--- isn't running isn't asked, since an Apple Event would launch it; one that
--- Automation hasn't been granted for gives none.
-local TAB_SCRIPTS = {
-    ["Google Chrome"] = [[
-        set out to ""
-        tell application "Google Chrome"
-            repeat with w from 1 to count windows
-                set n to name of window w
-                set i to id of window w
-                set a to active tab index of window w
-                repeat with t from 1 to count tabs of window w
-                    set f to 0
-                    if t is a then set f to 1
-                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
-                end repeat
-            end repeat
-        end tell
-        return out]],
-    Safari = [[
-        set out to ""
-        tell application "Safari"
-            repeat with w from 1 to count windows
-                set n to name of window w
-                set i to id of window w
-                set a to index of current tab of window w
-                repeat with t from 1 to count tabs of window w
-                    set f to 0
-                    if t is a then set f to 1
-                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
-                end repeat
-            end repeat
-        end tell
-        return out]],
-}
-local BROWSER_BUNDLES = { ["Google Chrome"] = "com.google.Chrome", Safari = "com.apple.Safari" }
+-- A browser that isn't running isn't asked for its tabs, since an Apple
+-- Event would launch it; one that Automation hasn't been granted for gives
+-- none.
 
 -- How long a browser has to list its tabs before it's skipped this time
 -- (SPEC.md §9): a busy browser can hold an Apple Event for a long time.
@@ -101,8 +68,9 @@ M.TAB_TIMEOUT = 2
 -- nothing.
 local running_tasks = {}
 local function fetch_tabs(tilemo, done)
-    for browser, script in pairs(TAB_SCRIPTS) do
-        if hs.application.get(BROWSER_BUNDLES[browser]) then
+    for _, b in ipairs(launcher.BROWSERS) do
+        local browser, script = b.name, launcher.tab_script(b)
+        if hs.application.get(b.bundle) then
             local task, timer
             task = hs.task.new("/usr/bin/osascript", function(code, out, err)
                 running_tasks[task] = nil
@@ -122,7 +90,7 @@ local function fetch_tabs(tilemo, done)
                     end
                 end
                 for _, t in ipairs(list) do
-                    local w = launcher.tab_window(t, BROWSER_BUNDLES[browser], windows)
+                    local w = launcher.tab_window(t, b.bundle, windows)
                     if w then
                         t.win, t.ws = w.id, w.ws
                     end
@@ -189,30 +157,17 @@ end
 -- along with it. Where tilemo knows the window, it goes there first.
 
 local function open_tab(tilemo, item)
-    -- The window by its id, which stays put, not its number, which is its
-    -- place front to back and changes as soon as anything raises a window:
-    -- such as tilemo going to it, below.
-    local win = item.window_id and ("window id %d"):format(item.window_id) or ("window %d"):format(item.window)
+    local b = launcher.browser(item.browser)
+    if not b then
+        tilemo.adapter.notify("Couldn't open that tab: tilemo doesn't know " .. tostring(item.browser))
+        return
+    end
     if item.win and tilemo.wm.windows[item.win] then
         tilemo.wm:activate(item.win)
     end
     -- The browser activating is the launch you made (SPEC.md §14.1).
-    tilemo.wm:grant(BROWSER_BUNDLES[item.browser])
-    local set, restore
-    if item.browser == "Safari" then
-        set = ("set current tab of %s to tab %d of %s"):format(win, item.tab, win)
-        restore = ("set miniaturized of %s to false"):format(win)
-    else
-        set = ("set active tab index of %s to %d"):format(win, item.tab)
-        restore = ("set minimized of %s to false"):format(win)
-    end
-    local ok, _, err = hs.osascript.applescript(([[
-        tell application "%s"
-            %s
-            %s
-            set index of %s to 1
-            activate
-        end tell]]):format(item.browser, set, restore, win))
+    tilemo.wm:grant(b.bundle)
+    local ok, _, err = hs.osascript.applescript(launcher.open_tab_script(b, item))
     if not ok then
         tilemo.adapter.notify("Couldn't open that " .. item.browser .. " tab: " .. hs.inspect(err))
     end

@@ -144,8 +144,10 @@ checked against a source or a Mac is marked *(unverified)*.
     report through it ([MailMate list](https://lists.freron.com/mailmate/2018-October/010356.html)).
   - Through `lsappinfo`, which can disagree with the visible badge
     ([Cursor forum](https://forum.cursor.com/t/macos-dock-badge-stuck-at-1-after-update-os-badge-null-until-killall-dock/165949)).
-- **Browser tabs:** Chrome and Safari list their tabs, with titles and
-  addresses, to AppleScript or JavaScript for Automation. The user grants
+- **Browser tabs:** Chrome, Brave and Safari list their tabs, with titles
+  and addresses, to AppleScript or JavaScript for Automation. Brave carries
+  Chromium's AppleScript dictionary, so it's asked as Chrome is, as
+  `"Brave Browser"` *(unverified on a Mac)*. The user grants
   **Automation** per browser the first time *(unverified on macOS 26)*. That
   gives tileco's tab search without an extension, as the switcher's
   Windows tab (§9).
@@ -228,7 +230,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | SYD / LAX / NYC / LON clocks (tileco `src/clocks.js`) | bar clocks, and tileco's clock panel in the dashboard | **yes** |
 | One switcher with tabs: launcher, workspaces, windows, attention (tide §8) | tilemo's switcher, an `hs.chooser`; the lone Super tap needs an event tap or Karabiner (§7, §9) | **yes** |
 | Clipboard history and characters by name on Super+C (tide §8.4) | an `hs.pasteboard` watcher and an `hs.chooser` with two tabs (§9.1) | **partial**: text only, kept in memory, so not across a restart |
-| Browser tabs in the Windows tab (tileco §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
+| Browser tabs in the Windows tab (tileco §9.4) | Chrome, Brave and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
 | App keys (tide `hyprland.lua`, tileco §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
 | Second and third Chrome profiles (`browser2`, `browser3`) | separate `--user-data-dir`s, as tide runs them (§7) | **yes** |
 | Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
@@ -1387,7 +1389,7 @@ tab, the search field naming the tab you're in.
     cost nothing to list.
   - **`Cmd+M`, or a right-click,** on a row in the Windows or Attention tab
     mutes its app or site, or unmutes it (§14.2).
-  - **Browser tabs** come from Chrome and Safari through AppleScript, run
+  - **Browser tabs** come from Chrome, Brave and Safari through AppleScript, run
     by `/usr/bin/osascript` as an `hs.task` rather than `hs.osascript`,
     which would hold Hammerspoon until the browser answers (§2.5).
   - **A tab's workspace** is its window's. AppleScript's window numbers
