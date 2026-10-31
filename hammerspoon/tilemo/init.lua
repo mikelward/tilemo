@@ -379,6 +379,9 @@ function M.start(config)
     self.wm.ask_move = function(done)
         self.prompt.choose(done)
     end
+    self.wm.ask_go = function(done)
+        self.prompt.go(done)
+    end
     self.wm.ready = true
     -- Keep awake and presenter mode (SPEC.md §10): Super+S and Super+P, the
     -- launcher and the bar, with the bar on or off.

@@ -208,7 +208,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Lone window 80% on ultrawide, 60% from 32:9 | same layout, per display (§5) | **yes** |
 | New windows join the end of the stack, with a setting for elsewhere (tide §6.1) | tilemo state (§5) | **yes** |
 | Layout, `mfact`, master count per workspace | tilemo state | **yes** |
-| Named workspaces, "in" first, Super+Home to "in", Super+Return to send (tide §6.5) | minimized windows, as tileco does, named in tilemo's state (§6) | **partial**: each switch animates |
+| Named workspaces, "in" first, Super+Home to "in", Super+Return to go and Super+Shift+Return to send (tide §6.5) | minimized windows, as tileco does, named in tilemo's state (§6) | **partial**: each switch animates |
 | A new window on "in" asks for a workspace name (tide §6.5) | tilemo's name prompt, an `hs.chooser` (§6.2) | **yes** |
 | `TIDE_WORKSPACE` in launched apps (tide §6.5) | `hs.task`'s environment, `open --env`, and kitty's remote control (§6.3) | **partial**: an app already running keeps its own |
 | One workspace per monitor from a shared pool (tide §6.5) | tilemo tracks which display shows each workspace, as tileco does (§6) | **yes** |
@@ -695,8 +695,8 @@ numbered ones:
 - **`Super+Home` goes to "in"; `Super+Tab` flips between "in" and the
   workspace you used last; `Super+End` goes to the last one other than
   "in"** (§7.2).
-- **No `Super+1…9`:** with names, the switcher and `Super+Return` replace
-  them (§7.2).
+- **No `Super+1…9`:** with names, the switcher, `Super+Return` and
+  `Super+Shift+Return` replace them (§7.2).
 - **An empty workspace is removed once you leave it,** other than "in" and
   the standing ones. Leaving means no display shows it any more. A workspace holding only
   windows you minimized isn't empty.
@@ -740,8 +740,8 @@ then minimizes the rest, so the screen is never empty in between.
 
 | Operation | What changes | Focus |
 |---|---|---|
-| **Show** a workspace (the switcher's Workspaces tab, `Super+Home` for "in", a bar click) on a display | That display shows it. If it was on another display, the two swap, as on tide. | its last focused window |
-| **Send** a window to a workspace (`Super+Return`'s prompt, §7.2) | It moves to the end of that workspace's stack. A new name makes the workspace first, at the end of the list. | stays put, as on tide *(a guess, to confirm)* |
+| **Show** a workspace (the switcher's Workspaces tab, `Super+Return`'s prompt, `Super+Home` for "in", a bar click) on a display | That display shows it. If it was on another display, the two swap, as on tide. | its last focused window |
+| **Send** a window to a workspace (`Super+Shift+Return`'s prompt, §7.2) | It moves to the end of that workspace's stack. A new name makes the workspace first, at the end of the list. | stays put *(a guess, to confirm: tide's `Super+Shift+Return` follows the window)* |
 | **Next or previous** (`Super+Left`, `Right`, `PgUp`, `PgDn`) | Show the one after or before, in bar order, stopping at the first and last. | as Show |
 | **Carry** a window to the next or previous (`Super+Shift+Left`, `Right`) | Send, then show that workspace. | that window |
 | **Activate**: an app key, the switcher, Cmd+Tab, a Dock click, a notification click | If the window's workspace isn't showing, show it on the focused display. | that window |
@@ -752,7 +752,8 @@ then minimizes the rest, so the screen is never empty in between.
 
 - **The current Mac setup follows a thrown window**
   (`follow-space-thrown-windows: true` in conf's `amethyst.yml`). tilemo's
-  Send doesn't, to match tide. The Carry keys follow.
+  Send doesn't, as tide's didn't when this was written; tide's move now
+  follows (tide §6.5), which is to confirm here. The Carry keys follow.
 - **A window that refuses** to minimize or restore is logged and skipped,
   so it can't stop a workspace switch. tilemo then stops managing it, as
   tileco does (tileco §6.4).
@@ -1098,7 +1099,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Left` / `Right`, `Super+PgUp` / `PgDn` | previous / next workspace | hotkey |
 | `Super+Shift+Left` / `Right` | carry the window to the previous / next workspace | hotkey |
 | `Super+J` / `K`, with Shift | focus / move down and up the stack | hotkey |
-| `Super+Return` | move the window to a workspace, by name (below) | hotkey |
+| `Super+Return` | go to a workspace, by name (below); it moves no window, so it works with none focused | hotkey |
+| `Super+Shift+Return` | move the window to a workspace, by name (below); with no window focused, nothing | hotkey |
 | `Alt+Tab` | swap with the master; on the master, swap with the previous master | conf's Karabiner rule turns physical Alt+Tab into `Ctrl+Option+Shift+Tab`, which tilemo registers (below) |
 | `Super+\` / `Super+/` | grow / shrink the master (`mfact` ±0.025), repeating | hotkey |
 | `Super+=` / `Super+-` | add / remove a master | hotkey |
@@ -1123,18 +1125,31 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - The rule sends the tap as `Super+F20`, a key no keyboard here has, so
     it's told apart from `Super+Space`.
 - **`Super+1…9` and `Super+Shift+1…9` are gone.** They went to and sent
-  to the nine numbered workspaces. With names, the switcher and
-  `Super+Return` cover both.
+  to the nine numbered workspaces. With names, the switcher,
+  `Super+Return` and `Super+Shift+Return` cover them.
 - **`Super+Tab` and `Super+End` remember the workspaces you've shown,**
   most recent first, across displays. A workspace that's gone since is
   passed over, and either key does nothing with nowhere to go.
-- **`Super+Return` moves the focused window to a workspace,** with tide's
-  prompt (tide §6.5): an `hs.chooser` listing the existing names. Typing
-  filters them or gives a new name, and Enter moves the window, making the
-  workspace if the name is new. Esc leaves it where it is. This is Send
-  (§6.1).
-- **`Alt+Tab` takes `Super+Return`'s old job.** It makes the focused window
-  the master. On the master, it swaps with the one that was master before.
+- **`Super+Return` goes to a workspace,** with tide's prompt (tide §6.5):
+  an `hs.chooser` listing the existing names. It moves no window, so it
+  works from any workspace, an empty one included.
+  - It needs no focused window, so the text starts empty.
+  - Typing filters the names or gives a new one. Enter on an existing name
+    shows it. Enter on a new name shows a new, empty workspace of that
+    name, which goes again once you leave it empty.
+  - "in" is offered, since nothing moves there.
+  - Esc stays where you are.
+  - A second press while it's open asks nothing more.
+- **`Super+Shift+Return` moves the focused window to a workspace,** with
+  the same prompt. Enter moves the window, making the workspace if the
+  name is new. Esc leaves it where it is. This is Send (§6.1).
+  - With no window focused there's nothing to move, so it does nothing,
+    and Hammerspoon's console says why.
+- **`Super+Return` used to move the window,** as tide's did. Both moved it
+  to `Super+Shift+Return`, which nothing else used, so `Super+Return`
+  works with no window to move.
+- **`Alt+Tab` takes `Super+Return`'s first job,** the master swap. It
+  makes the focused window the master. On the master, it swaps with the one that was master before.
   - Under the rotation, physical Alt sends Control, so physical Alt+Tab
     arrives as Ctrl+Tab, which is the apps' own next tab (scripts
     `docs/MACOS.md`, "The one binding the rotation inverts").

@@ -32,8 +32,8 @@ first being home, "in" by default) and home's apps (`home_apps`),
 `Super+Home`, the saved state, names on the bar, the menu bar item, the
 dashboard and the switch sign, the name prompt, `TIDE_WORKSPACE`, and a
 launch's window going to the workspace it was launched for, and the keys:
-`Super+Return`, `Super+Tab`, `Super+End`, Alt+Tab, `Super+A` and the Super
-tap, and the switcher's tabs. The rest:
+`Super+Return`, `Super+Shift+Return`, `Super+Tab`, `Super+End`, Alt+Tab,
+`Super+A` and the Super tap, and the switcher's tabs. The rest:
 
 - **Follow-up: several displays** (SPEC.md §19, question 12). The
   direction: a workspace spans every display, each display with its own
@@ -129,6 +129,20 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **Enter on a new name in `Super+Return`'s prompt goes to a new, empty
+  workspace of that name** (SPEC.md §7.2), as tide's does. It goes again
+  once you leave it empty, so a stray name costs nothing. The alternative
+  is offering only existing names there. Reversible: `wm.lua`'s
+  `go_answer` would refuse a name `find` doesn't know.
+- **`Super+Shift+Return` with no window focused does nothing,** and says
+  why only in Hammerspoon's console, as tide's says it only in the shell's
+  log. The alternative is a notification. Reversible: one line in
+  `wm.lua`'s `A.move_to`.
+- **`Super+Shift+Return` keeps tilemo's Send: focus stays put,** where
+  tide's move now follows the window. tilemo's SPEC.md §6.1 had Send stay
+  put "as on tide", a guess to confirm. The alternative is following it,
+  as Carry does. Reversible: `move_answer` would call `send` and `show`
+  as `A.carry` does.
 - **A chip's tip shows only when the chip cuts its name** (SPEC.md §8),
   since a whole name would say it again. The alternative is a tip on
   every chip, as the old `title` attribute had. Reversible: one line in

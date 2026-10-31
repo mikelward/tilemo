@@ -206,10 +206,20 @@ t.test("the switcher's keys open it on their own tabs, and Super+Tab, End and Re
     t.eq(by.a, { "launcher", "attention" })
     t.eq(by.tab, { "flip" })
     t.eq(by["end"], { "last" })
-    t.eq(by["return"], { "move_to" })
+    t.eq(by["return"], { "go_to" })
     t.eq(by.delete, { "close" })
     t.eq(by.z, { "minimize" })
     t.eq(by.home, { "home" })
+end)
+
+t.test("Super+Shift+Return moves the window to a workspace, Super+Return's old job", function()
+    local shifted = {}
+    for _, b in ipairs(keys.map) do
+        if b.shift then
+            shifted[b.key] = b.action
+        end
+    end
+    t.eq(shifted["return"], "move_to")
 end)
 
 t.test("Super+C opens the picker on Clipboard; Calendar has no key; Super+H and Super+Shift+C stay", function()
