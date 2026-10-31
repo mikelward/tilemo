@@ -1,12 +1,14 @@
--- tilemo's settings window on Hammerspoon (SPEC.md §15): the Clocks and
--- Start at login pages, dashboard.lua's settings page in an hs.webview. It
--- writes tide's clocks.local.json and startup.local.json, and tilemo hands
+-- tilemo's settings window on Hammerspoon (SPEC.md §15): the Clocks,
+-- Start at login and Clipboard pages, dashboard.lua's settings page in an
+-- hs.webview. It writes tide's clocks.local.json, startup.local.json and
+-- clipboard.local.json, and tilemo hands
 -- the files back once they change on disk, so the page shows what the bar
 -- and the next login do. Not runnable outside
 -- Hammerspoon.
 
 local dashboard = require("tilemo.dashboard")
 local mute = require("tilemo.mute")
+local picker = require("tilemo.picker")
 
 local M = {}
 
@@ -32,7 +34,7 @@ local function build()
 end
 
 -- `tilemo` is the started tilemo module: its wm, adapter, clock_dir,
--- clock_files and startup_files.
+-- clock_files, startup_files, clipboard_files and picker.
 function M.new(tilemo)
     local self = {}
     local page = build()
@@ -45,7 +47,19 @@ function M.new(tilemo)
             return
         end
         -- An empty list must reach the page as one, not as an object.
-        local json = hs.json.encode({ clockFiles = tilemo.clock_files, startupFiles = tilemo.startup_files, muted = "__muted__" })
+        local json = hs.json.encode({
+            clockFiles = tilemo.clock_files,
+            startupFiles = tilemo.startup_files,
+            clipboardFiles = tilemo.clipboard_files,
+            clipboardCount = tilemo.picker and #tilemo.picker.history.items or 0,
+            -- The settings in effect, which a file gone wrong since leaves
+            -- as they were: the page shows these, not the defaults, then.
+            clipboardSettings = tilemo.clipboard_settings and {
+                history = tilemo.clipboard_settings.history,
+                maxItems = tilemo.clipboard_settings.max_items,
+            } or nil,
+            muted = "__muted__",
+        })
         json = json:gsub('"__muted__"', function()
             return mute.encode_list(tilemo.wm.muted.list)
         end)
@@ -56,7 +70,7 @@ function M.new(tilemo)
         end)
     end
 
-    -- Scroll to section `id` ("clocks", "startup" or "muted").
+    -- Scroll to section `id` ("clocks", "startup", "clipboard" or "muted").
     local function reveal(id)
         if not (view and id) then
             return
@@ -89,6 +103,11 @@ function M.new(tilemo)
                 save(dashboard.LOCAL_FILE, body.write, "the clocks")
             elseif type(body.writeStartup) == "string" then
                 save(dashboard.STARTUP_LOCAL_FILE, body.writeStartup, "Start at login's commands")
+            elseif type(body.writeClipboard) == "string" then
+                save(dashboard.CLIPBOARD_LOCAL_FILE, body.writeClipboard, "the clipboard settings")
+            elseif body.clearClipboard and tilemo.picker then
+                picker.clear(tilemo.picker.history)
+                push()
             elseif type(body.unmute) == "string" then
                 -- The same as Cmd+M on a muted row; it refreshes this page.
                 if not mute.has(tilemo.wm.muted, body.unmute) or tilemo.toggle_mute(body.unmute) == nil then
@@ -103,6 +122,19 @@ function M.new(tilemo)
 
     -- The files changed: show them as they are now.
     self.refresh = push
+
+    -- The clipboard history changed: its count, alone, so a copy made while
+    -- you're editing another section doesn't redraw it.
+    function self.clipboard_changed()
+        if not (view and tilemo.picker) then
+            return
+        end
+        view:evaluateJavaScript("tilemo.count(" .. math.tointeger(#tilemo.picker.history.items) .. ")", function(_, err)
+            if err and next(err) then
+                tilemo.adapter.log("settings: " .. hs.inspect(err))
+            end
+        end)
+    end
 
     -- Open the window, or bring it forward, showing `section` if given.
     function self.show(section)

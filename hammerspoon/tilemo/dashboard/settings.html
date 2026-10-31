@@ -71,6 +71,11 @@ body.settings {
 .settings button:disabled {
   opacity: 0.4;
 }
+.settings .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .settings .add input {
   width: 18em;
 }
@@ -93,6 +98,19 @@ body.settings {
 </p>
 <p class="error" id="startup-error" role="alert"></p>
 <p class="note">tilemo runs these once a login, in order, as it starts, unless one's program is running already. Each is a program and its words, with no shell. A change takes effect at the next login.</p>
+<h1 id="clipboard">Clipboard</h1>
+<p class="source" id="clipboard-summary"></p>
+<p class="row">
+<button type="button" id="clipboard-history"></button>
+<span>Keeps</span>
+<button type="button" id="clipboard-fewer" aria-label="Keep fewer copies">−</button>
+<span id="clipboard-max"></span>
+<button type="button" id="clipboard-more" aria-label="Keep more copies">+</button>
+<span>copies</span>
+<button type="button" id="clipboard-clear">Clear history</button>
+</p>
+<p class="error" id="clipboard-error" role="alert"></p>
+<p class="note">The picker's history, on Super+C, shared with tide's clipboard.json. It's kept in memory, so it starts empty at each login. Turning it off keeps what's there until it's cleared.</p>
 <h1 id="muted">Muted</h1>
 <p class="note">Apps and sites that are never marked for attention. Mute one with Cmd+M, or a right-click, on its row in the switcher's Windows or Attention tab. macOS still shows their banners: turn those off in Notifications settings.</p>
 <ul id="muted-list"></ul>

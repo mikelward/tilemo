@@ -190,6 +190,59 @@ sandbox.tilemo.update({ clockFiles: [], startupFiles: { local: "{" } });
 assert.match(ids["startup-error"].textContent, /startup\.local\.json/);
 assert.strictEqual(addCommand.disabled, true);
 
+// Clipboard: tide's clipboard.json and clipboard.local.json, through
+// tide's own functions. No files: tide's defaults.
+const clip = (id) => sandbox.document.getElementById(id);
+const lastClipboard = () => JSON.parse(sent.filter((m) => m.writeClipboard).at(-1).writeClipboard);
+sandbox.tilemo.update({ clockFiles: [], startupFiles: [], clipboardFiles: [], clipboardCount: 3 });
+assert.strictEqual(clip("clipboard-summary").textContent, "Keeps the newest 200 copies. 3 copies kept now.");
+assert.strictEqual(clip("clipboard-history").textContent, "History on");
+assert.strictEqual(clip("clipboard-max").textContent, "200");
+assert.strictEqual(clip("clipboard-clear").disabled, false);
+clip("clipboard-more").listeners.click();
+assert.strictEqual(JSON.stringify(lastClipboard()), JSON.stringify({ maxItems: 500 }), "+ steps to the next mark");
+assert.strictEqual(clip("clipboard-max").textContent, "500", "shown at once");
+clip("clipboard-history").listeners.click();
+assert.strictEqual(JSON.stringify(lastClipboard()), JSON.stringify({ maxItems: 500, history: false }), "builds on the change before");
+assert.match(clip("clipboard-summary").textContent, /^Off: new copies aren't kept/);
+// A shared file's keys apply, and the local file overrides them one by one.
+sandbox.tilemo.update({ clockFiles: [], clipboardFiles: { shared: '{"maxItems": 25, "history": false}', local: '{"history": true}' }, clipboardCount: 0 });
+assert.strictEqual(clip("clipboard-max").textContent, "25");
+assert.strictEqual(clip("clipboard-history").textContent, "History on");
+assert.strictEqual(clip("clipboard-fewer").disabled, true, "25 is the lowest mark");
+assert.strictEqual(clip("clipboard-clear").disabled, true, "nothing to clear");
+clip("clipboard-fewer").listeners.click();
+// A file that's wrong is said, and nothing can change until it's fixed.
+sandbox.tilemo.update({ clockFiles: [], clipboardFiles: { local: '{"maxItems": 0}' }, clipboardCount: 1 });
+assert.match(clip("clipboard-error").textContent, /clipboard\.local\.json: maxItems must be a whole number/);
+assert.strictEqual(clip("clipboard-more").disabled, true);
+assert.strictEqual(clip("clipboard-history").disabled, true);
+assert.strictEqual(clip("clipboard-summary").textContent, "Keeps the newest 200 copies. 1 copy kept now.", "no settings from tilemo: the defaults");
+// tilemo keeps the last good settings in effect, and the page shows those,
+// opened after the error or not.
+sandbox.tilemo.update({ clockFiles: [], clipboardFiles: { local: "{" }, clipboardCount: 1, clipboardSettings: { history: false, maxItems: 25 } });
+assert.match(clip("clipboard-error").textContent, /clipboard\.local\.json/);
+assert.strictEqual(clip("clipboard-history").textContent, "History off");
+assert.strictEqual(clip("clipboard-max").textContent, "25");
+assert.match(clip("clipboard-summary").textContent, /^Off: new copies aren't kept/);
+sent.length = 0;
+clip("clipboard-clear").listeners.click();
+assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ clearClipboard: true }]));
+
+// A copy made while the window is open: tilemo sends the count alone, and
+// only the Clipboard section redraws, so a label being edited stays.
+sandbox.tilemo.update({ clockFiles: { local: '[{"zone": "Asia/Tokyo", "label": "TYO"}]' }, clipboardFiles: [], clipboardCount: 0 });
+assert.strictEqual(clip("clipboard-clear").disabled, true);
+const editing = rows()[0];
+editing.children[1].value = "Tok";
+sandbox.tilemo.count(2);
+assert.strictEqual(clip("clipboard-clear").disabled, false, "Clear is offered once there's something to clear");
+assert.match(clip("clipboard-summary").textContent, /2 copies kept now/);
+assert.strictEqual(rows()[0], editing, "the clocks aren't redrawn");
+assert.strictEqual(rows()[0].children[1].value, "Tok");
+sandbox.tilemo.count(0);
+assert.strictEqual(clip("clipboard-clear").disabled, true);
+
 // The launcher's rows scroll to their section.
 let revealed = null;
 sandbox.document.getElementById("startup").scrollIntoView = () => {

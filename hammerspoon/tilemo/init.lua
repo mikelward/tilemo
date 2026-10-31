@@ -27,6 +27,7 @@ local ffm_mod = require("tilemo.ffm")
 local dashboard_hs = require("tilemo.dashboard_hs")
 local launcher_hs = require("tilemo.launcher_hs")
 local picker_hs = require("tilemo.picker_hs")
+local picker = require("tilemo.picker")
 local settings_hs = require("tilemo.settings_hs")
 local dashboard = require("tilemo.dashboard")
 local shots = require("tilemo.shots")
@@ -347,6 +348,10 @@ function M.start(config)
         run_startup()
         self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
         self.startup_files = dashboard.startup_files(self.clock_dir, self.adapter.read)
+        -- Made after this watcher, with the picker.
+        if self.load_clipboard then
+            self.load_clipboard()
+        end
         if self.bar then
             self.bar.update()
         end
@@ -408,6 +413,27 @@ function M.start(config)
     self.wm.open_picker = function(tab)
         self.picker.show(tab)
     end
+    -- tide's Clipboard settings, from the same folder (SPEC.md §9.1, §15):
+    -- the history on or off, and how many it keeps. A file that's wrong is
+    -- said once, naming it, and the last good settings stay.
+    local reported_clipboard
+    local function load_clipboard()
+        local s, errors = picker.load_settings(self.clock_dir, self.adapter.read, self.adapter.decode, self.clipboard_settings)
+        self.clipboard_settings = s
+        picker.configure(self.picker.history, s)
+        local text = table.concat(errors, "; ")
+        if text ~= "" and text ~= reported_clipboard then
+            self.adapter.notify("The clipboard settings stay as they were: " .. text)
+        end
+        reported_clipboard = text
+        self.clipboard_files = dashboard.clipboard_files(self.clock_dir, self.adapter.read)
+    end
+    self.load_clipboard = load_clipboard
+    -- A copy kept or forgotten: the settings window's Clipboard count.
+    self.on_clipboard = function()
+        self.settings.clipboard_changed()
+    end
+    load_clipboard()
     -- Without Karabiner's tap rule, tilemo watches for a lone Super tap
     -- itself: the switcher, on its Workspaces tab (SPEC.md §7.2).
     self.tap = tap_mod.new(function()

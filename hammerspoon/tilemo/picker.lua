@@ -14,8 +14,18 @@ M.PLACEHOLDERS = {
     characters = "Characters: by name, as arrow, e acute, shrug (Tab: Clipboard)",
 }
 
--- The newest this many copies are kept, as tide keeps (SPEC.md §7.2).
+-- The newest this many copies are kept, as tide keeps (SPEC.md §7.2),
+-- unless tide's Clipboard settings say otherwise (below).
 M.MAX_ITEMS = 200
+
+-- tide's Clipboard settings (tide SPEC.md §16): clipboard.json and
+-- clipboard.local.json, in tide's settings folder, key by key, as tide's
+-- clipboard.mjs reads them. Their JSON keys are tide's; here they're
+-- history and max_items.
+M.SETTINGS_FILES = { "clipboard.json", "clipboard.local.json" }
+M.SETTINGS_LOCAL_FILE = "clipboard.local.json"
+M.DEFAULTS = { history = true, max_items = M.MAX_ITEMS }
+M.MAX_ITEMS_LIMIT = 10000
 -- At most this many character rows, so one letter doesn't fill the chooser
 -- with thousands.
 M.CHARACTER_LIMIT = 200
@@ -66,11 +76,83 @@ function M.history()
     return { items = {} }
 end
 
+-- Why `value` can't be tide's setting `key`, or nil, as clipboard.mjs's
+-- valueError says.
+local function value_error(key, value)
+    if key == "history" then
+        if type(value) ~= "boolean" then
+            return "history must be true or false"
+        end
+    elseif key == "maxItems" then
+        if type(value) ~= "number" or value ~= math.floor(value) or value < 1 or value > M.MAX_ITEMS_LIMIT then
+            return "maxItems must be a whole number from 1 to " .. M.MAX_ITEMS_LIMIT
+        end
+    else
+        return string.format("%q isn't a setting (history, maxItems)", tostring(key))
+    end
+end
+
+-- The settings in effect, { history, max_items }, and the errors to say:
+-- the defaults, then each file's keys. A file that's wrong keeps `last`
+-- (the defaults if none), as tide does, and an error names the file.
+-- `read(path)` gives a file's text or nil; `decode(text)` its value, or nil
+-- if it doesn't parse.
+function M.load_settings(dir, read, decode, last)
+    local s = { history = M.DEFAULTS.history, max_items = M.DEFAULTS.max_items }
+    local errors = {}
+    for _, name in ipairs(M.SETTINGS_FILES) do
+        local text = read(dir .. "/" .. name)
+        if text then
+            local ok, v = pcall(decode, text)
+            local why
+            if not ok or v == nil then
+                why = "doesn't parse"
+            elseif type(v) ~= "table" or not text:match("^%s*{") then
+                why = "expected an object of settings"
+            else
+                for k, value in pairs(v) do
+                    why = why or value_error(k, value)
+                end
+            end
+            if why then
+                errors[#errors + 1] = name .. ": " .. why
+            else
+                if v.history ~= nil then
+                    s.history = v.history
+                end
+                if v.maxItems ~= nil then
+                    s.max_items = math.tointeger(v.maxItems)
+                end
+            end
+        end
+    end
+    if #errors > 0 then
+        return last or { history = M.DEFAULTS.history, max_items = M.DEFAULTS.max_items }, errors
+    end
+    return s, errors
+end
+
+-- Applies settings `s` to `history`: while off, no new copy is kept; a
+-- smaller cap trims it at once. What's kept stays until it's cleared.
+function M.configure(history, s)
+    history.settings = s
+    while #history.items > (s.max_items or M.MAX_ITEMS) do
+        table.remove(history.items)
+    end
+end
+
+-- Forgets every copy, as tide's Clear history does.
+function M.clear(history)
+    history.items = {}
+end
+
 -- Adds `text` as the newest entry of `history`: a repeat moves to the top
--- rather than being kept twice, and the oldest go past MAX_ITEMS. Empty or
--- blank text, or text over MAX_BYTES, isn't kept. Returns whether it was.
+-- rather than being kept twice, and the oldest go past the cap. Empty or
+-- blank text, text over MAX_BYTES, or any while the history is off, isn't
+-- kept. Returns whether it was.
 function M.add(history, text)
-    if type(text) ~= "string" or not text:find("%S") or #text > M.MAX_BYTES then
+    local s = history.settings or M.DEFAULTS
+    if not s.history or type(text) ~= "string" or not text:find("%S") or #text > M.MAX_BYTES then
         return false
     end
     for i, item in ipairs(history.items) do
@@ -80,7 +162,7 @@ function M.add(history, text)
         end
     end
     table.insert(history.items, 1, text)
-    while #history.items > M.MAX_ITEMS do
+    while #history.items > (s.max_items or M.MAX_ITEMS) do
         table.remove(history.items)
     end
     return true
