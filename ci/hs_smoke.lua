@@ -412,6 +412,15 @@ if not ok then
     return
 end
 say("tilemo started")
+-- The runner has no Karabiner: tilemo doctor says so, and what it costs.
+do
+    local report = tilemo.doctor()
+    if not tostring(report):find("Karabiner isn't running", 1, true) then
+        fail("tilemo.doctor() says %s", tostring(report))
+    else
+        say("tilemo doctor: no Karabiner, as expected")
+    end
+end
 -- What a script reads for the workspace's name (SPEC.md §6.3), in a
 -- folder only you can read, and that tilemo leaves Hammerspoon's IPC port
 -- shut.

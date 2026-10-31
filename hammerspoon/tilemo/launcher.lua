@@ -378,6 +378,7 @@ M.COMMANDS = {
     { title = "Dark style", quick = "dark" },
     { title = "Focus follows mouse on or off", quick = "toggle_ffm" },
     { title = "Reload tilemo", quick = "reload" },
+    { title = "Check tilemo (doctor)", quick = "doctor" },
 }
 for n = 1, 9 do
     M.COMMANDS[#M.COMMANDS + 1] = { title = "Workspace " .. n, action = "show", arg = n }

@@ -202,6 +202,10 @@ function QUICK.dnd()
     -- "Toggle Do Not Disturb" is the usual stand-in (unverified on macOS 26).
     hs.task.new("/usr/bin/shortcuts", nil, { "run", "Toggle Do Not Disturb" }):start()
 end
+-- tilemo doctor's findings, in a notification (SPEC.md §15).
+function QUICK.doctor(tilemo)
+    tilemo.adapter.notify(tilemo.doctor())
+end
 function QUICK.reload()
     hs.reload()
 end

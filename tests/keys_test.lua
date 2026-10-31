@@ -213,4 +213,53 @@ t.test("Alt+Tab swaps with the master only with Karabiner, which makes it from p
     t.eq(find((keys.bindings(keys.OPTION))), nil, "not Ctrl+Tab, every app's next tab")
 end)
 
+-- An installed tilemo rule, as karabiner.json holds it: the Win key's
+-- manipulator, with what its lone tap sends, and Alt+Tab's if `alt_tab`.
+local function rule(tap, alt_tab)
+    local m = {
+        { from = { key_code = "left_command", modifiers = { optional = { "any" } } }, to = { { key_code = "left_command" } },
+            to_if_alone = { { key_code = tap, modifiers = { "left_option", "left_command", "left_control" } } } },
+        { from = { key_code = "a", modifiers = { mandatory = { "left_command" }, optional = { "shift" } } },
+            to = { { key_code = "a", modifiers = { "left_option", "left_command", "left_control" } } } },
+    }
+    if alt_tab then
+        m[#m + 1] = { from = { key_code = "tab", modifiers = { mandatory = { "left_option" } } },
+            to = { { key_code = "tab", modifiers = { "shift", "left_command", "left_option" } } } }
+    end
+    return { description = "tilemo: Win+key", manipulators = m }
+end
+
+t.test("an up-to-date tilemo rule has nothing missing", function()
+    local read = env({ [CONFIG] = profiles(profile(true, rule("f20", true))) }, {})
+    t.eq(keys.rule_gaps(read, HOME, decode), {})
+end)
+
+t.test("a rule enabled before conf's update is missing Alt+Tab and the Super tap, and says how to fix it", function()
+    local read = env({ [CONFIG] = profiles(profile(true, rule("spacebar", false))) }, {})
+    local gaps = keys.rule_gaps(read, HOME, decode)
+    t.eq(gaps, { "Alt+Tab (swap with the master)", "the lone Super tap (the workspace list)" })
+    local notice = keys.gaps_notice(gaps)
+    t.eq(notice:find("Alt+Tab (swap with the master) and the lone Super tap (the workspace list) don't work", 1, true) ~= nil, true, notice)
+    t.eq(notice:find('remove the "tilemo:" rule under Complex Modifications and add it again', 1, true) ~= nil, true, notice)
+    read = env({ [CONFIG] = profiles(profile(true, rule("f20", false))) }, {})
+    gaps = keys.rule_gaps(read, HOME, decode)
+    t.eq(gaps, { "Alt+Tab (swap with the master)" })
+    t.eq(keys.gaps_notice(gaps):find("doesn't work", 1, true) ~= nil, true)
+end)
+
+t.test("no rule, or no config, has no gaps to report: the fallback notice covers it", function()
+    t.eq(keys.rule_gaps(env({}, {}), HOME, decode), {})
+    t.eq(keys.rule_gaps(env({ [CONFIG] = profiles(profile(true)) }, {}), HOME, decode), {})
+    -- Only the selected profile's rule counts.
+    local read = env({ [CONFIG] = profiles(profile(false, rule("f20", true)), profile(true, rule("spacebar", false))) }, {})
+    t.eq(#keys.rule_gaps(read, HOME, decode), 2)
+end)
+
+t.test("Alt+Tab's manipulator must send what tilemo binds", function()
+    local r = rule("f20", true)
+    r.manipulators[3].to[1].modifiers = { "left_control" } -- the old Cmd+Tab
+    local read = env({ [CONFIG] = profiles(profile(true, r)) }, {})
+    t.eq(keys.rule_gaps(read, HOME, decode), { "Alt+Tab (swap with the master)" })
+end)
+
 t.done("keys")

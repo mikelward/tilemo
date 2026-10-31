@@ -1493,7 +1493,14 @@ Each one names a workaround, or says there is none.
   - another tiler running: Amethyst, Rectangle, yabai, AeroSpace;
   - a symbolichotkey holding one of tilemo's keys (§7.3), and any key that
     failed to register;
-  - Karabiner's rules loaded, the Alt+Tab rule included (§7.2);
+  - Karabiner's rules loaded, and tilemo's rule up to date: Karabiner
+    runs the copy it made when the rule was enabled, so a copy from before
+    conf added Alt+Tab (Ctrl+Option+Shift+Tab) and the tap's Super+F20
+    leaves those two dead. tilemo reads the copy in `karabiner.json`, and a
+    notification names what's missing and says to remove and re-add the
+    rule, once each time that changes, rechecked every 30 s (§7.1, §7.2).
+    **Built so far:** this check and Karabiner's, as `tilemo.doctor()` in
+    Hammerspoon's console and the switcher's "Check tilemo (doctor)";
   - the workspace file written and private, for scripts that read the
     workspace's name, and kitty's remote control on, for `TIDE_WORKSPACE`
     in new kitty windows (§6.3);
