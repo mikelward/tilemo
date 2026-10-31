@@ -620,6 +620,25 @@ function M.new()
         hs.notify.new({ title = "tilemo", informativeText = text }):send()
     end
 
+    -- This login, as when this user's loginwindow started, which a new
+    -- login restarts and a Hammerspoon reload doesn't; nil, having logged
+    -- why, when it can't be told.
+    function a.login()
+        local out, ok = hs.execute('/bin/ps -o lstart= -p "$(/usr/bin/pgrep -u "$(/usr/bin/id -u)" -x loginwindow | /usr/bin/head -n 1)"')
+        local started = ok and (out or ""):match("^%s*(.-)%s*$") or ""
+        if started == "" then
+            a.log("couldn't tell this login from the last: " .. tostring(out))
+            return nil
+        end
+        return started
+    end
+
+    -- This user's id, for pgrep.
+    function a.uid()
+        local out = hs.execute("/usr/bin/id -u")
+        return (out or ""):match("%d+")
+    end
+
     function a.now()
         return hs.timer.secondsSinceEpoch()
     end
