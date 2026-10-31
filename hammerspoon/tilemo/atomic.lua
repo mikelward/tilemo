@@ -7,8 +7,10 @@ local M = {}
 
 local REAL = { open = io.open, rename = os.rename, remove = os.remove }
 
--- Writes `text` to `path`: true, or nil and why not.
-function M.write(path, text, fs)
+-- Writes `text` to `path`: true, or nil and why not. With `mode` (as
+-- chmod takes it, "600"), the file has that mode before it takes the
+-- path's place, so it's never readable more widely; `fs.chmod` sets it.
+function M.write(path, text, fs, mode)
     fs = fs or REAL
     local tmp = path .. ".tmp"
     local f, err = fs.open(tmp, "w")
@@ -21,6 +23,13 @@ function M.write(path, text, fs)
     if not wrote or not closed then
         fs.remove(tmp)
         return nil, werr or cerr
+    end
+    if mode then
+        local ok, merr = fs.chmod(tmp, mode)
+        if not ok then
+            fs.remove(tmp)
+            return nil, merr
+        end
     end
     local renamed, rerr = fs.rename(tmp, path)
     if not renamed then

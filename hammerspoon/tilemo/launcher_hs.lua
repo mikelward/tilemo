@@ -215,12 +215,17 @@ function M.new(tilemo)
             -- forward with its workspace, as its app key would.
             local info = hs.application.infoForBundlePath(item.path)
             local bundle = info and info.CFBundleIdentifier
+            -- One of "in"'s apps launches from "in" without asking for a
+            -- workspace (SPEC.md §6.2).
+            local home_app = tilemo.wm.home_apps[item.title] or false
             if bundle then
-                tilemo.wm.actions.app(tilemo.wm, { bundle = bundle }, fresh)
+                tilemo.wm.actions.app(tilemo.wm, { bundle = bundle, name = item.title, home_app = home_app }, fresh)
             else
-                -- No bundle ID to say which app's window is the launch's.
-                tilemo.wm:grant(nil)
-                hs.application.launchOrFocus(item.path)
+                tilemo.wm:before_launch({ fresh = fresh, home_app = home_app, default = item.title }, function(env)
+                    -- No bundle ID to say which app's window is the launch's.
+                    tilemo.wm:grant(nil)
+                    tilemo.adapter.open_app(item.path, env)
+                end)
             end
         elseif item.kind == "setting" then
             -- System Settings, at the pane; its window may take focus.
@@ -272,7 +277,7 @@ function M.new(tilemo)
         end
         local item = by_id[choice.id]
         if item then
-            -- Cmd+Return runs it on the first empty workspace.
+            -- Cmd+Return asks for a workspace and runs it there.
             run(item, fresh)
         end
     end)

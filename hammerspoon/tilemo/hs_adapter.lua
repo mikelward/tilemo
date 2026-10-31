@@ -339,35 +339,101 @@ function M.new()
         return false
     end
 
-    -- Start an app key's app: by bundle ID, or one of tide's helpers
-    -- through runenv, which gives it the login environment (tide §17,
-    -- "PATH missing in keybinds"). `fresh` asks a running app for a new
-    -- window with Cmd+N, the near-universal shortcut, since opening it
-    -- again would only bring its old windows forward. A helper that fails
-    -- says so, with the first line of what it printed, rather than leaving
-    -- the key doing nothing.
-    function a.launch(spec, fresh)
-        local running = spec.bundle and hs.application.get(spec.bundle)
-        if fresh and running then
+    -- `env` as `NAME=value` words, sorted so they come out the same each
+    -- time.
+    local function env_words(env)
+        local out = {}
+        for k, v in pairs(env or {}) do
+            out[#out + 1] = k .. "=" .. v
+        end
+        table.sort(out)
+        return out
+    end
+
+    -- kitty's remote control socket, if conf's kitty.conf turned it on:
+    -- `listen_on unix:/tmp/kitty`, which kitty may suffix with its pid
+    -- *(unverified which, so both are tried)*.
+    local KITTEN = "/Applications/kitty.app/Contents/MacOS/kitten"
+    local function kitty_socket(app)
+        local pid = app and app:pid()
+        for _, path in ipairs({ pid and ("/tmp/kitty-" .. pid), "/tmp/kitty" }) do
+            local attr = path and hs.fs.attributes(path)
+            if attr and attr.mode == "socket" then
+                return "unix:" .. path
+            end
+        end
+    end
+
+    -- A new window of a running app. kitty is asked for an OS window through
+    -- its remote control, so the shell in it gets `env` (SPEC.md §6.3);
+    -- with no socket, or if that fails, and for every other app, Cmd+N,
+    -- whose window gets the environment the app started with.
+    local function new_window(spec, running, env)
+        local function cmd_n()
             if running:activate() then
                 hs.eventtap.keyStroke({ "cmd" }, "n", 0, running)
             else
                 a.notify("Couldn't open a new window of " .. spec.bundle)
             end
+        end
+        local socket = spec.bundle == "net.kovidgoyal.kitty" and next(env or {}) and kitty_socket(running)
+        if not socket then
+            cmd_n()
+            return
+        end
+        local args = { "@", "--to", socket, "launch", "--type=os-window" }
+        for _, word in ipairs(env_words(env)) do
+            args[#args + 1] = "--env"
+            args[#args + 1] = word
+        end
+        if not run(KITTEN, args, function(code, err)
+            if code ~= 0 then
+                a.log("kitten @ launch exited " .. code .. ": " .. (err or "") .. "; using Cmd+N")
+                cmd_n()
+            end
+        end) then
+            a.log("couldn't run " .. KITTEN .. "; using Cmd+N")
+            cmd_n()
+        end
+    end
+
+    -- Start an app key's app: by bundle ID, or one of tide's helpers
+    -- through runenv, which gives it the login environment (tide §17,
+    -- "PATH missing in keybinds"). `fresh` asks a running app for a new
+    -- window, since opening it again would only bring its old windows
+    -- forward. `env` (TIDE_WORKSPACE, SPEC.md §6.3) goes to a helper
+    -- through env(1), and to an app through `open --env`, which reaches a
+    -- new process only *(unverified on macOS 26)*. A launch that fails says
+    -- so, with the first line of what it printed, rather than leaving the
+    -- key doing nothing.
+    function a.launch(spec, fresh, env)
+        local running = spec.bundle and hs.application.get(spec.bundle)
+        if fresh and running then
+            new_window(spec, running, env)
             return
         end
         if spec.bundle then
-            if not hs.application.launchOrFocusByBundleID(spec.bundle) then
+            local args = { "-b", spec.bundle }
+            for _, word in ipairs(env_words(env)) do
+                args[#args + 1] = "--env"
+                args[#args + 1] = word
+            end
+            if not run("/usr/bin/open", args, function(code, err)
+                if code ~= 0 then
+                    a.notify("Couldn't open " .. spec.bundle .. ((err or ""):match("[^\n]+") and ": " .. err:match("[^\n]+") or ""))
+                end
+            end) then
                 a.notify("Couldn't open " .. spec.bundle)
             end
             return
         end
-        local args = {}
+        local args = env_words(env)
+        local runenv = (os.getenv("HOME") or "") .. "/scripts/runenv"
+        args[#args + 1] = runenv
         for word in spec.run:gmatch("%S+") do
             args[#args + 1] = word
         end
-        local runenv = (os.getenv("HOME") or "") .. "/scripts/runenv"
-        local started = run(runenv, args, function(code, err)
+        local started = run("/usr/bin/env", args, function(code, err)
             if code ~= 0 then
                 a.log(spec.run .. " exited " .. code .. ": " .. (err or ""))
                 local why = (err or ""):match("[^\n]+")
@@ -377,6 +443,38 @@ function M.new()
         if not started then
             a.notify("Couldn't run " .. spec.run .. " with " .. runenv)
         end
+    end
+
+    -- An app found by path, with no bundle ID, from the switcher, with
+    -- `env` as a.launch gives it.
+    function a.open_app(path, env)
+        local args = { "-a", path }
+        for _, word in ipairs(env_words(env)) do
+            args[#args + 1] = "--env"
+            args[#args + 1] = word
+        end
+        if not run("/usr/bin/open", args, function(code, err)
+            if code ~= 0 then
+                a.notify("Couldn't open " .. path .. ": " .. ((err or ""):match("[^\n]+") or ("exit " .. code)))
+            end
+        end) then
+            a.notify("Couldn't open " .. path)
+        end
+    end
+
+    -- An app's name, from its bundle ID, for the name prompt's default.
+    function a.app_name(bundle)
+        return hs.application.nameForBundleID(bundle)
+    end
+
+    -- Run JavaScript in JavaScriptCore, for the name patterns (SPEC.md
+    -- §6.2). Returns ok, and the result or what went wrong.
+    function a.javascript(source)
+        local ok, result, err = hs.osascript.javascript(source)
+        if ok then
+            return true, result
+        end
+        return false, type(err) == "table" and (err.OSAScriptErrorMessageKey or err.NSLocalizedDescription or hs.inspect(err)) or tostring(err)
     end
 
     function a.close(id)
@@ -566,6 +664,32 @@ end
 
 -- A watcher on folder `dir`, calling `on_change()` when anything in it
 -- changes. A folder that isn't there yet is made, so it can be watched.
+-- What current.lua writes the workspace's name with: atomic.lua's io and
+-- os, plus making a folder and setting a mode. Lua has no chmod, so that's
+-- /bin/chmod, run only when the workspace changes.
+local function shell_quote(s)
+    return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+
+M.current_fs = {
+    open = io.open,
+    rename = os.rename,
+    remove = os.remove,
+    mkdir = function(path)
+        if hs.fs.attributes(path, "mode") == "directory" then
+            return true
+        end
+        return hs.fs.mkdir(path)
+    end,
+    chmod = function(path, mode)
+        local ok, how, code = os.execute("/bin/chmod " .. mode .. " " .. shell_quote(path))
+        if ok then
+            return true
+        end
+        return nil, "chmod " .. mode .. " " .. path .. ": " .. tostring(how) .. " " .. tostring(code)
+    end,
+}
+
 function M.watch_folder(dir, on_change)
     if not hs.fs.attributes(dir) then
         hs.execute("/bin/mkdir -p '" .. dir:gsub("'", "'\\''") .. "'")

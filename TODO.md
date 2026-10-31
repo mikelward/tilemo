@@ -29,9 +29,9 @@ SPEC.md now has named workspaces in place of the nine numbered ones, and
 one switcher with tabs (SPEC.md §6, §7.2, §9, §14.2), as tide's does.
 **Built:** workspaces by name, the standing workspaces (`workspaces`, the
 first being home, "in" by default) and home's apps (`home_apps`),
-`Super+Home`, the saved
-state, and names on the bar, the menu bar item, the dashboard and the switch
-sign. The rest:
+`Super+Home`, the saved state, names on the bar, the menu bar item, the
+dashboard and the switch sign, the name prompt, `TIDE_WORKSPACE`, and a
+launch's window going to the workspace it was launched for. The rest:
 
 - **To decide: keep `Super+1…9` and `Super+Shift+1…9`?** The user leans
   toward dropping them, now that the switcher and `Super+Return` cover
@@ -44,23 +44,16 @@ sign. The rest:
   more design (SPEC.md §19, question 12). Until then each display shows
   one workspace, as before, and a second display gets one named by its
   number (below).
-- **Pulled back to the workspace you launched from:** a launch's window
-  that opens after you've moved on goes to the workspace you launched it
-  from, marked (SPEC.md §6.1, §14.1). Not built yet: it opens where you are.
-- **The name prompt:** an `hs.chooser` for a window opening on "in", with
-  the default from tide's title patterns, run through
-  `hs.osascript.javascript` and checked at load. Esc closes the window,
-  or cancels a launch tilemo was about to make (SPEC.md §6.2).
 - **`Super+Return`** moves the window to a workspace by name; **Alt+Tab**
   swaps with the master; **`Super+A`** lists attention; **`Super+Tab`** and
   the Super tap open the workspace list (SPEC.md §7.2).
 - **conf:** Karabiner's Alt+Tab rule sends tilemo's combination instead of
-  Cmd+Tab; `kitty.conf` allows remote control on a socket; the shell asks
-  `hs -c 'tilemo.workspace()'` on a Mac when `TIDE_WORKSPACE` is missing
-  (SPEC.md §6.3, §17).
-- **`TIDE_WORKSPACE`** in `hs.task`'s environment, `open --env` and
-  `kitten @ launch --env`, and `tilemo.workspace()` over `hs.ipc`
-  (SPEC.md §6.3). Check `open --env` on macOS 26.
+  Cmd+Tab; `kitty.conf` allows remote control on a socket; the shell reads
+  `~/Library/Caches/tilemo/workspace` on a Mac when `TIDE_WORKSPACE` is
+  missing (SPEC.md §6.3, §17).
+- **Check on a Mac:** `open --env` on macOS 26, kitty's socket path, and
+  how slow a pattern run through `hs.osascript.javascript` is (SPEC.md
+  §6.2, §6.3).
 - **The switcher's tabs:** Launch, Workspaces, Windows (with Chrome's and
   Safari's tabs, in place of the Tabs scope) and Attention, each key
   opening its own (SPEC.md §9).
@@ -81,9 +74,40 @@ sign. The rest:
   SPEC.md doesn't say what a display shows before anything is named for
   it; tide leaves it open too (tide §21). Its workspace goes once left
   empty, like any other. Reversible: `wm.map_screens`.
-- **Cmd+Return opens a new window where you are** until the name prompt is
-  built, since there's no empty workspace to use any more (SPEC.md §9).
-  Reversible: `wm.actions.app`.
+- **The name prompt's default isn't selected:** `hs.chooser` has no way to
+  select its text, so typing adds to the default rather than replacing it
+  *(unverified)*; Cmd+A or Backspace clears it. Reversible: a webview
+  prompt, or a keystroke to select all once it opens.
+- **A name pattern with no capture group is an error at load,** as tide's
+  spec says for the same shared file, since it can't give a name. The
+  patterns are tide's `workspaces.json` `namePatterns`, with
+  `workspaces.local.json` taking their place when it sets them; that's the
+  name on tide's spec branch, not merged there yet. A bad list is said
+  in a notification and the last good one stays, rather than stopping
+  tilemo. Reversible: `names.lua`.
+- **The home workspace's name typed at the name prompt is refused** with a notice, and the
+  window asks again; for a launch, nothing opens. Reversible:
+  `wm.answer` and `wm.before_launch`.
+- **`TIDE_WORKSPACE` reaches a helper through `env(1)`** in front of
+  `runenv`, not `hs.task`'s `setEnvironment`, which would replace the whole
+  environment rather than add to it. Apps by bundle ID start through
+  `open -b … --env`, not `hs.application.launchOrFocusByBundleID`, which
+  can't pass one. kitty's remote control is tried at `/tmp/kitty-<pid>`
+  then `/tmp/kitty` *(unverified which kitty uses)*, falling back to Cmd+N.
+  Reversible: `hs_adapter.lua`'s `launch`.
+- **Scripts read the workspace from `~/Library/Caches/tilemo/workspace`,**
+  not `hs -c`, since `hs.ipc`'s port runs any Lua a local process sends,
+  with tilemo's Accessibility grant. Lua has no chmod, so each write runs
+  `/bin/chmod` three times; that's only when the workspace changes. Reversible:
+  `current.lua`.
+- **A launch's window is matched by its app's bundle ID,** or, for a
+  helper with none, as the next new window of any app, within the launch's
+  10 s grant, once. A window from elsewhere opening in that time could be
+  taken for it. Reversible: `wm.launch_to`.
+- **Launches from home that ask:** apps from the switcher, app keys and
+  Cmd+Return. Settings panes, commands and tabs don't. Calendar, Chat and
+  YouTube Music's keys are marked as home's apps. Reversible: `keys.APPS`
+  and `launcher_hs.lua`'s `run`.
 - **The dashboard no longer shows a workspace on a digit key,** since
   workspaces have names. Reversible: `dashboard.js`'s keydown.
 - **Names are compared with a built-in case folding** for Latin (Latin-1

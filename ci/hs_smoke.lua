@@ -402,7 +402,9 @@ end
 -- Start tilemo as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
     tilemo = require("tilemo")
-    tilemo.start({})
+    -- TextEdit is one of "in"'s apps here, so its windows tile on "in"
+    -- rather than wait on the name prompt, which nothing answers in CI.
+    tilemo.start({ home_apps = { "TextEdit" } })
 end, debug.traceback)
 if not ok then
     fail("tilemo.start: %s", err)
@@ -410,6 +412,47 @@ if not ok then
     return
 end
 say("tilemo started")
+-- What a script reads for the workspace's name (SPEC.md §6.3), in a
+-- folder only you can read, and that tilemo leaves Hammerspoon's IPC port
+-- shut.
+do
+    local dir = os.getenv("HOME") .. "/Library/Caches/tilemo"
+    local f = io.open(dir .. "/workspace")
+    local text = f and f:read("a")
+    if f then
+        f:close()
+    end
+    if text ~= "in\n" then
+        fail("workspace file holds %q, not in", tostring(text))
+    end
+    local perms = hs.fs.attributes(dir, "permissions")
+    if perms ~= "rwx------" then
+        fail("workspace folder is %s, not rwx------", tostring(perms))
+    end
+    perms = hs.fs.attributes(dir .. "/workspace", "permissions")
+    if perms ~= "rw-------" then
+        fail("workspace file is %s, not rw-------", tostring(perms))
+    end
+    if package.loaded["hs.ipc"] then
+        fail("hs.ipc is loaded")
+    end
+    say("workspace file: in, private")
+end
+-- The name patterns' JavaScript runs in JavaScriptCore (SPEC.md §6.2).
+do
+    local names = require("tilemo.names")
+    local got = names.default_name("ABC-123: Fix login - Tracker", "Chrome", { "\\b([A-Z]+-[0-9]+)\\b" },
+        tilemo.adapter.javascript, tilemo.adapter.log)
+    if got ~= "ABC-123" then
+        fail("name patterns: got %s, not ABC-123", tostring(got))
+    end
+    local bad = names.check_script({ "(", "no group" })
+    local okjs, result = tilemo.adapter.javascript(bad)
+    if not okjs or not tostring(result):find("namePatterns[1]", 1, true) or not tostring(result):find("namePatterns[2]", 1, true) then
+        fail("name patterns: the check said %s", tostring(result))
+    end
+    say("name patterns run in JavaScriptCore")
+end
 
 -- An init.lua from before the rename still gets tilemo, through the shim
 -- make install puts in ~/.hammerspoon/timo.
