@@ -129,6 +129,11 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **A default name's first word loses `.` `,` `:` `;` `!` `?` `|` `…` and
+  dashes from its end, a word with no letter or digit is passed over, and a
+  title with no such word gives the app's name,** matching tide's list.
+  The alternatives are a shorter list (only `:` `,` `|`), or an empty
+  default as tide gives. Reversible: `names.fallback`.
 - **Presenter mode turns Do Not Disturb off when it ends,** even if it
   was on before, since tilemo can't read a Focus. Keep awake goes back as
   it was. A third shortcut using "Get Current Focus" could read it, at
