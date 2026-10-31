@@ -17,9 +17,11 @@ M.map = {
     { key = "k", action = "focus", arg = -1 },
     { key = "j", shift = true, action = "move", arg = 1 },
     { key = "k", shift = true, action = "move", arg = -1 },
-    -- Super+Return moves the window to a workspace by name; Alt+Tab swaps
-    -- with the master (M.karabiner_only, SPEC.md §7.2).
-    { key = "return", action = "move_to" },
+    -- Super+Return goes to a workspace by name, Super+Shift+Return moves
+    -- the window to one; Alt+Tab swaps with the master (M.karabiner_only,
+    -- SPEC.md §7.2).
+    { key = "return", action = "go_to" },
+    { key = "return", shift = true, action = "move_to" },
     { key = "\\", action = "mfact", arg = 1, repeating = true },
     { key = "/", action = "mfact", arg = -1, repeating = true },
     { key = "=", action = "nmaster", arg = 1 },

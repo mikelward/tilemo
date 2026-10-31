@@ -1105,7 +1105,7 @@ t.test("Super+End and Super+Tab pass over a workspace that's gone", function()
     t.eq(wm.screen_ws.A, "web")
 end)
 
-t.test("Super+Return asks for a workspace and sends the window there, focus staying", function()
+t.test("Super+Shift+Return asks for a workspace and sends the window there, focus staying", function()
     local a, wm = setup(2)
     local asked
     wm.ask_move = function(done)
@@ -1135,7 +1135,7 @@ t.test("Super+Return asks for a workspace and sends the window there, focus stay
     t.eq(#a.notes, 1)
 end)
 
-t.test("Super+Return refuses a name with what a name can't hold, and asks again", function()
+t.test("Super+Shift+Return refuses a name with what a name can't hold, and asks again", function()
     local a, wm = setup(2)
     local asks = {}
     wm.ask_move = function(done)
@@ -1150,6 +1150,101 @@ t.test("Super+Return refuses a name with what a name can't hold, and asks again"
     t.eq(wm.holding_keyboard, true)
     asks[2]("web")
     t.eq(wm.windows[2].ws, "web")
+    t.eq(wm.holding_keyboard, false)
+end)
+
+t.test("Super+Shift+Return with no window focused asks nothing, and logs why", function()
+    local a, wm = setup(0)
+    local asked, logged = 0, {}
+    wm.ask_move = function()
+        asked = asked + 1
+    end
+    function a.log(msg)
+        logged[#logged + 1] = msg
+    end
+    a.focus_ = nil
+    wm:act("move_to")
+    t.eq(asked, 0)
+    t.eq(#logged, 1)
+    t.eq(logged[1]:find("no window", 1, true) ~= nil, true, logged[1])
+end)
+
+t.test("Super+Return goes to a workspace by name, moving no window", function()
+    local a, wm = setup(2, nil, { workspaces = { "in" } })
+    local asked
+    wm.ask_go = function(done)
+        asked = done
+    end
+    a.focus_ = 2
+    wm:act("send", "web")
+    a.focus_ = 1
+    wm:act("go_to")
+    t.eq(wm.holding_keyboard, true)
+    asked("WEB")
+    t.eq(wm.screen_ws.A, "web", "an existing name, ignoring case")
+    t.eq(wm.windows[1].ws, "in", "nothing moved")
+    t.eq(wm.windows[2].ws, "web")
+    t.eq(a.focus_, 2, "its last used window")
+    t.eq(wm.holding_keyboard, false)
+    -- Home is offered: nothing moves there.
+    wm:act("go_to")
+    asked("in")
+    t.eq(wm.screen_ws.A, "in")
+    -- Esc stays where you are.
+    wm:act("go_to")
+    asked(nil)
+    t.eq(wm.screen_ws.A, "in")
+    t.eq(wm.holding_keyboard, false)
+    t.eq(#a.notes, 0)
+end)
+
+t.test("Super+Return works on an empty workspace, and a new name makes an empty one that goes once left", function()
+    local a, wm = setup(0, nil, { workspaces = { "in" } })
+    local asked
+    wm.ask_go = function(done)
+        asked = done
+    end
+    a.focus_ = nil
+    wm:act("go_to")
+    t.eq(asked ~= nil, true, "asked with no window focused")
+    asked("notes")
+    t.eq(wm.screen_ws.A, "notes")
+    t.eq(wm:find("notes"), "notes", "made")
+    wm:act("go_to")
+    asked("in")
+    t.eq(wm.screen_ws.A, "in")
+    t.eq(wm:find("notes"), nil, "empty, and left: gone")
+end)
+
+t.test("Super+Return pressed again while its prompt is open asks nothing more", function()
+    local a, wm = setup(1)
+    local asks = {}
+    wm.ask_go = function(done)
+        asks[#asks + 1] = done
+    end
+    wm:act("go_to")
+    wm:act("go_to")
+    t.eq(#asks, 1)
+    asks[1](nil)
+    t.eq(#asks, 1, "nothing waiting behind it")
+    t.eq(wm.holding_keyboard, false)
+    wm:act("go_to")
+    t.eq(#asks, 2, "asks again once answered")
+end)
+
+t.test("Super+Return refuses a name with what a name can't hold, and asks again", function()
+    local a, wm = setup(1)
+    local asks = {}
+    wm.ask_go = function(done)
+        asks[#asks + 1] = done
+    end
+    wm:act("go_to")
+    asks[1]('it\'s "web"')
+    t.eq(wm.screen_ws.A, "in")
+    t.eq(a.notes, { "A workspace's name can't have quotes, backslashes or control characters" })
+    t.eq(#asks, 2, "asked again")
+    asks[2]("web")
+    t.eq(wm.screen_ws.A, "web")
     t.eq(wm.holding_keyboard, false)
 end)
 

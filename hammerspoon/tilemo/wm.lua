@@ -1559,7 +1559,8 @@ end
 
 -- Every question for the prompt waits its turn in `asking`, oldest first:
 -- { window = id } for a window opening on home, { launch = opts, go = fn }
--- for a launch. There's one prompt, so asking a second question while one
+-- for a launch, { move = id } for Super+Shift+Return, { go_to = true } for
+-- Super+Return. There's one prompt, so asking a second question while one
 -- is open would replace it, and the replaced one would read as Esc,
 -- closing a window or canceling a launch.
 
@@ -1578,6 +1579,15 @@ function M:ask_next()
                 self.prompting = q
                 self:hold("prompt", true)
                 self.ask_name(q.window)
+                return
+            end
+        elseif q.go_to then
+            if self.ask_go then
+                self.prompting = q
+                self:hold("prompt", true)
+                self.ask_go(function(name)
+                    self:go_answer(q, name)
+                end)
                 return
             end
         elseif q.move then
@@ -1687,8 +1697,24 @@ function M:launch_answer(q, name)
     self:ask_next()
 end
 
--- The prompt's answer for Super+Return's question `q`: a name sends the
--- window there, as A.send does; nil (Esc) leaves it.
+-- The prompt's answer for Super+Return's question `q`: a name shows that
+-- workspace, making it if it's new, moving no window; nil (Esc) stays.
+-- Home is a name like any other here, since nothing moves there. A new
+-- one left empty goes once you leave it, as any empty workspace does.
+function M:go_answer(q, name)
+    if self.prompting ~= q or self:refuse_unsafe(q, name) then
+        return
+    end
+    self:asked_done(q)
+    local n = name and self:canonical(name)
+    if n then
+        self:show(n, nil, true)
+    end
+    self:ask_next()
+end
+
+-- The prompt's answer for Super+Shift+Return's question `q`: a name sends
+-- the window there, as A.send does; nil (Esc) leaves it.
 function M:move_answer(q, name)
     if self.prompting ~= q or self:refuse_unsafe(q, name) then
         return
@@ -2491,13 +2517,37 @@ function A.last(self)
     end
 end
 
--- Super+Return (SPEC.md §7.2): move the focused window to a workspace by
--- name, with the prompt listing them all. This is Send: focus stays put.
--- Esc leaves the window where it is.
+-- Super+Return (SPEC.md §7.2): go to a workspace by name, with the prompt
+-- listing them all. It needs no window, so it works on an empty workspace.
+-- A second press while it's asked, or waiting to be, asks nothing more.
+function A.go_to(self)
+    if not self.ask_go then
+        return
+    end
+    if self.prompting and self.prompting.go_to then
+        return
+    end
+    for _, q in ipairs(self.asking) do
+        if q.go_to then
+            return
+        end
+    end
+    self.asking[#self.asking + 1] = { go_to = true }
+    self:ask_next()
+end
+
+-- Super+Shift+Return (SPEC.md §7.2): move the focused window to a
+-- workspace by name, with the prompt listing them all. This is Send: focus
+-- stays put. Esc leaves the window where it is. With no window there's
+-- nothing to move, so it does nothing, and the log says why.
 function A.move_to(self)
     local id = self.a.focused()
     local w = self.windows[id or false]
-    if not w or not w.ws or not self.ask_move then
+    if not w or not w.ws then
+        self.a.log("Super+Shift+Return: no window focused, so no window to move")
+        return
+    end
+    if not self.ask_move then
         return
     end
     self.asking[#self.asking + 1] = { move = id }
