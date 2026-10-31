@@ -785,15 +785,22 @@ the home workspace, the first standing one (§6.1), which is "in" unless
   - Dialogs and other windows that follow a parent (§5.1), and
     picture-in-picture (§5.5), don't ask: they go where their parent is.
   - The prompt is an `hs.chooser` listing the existing names, with a
-    default name typed in and selected. Typing replaces it or filters the
-    list.
+    default name typed in and selected, as tide's is (tide §6.5). Typing
+    replaces it or filters the list. Left, Right, Home and End keep it and
+    move the cursor; `Up` and `Down` pick a row.
+    - `hs.chooser` has no call to select its text. Its `show()` makes the
+      text field first responder, which in AppKit selects the field's
+      text, so tilemo shows it again whenever it changes the default.
+    - A Mac text field's Home and End only scroll, so while the prompt is
+      open Home and End are hotkeys sending `Cmd+Left` and `Cmd+Right`.
   - **Enter** makes the workspace, or uses the existing one of that name,
     moves the window there, and shows it. Focus follows.
   - **Esc closes the window,** politely, as the close-window key does
     (§7.2): Accessibility presses its close button, so the app can still
     ask to save.
   - A window's title often arrives after the window. The default follows
-    the title until you type *(a guess, to confirm)*.
+    the title until you type, or press Home or End *(a guess, to
+    confirm)*.
   - Focus follows mouse pauses while it's open (§5.2), and the window
     stays put until you answer.
 - **tilemo's own launches from "in" ask before launching:** the switcher's

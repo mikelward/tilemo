@@ -257,10 +257,6 @@ tests and the bar page's test cover it. **Check on a Mac:**
   SPEC.md doesn't say what a display shows before anything is named for
   it; tide leaves it open too (tide §21). Its workspace goes once left
   empty, like any other. Reversible: `wm.map_screens`.
-- **The name prompt's default isn't selected:** `hs.chooser` has no way to
-  select its text, so typing adds to the default rather than replacing it
-  *(unverified)*; Cmd+A or Backspace clears it. Reversible: a webview
-  prompt, or a keystroke to select all once it opens.
 - **A name pattern with no capture group is an error at load,** as tide's
   spec says for the same shared file, since it can't give a name. The
   patterns are tide's `workspaces.json` `namePatterns`, with

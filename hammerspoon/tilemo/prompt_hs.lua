@@ -1,8 +1,9 @@
 -- The name prompt (SPEC.md §6.2, §7.2): an hs.chooser listing the existing
--- workspaces, with a default name typed in. Typing filters the list or
--- gives a new name; Enter answers with the row picked, or with what's
--- typed; Esc answers nil. Not runnable outside Hammerspoon; what it
--- decides is wm.lua's and names.lua's.
+-- workspaces, with a default name typed in and selected. Typing replaces
+-- it, filtering the list or giving a new name; Enter answers with the row
+-- picked, or with what's typed; Esc answers nil. What it decides is
+-- wm.lua's and names.lua's; tests/prompt_hs_test.lua runs it against a
+-- stand-in hs.chooser.
 
 local names = require("tilemo.names")
 
@@ -15,6 +16,8 @@ M.TITLE_POLL = 0.5
 function M.new(tilemo)
     local self = {}
     local chooser, done, typed, setting, poll, exclude
+    -- Home and End, taken only while the prompt is open.
+    local open_keys = {}
 
     -- Every workspace listed, the standing ones made or not, filtered by
     -- what's typed, ignoring case; what's typed, if it names none, first.
@@ -44,11 +47,44 @@ function M.new(tilemo)
         chooser:choices(rows(text))
     end
 
+    -- Selects the whole text. hs.chooser has no call for that, but show()
+    -- makes its text field first responder, which in AppKit selects the
+    -- field's text, and does so again while it's open. show() also runs
+    -- the query callback, which mustn't count as typing.
+    local function select_all()
+        setting = true
+        chooser:show()
+        setting = false
+    end
+
+    local function release_keys()
+        for _, k in ipairs(open_keys) do
+            k:delete()
+        end
+        open_keys = {}
+    end
+
+    -- Home and End move to the start and end of the text, keeping it, as
+    -- in tide's prompt. A macOS text field's own Home and End only scroll,
+    -- so they send Cmd+Left and Cmd+Right instead. Either stops the default
+    -- following the title, which would select it again; Left and Right
+    -- the field handles itself, unseen here.
+    local function bind_keys()
+        release_keys()
+        for key, arrow in pairs({ home = "left", ["end"] = "right" }) do
+            open_keys[#open_keys + 1] = hs.hotkey.bind({}, key, function()
+                typed = true
+                hs.eventtap.keyStroke({ "cmd" }, arrow, 0)
+            end)
+        end
+    end
+
     local function finish(name)
         if poll then
             poll:stop()
             poll = nil
         end
+        release_keys()
         local cb = done
         done = nil
         if cb then
@@ -84,9 +120,6 @@ function M.new(tilemo)
         typed = false
         exclude = no_home and tilemo.wm.home or nil
         chooser:placeholderText(placeholder)
-        -- hs.chooser has no way to select its text, so typing adds to the
-        -- default rather than replacing it *(unverified)*; Cmd+A or
-        -- Backspace clears it.
         set_query(default or "")
         if follow then
             local last = default
@@ -98,10 +131,12 @@ function M.new(tilemo)
                 if now and now ~= last then
                     last = now
                     set_query(now)
+                    select_all()
                 end
             end)
         end
-        chooser:show()
+        bind_keys()
+        select_all()
     end
 
     local function default_for(id)
