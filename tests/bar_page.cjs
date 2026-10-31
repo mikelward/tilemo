@@ -360,15 +360,28 @@ const point = (e) => {
 assert.deepStrictEqual(point(winIcon), [winIcon], "a window icon, not its chip");
 assert.deepStrictEqual(point(plainIcon), [chip], "an icon with no window to focus is the chip's");
 assert.deepStrictEqual(point(chip.children[0]), [chip], "the chip's name");
+sent.length = 0;
+ids["title-text"].rect = { left: 150, right: 250, top: 10, bottom: 26, width: 100, height: 16 };
 assert.deepStrictEqual(point(ids["title-text"]), [ids.title]);
+// The page can't draw past its strip, so tilemo draws the uncut title's tip,
+// centered on the title; once, however often the pointer moves.
+point(ids["title-text"]);
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip)), JSON.stringify([{ uuid: "B", titleTip: { text: "Notes", x: 200 } }]));
 assert.deepStrictEqual(point(ids.clocks), [ids.clocks]);
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip).pop()), JSON.stringify({ uuid: "B", titleTip: { text: "" } }), "gone off the title");
 assert.deepStrictEqual(point(ids.icons.children[0]), [ids.icons.children[0]]);
 assert.deepStrictEqual(point(ids.bar), [], "the bar itself is no target");
 point(chip);
 sandbox.tilemo.pointer(null);
 assert.deepStrictEqual(hoverOf(), [], "gone once the pointer leaves");
-// An empty title is no target.
+// A title changing under the pointer changes the tip: it's always uncut.
+point(ids["title-text"]);
+const long = "x".repeat(500);
+sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: long, icons: {} });
+assert.strictEqual(sent.filter((m) => m.titleTip).pop().titleTip.text, long);
+// An empty title is no target, and has no tip.
 sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: "", icons: {} });
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip).pop().titleTip), JSON.stringify({ text: "" }));
 assert.deepStrictEqual(point(ids.title), []);
 sandbox.tilemo.pointer(null);
 under = null;

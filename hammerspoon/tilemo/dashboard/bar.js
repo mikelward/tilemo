@@ -6,7 +6,8 @@
 // { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "presenter" | "source" },
 // { volume: 1 or -1 },
-// { dashboard: true }, { maximize: true }, { clockErrors } naming a clocks file that's wrong, or
+// { dashboard: true }, { maximize: true }, { titleTip: { text, x } } while
+// the title is hovered and { titleTip: { text: "" } } once it isn't, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
 
 import { renderClocks } from "./clockview.js";
@@ -296,11 +297,26 @@ let hovered = null;
 function markHover() {
   hovered?.classList.toggle("hover", false);
   hovered = null;
-  if (!pointerAt) return;
-  const target = document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest(TARGET);
-  if (!target || (target.id === "title" && !document.getElementById("title-text").textContent)) return;
-  target.classList.toggle("hover", true);
-  hovered = target;
+  const target = pointerAt && document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest(TARGET);
+  if (target && !(target.id === "title" && !document.getElementById("title-text").textContent)) {
+    target.classList.toggle("hover", true);
+    hovered = target;
+  }
+  titleTip();
+}
+
+// While the title is hovered, tilemo shows it uncut in a tip below the bar,
+// centered on it at `x`: the page can't draw past its own strip. Sent only
+// when it changes, since the pointer moves often.
+let tipSent = JSON.stringify({ text: "" });
+function titleTip() {
+  const text = document.getElementById("title-text");
+  const box = text.getBoundingClientRect();
+  const tip = hovered?.id === "title" ? { text: text.textContent, x: Math.round((box.left + box.right) / 2) } : { text: "" };
+  const json = JSON.stringify(tip);
+  if (json === tipSent) return;
+  tipSent = json;
+  send({ titleTip: tip });
 }
 
 let settings = DEFAULT_SETTINGS;

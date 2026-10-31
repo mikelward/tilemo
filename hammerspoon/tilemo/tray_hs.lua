@@ -8,19 +8,21 @@ local bar = require("tilemo.bar")
 
 local M = {}
 
-local TIP_SIZE = 12
+-- Shared with the bar's title tip (bar_hs.lua), so the two look alike.
+M.TIP_SIZE = 12
+local TIP_SIZE = M.TIP_SIZE
 -- A long title is cut, with an ellipsis, at this width.
 local TIP_MAX = 420
 
 -- The bar's colors, light or dark as macOS is (launcher.css).
-local function colors()
+function M.colors()
     if hs.host.interfaceStyle() == "Dark" then
         return { bg = { white = 0.11, alpha = 0.94 }, fg = { white = 0.9 }, tip = { white = 0.2, alpha = 0.97 }, blank = { white = 0.3 } }
     end
     return { bg = { white = 0.96, alpha = 0.94 }, fg = { white = 0.1 }, tip = { white = 1, alpha = 0.98 }, blank = { white = 0.8 } }
 end
 
-local function floating(c)
+function M.floating(c)
     c:level(hs.canvas.windowLevels.floating)
     c:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces + hs.canvas.windowBehaviors.stationary)
     -- A click mustn't make Hammerspoon the front app, which would take focus
@@ -68,8 +70,8 @@ function M.new(tilemo)
         local size = hs.drawing.getTextDrawingSize(item.title, { size = TIP_SIZE })
         local w = math.min(TIP_MAX, math.ceil(size.w)) + 18
         local h = math.ceil(size.h) + 10
-        local c = colors()
-        tip = floating(hs.canvas.new(tray.tip_frame(st.frame, i, w, h, s.area)))
+        local c = M.colors()
+        tip = M.floating(hs.canvas.new(tray.tip_frame(st.frame, i, w, h, s.area)))
         tip:appendElements({
             type = "rectangle",
             action = "fill",
@@ -109,7 +111,7 @@ function M.new(tilemo)
     local function draw(uuid, st)
         local c = self.canvases[uuid]
         if not c then
-            c = floating(hs.canvas.new(st.frame))
+            c = M.floating(hs.canvas.new(st.frame))
             c:mouseCallback(function(_, msg, id)
                 on_mouse(uuid, msg, id)
             end)
@@ -117,7 +119,7 @@ function M.new(tilemo)
         else
             c:frame(st.frame)
         end
-        local col = colors()
+        local col = M.colors()
         local elements = {
             {
                 type = "rectangle",
