@@ -490,6 +490,17 @@ t.test("Super+Shift+M mutes the microphone", function()
     t.eq(toggled, 1)
 end)
 
+t.test("each connected Bluetooth audio device gets an icon, named once, in order", function()
+    t.eq(bar.icons({}).headphones, nil)
+    t.eq(bar.icons({ bluetooth_audio = {} }).headphones, nil, "none connected: no icon")
+    t.eq(bar.icons({ bluetooth_audio = { "Buds", "Car", "Buds", "" } }).headphones, { devices = { { name = "Buds" }, { name = "Car" } } },
+        "a headset is an output and an input: one icon; a nameless one is left out")
+end)
+
+t.test("a headphones click opens Bluetooth settings", function()
+    t.eq(bar.PANES.bluetooth, "x-apple.systempreferences:com.apple.BluetoothSettings")
+end)
+
 t.test("the volume shows its level, or mute", function()
     t.eq(bar.icons({ audio = { volume = 20 } }).volume.level, "low")
     t.eq(bar.icons({ audio = { volume = 50 } }).volume.level, "mid")

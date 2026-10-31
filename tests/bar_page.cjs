@@ -258,6 +258,25 @@ assert.strictEqual(
 );
 sent.length = 0;
 
+// Each connected Bluetooth audio device, beside the speaker, named on
+// hover, and a click opens Bluetooth settings.
+sandbox.tilemo.update({
+  uuid: "B",
+  workspaces: ws,
+  title: "",
+  icons: { headphones: { devices: [{ name: "Buds" }, { name: "Car" }] }, volume: { level: "high", muted: false }, network: { kind: "wired" } },
+});
+{
+  const shown = ids.icons.children;
+  assert.strictEqual(shown.map((b) => b.className).join("|"), "icon headphones|icon headphones|icon volume|icon wired");
+  assert.strictEqual(shown.slice(0, 2).map((b) => b.attrs["data-tip"]).join("|"), "Buds|Car");
+  assert.strictEqual(shown[0].attrs["aria-label"], "Buds");
+  assert.ok(shown[0].innerHTML.startsWith("<svg "), "drawn");
+  shown[1].listeners.click();
+  assert.strictEqual(JSON.stringify(sent.at(-1)), JSON.stringify({ uuid: "B", open: "bluetooth" }));
+  sent.length = 0;
+}
+
 // A wire, or no network at all.
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
 assert.strictEqual(ids.icons.children[0].className, "icon wired");

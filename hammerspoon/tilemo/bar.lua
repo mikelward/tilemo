@@ -314,6 +314,22 @@ function ITEMS.volume(raw)
     end
 end
 
+-- Each Bluetooth audio device connected, by name (SPEC.md §8), as tide's
+-- headphones icons: macOS lists one only while it's connected. A headset
+-- is both an output and an input, so a name is listed once.
+function ITEMS.headphones(raw)
+    local devices, seen = {}, {}
+    for _, name in ipairs(raw.bluetooth_audio or {}) do
+        if type(name) == "string" and name ~= "" and not seen[name] then
+            seen[name] = true
+            devices[#devices + 1] = { name = name }
+        end
+    end
+    if #devices > 0 then
+        return { devices = devices }
+    end
+end
+
 function ITEMS.mic(raw)
     if raw.mic then
         return { muted = raw.mic.muted or false }
@@ -413,6 +429,7 @@ M.PANES = {
     volume = "x-apple.systempreferences:com.apple.Sound-Settings.extension",
     wifi = "x-apple.systempreferences:com.apple.wifi-settings-extension",
     network = "x-apple.systempreferences:com.apple.Network-Settings.extension",
+    bluetooth = "x-apple.systempreferences:com.apple.BluetoothSettings",
 }
 
 -- The managed window a page names: ids come back through JSON, which may

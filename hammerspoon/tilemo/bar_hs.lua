@@ -99,6 +99,19 @@ function M.new(tilemo)
             local dev = hs.audiodevice.defaultOutputDevice()
             return dev and { volume = dev:outputVolume(), muted = dev:outputMuted() }
         end)
+        -- Bluetooth audio devices, outputs then inputs, by name; bar.lua
+        -- lists each once.
+        raw.bluetooth_audio = try("the Bluetooth audio devices", function()
+            local out = {}
+            for _, list in ipairs({ hs.audiodevice.allOutputDevices(), hs.audiodevice.allInputDevices() }) do
+                for _, dev in ipairs(list or {}) do
+                    if dev:transportType() == "Bluetooth" then
+                        out[#out + 1] = dev:name()
+                    end
+                end
+            end
+            return out
+        end)
         -- No "in use": Hammerspoon's inUse() asks whether the device is
         -- running at all, so a headset playing sound would light it.
         raw.mic = try("the microphone", function()

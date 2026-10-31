@@ -129,6 +129,13 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **The bar shows Bluetooth headphones but not Bluetooth on or off**
+  (SPEC.md §8). tide's bar shows both. On a Mac, reading whether the
+  radio is on needs `blueutil` (Homebrew, free), which would be a new
+  dependency and a process every poll; the headphones come from
+  `hs.audiodevice` at no cost. The alternative is shelling out to
+  `blueutil -p` where it's installed. Reversible: one more item in
+  `bar.lua`'s `ITEMS`.
 - **Enter on a new name in `Super+Return`'s prompt goes to a new, empty
   workspace of that name** (SPEC.md §7.2), as tide's does. It goes again
   once you leave it empty, so a stray name costs nothing. The alternative
