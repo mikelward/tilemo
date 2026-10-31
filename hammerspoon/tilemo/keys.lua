@@ -57,6 +57,7 @@ M.map = {
 M.APPS = {
     { key = "t", spec = { bundle = "net.kovidgoyal.kitty", new = true } },
     { key = "w", spec = { run = "terminal_on_workstation" } },
+    { key = "v", spec = { run = "terminal_on_vm" } },
     { key = "g", spec = { run = "browser1" } },
     { key = "g", shift = true, spec = { run = "browser3" } },
     { key = "f", spec = { run = "browser2" } },

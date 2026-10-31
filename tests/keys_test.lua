@@ -164,6 +164,17 @@ t.test("with Karabiner, every binding gets its own chord", function()
     t.eq(#list, #keys.map + #keys.plain + #keys.karabiner_only)
 end)
 
+t.test("Super+W and Super+V open terminals on the workstation and the VM", function()
+    local by = {}
+    for _, b in ipairs(keys.map) do
+        if b.action == "app" and not b.shift then
+            by[b.key] = b.arg.run
+        end
+    end
+    t.eq(by.w, "terminal_on_workstation")
+    t.eq(by.v, "terminal_on_vm")
+end)
+
 t.test("a screenshot action asks the adapter for that kind", function()
     local a = require("fake").new()
     local wm = require("tilemo.wm").new(a, {})
