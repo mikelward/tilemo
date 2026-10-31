@@ -103,6 +103,22 @@ function M.check_script(patterns)
         .. "return JSON.stringify(bad);})()"
 end
 
+-- Whether `v` decoded from a JSON array: keys 1 to n and nothing else. A
+-- JSON object decodes to a table too, and would read as no patterns.
+local function is_list(v)
+    if type(v) ~= "table" then
+        return false
+    end
+    local n = 0
+    for k in pairs(v) do
+        if math.type(k) ~= "integer" or k < 1 then
+            return false
+        end
+        n = n + 1
+    end
+    return n == #v
+end
+
 -- The patterns tide's files set: the .local file's if it sets them, else
 -- the shared one's, else none. Returns the list and the file it came from,
 -- or nil and what's wrong. `read(path)` gives a file's text or nil, and
@@ -117,7 +133,7 @@ function M.read(dir, read, decode)
             end
             local list = v[M.KEY]
             if list ~= nil then
-                if type(list) ~= "table" then
+                if not is_list(list) then
                     return nil, name .. ": " .. M.KEY .. " must be a list of patterns"
                 end
                 for i = 1, #list do

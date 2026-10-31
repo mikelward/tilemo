@@ -235,19 +235,20 @@ t.test("the Windows tab shows every window and every tab, however many", functio
 end)
 
 t.test("each browser's tab list is read line by line, with its window's name", function()
-    local text = "1\t1\t4021\tDocs - Google Chrome\thttps://docs.example.com/\tDocs\n"
-        .. "1\t2\t4021\tDocs - Google Chrome\thttps://x.example.com/a\tA title\twith a tab\n"
+    local text = "1\t1\t1\t4021\tDocs - Google Chrome\thttps://docs.example.com/\tDocs\n"
+        .. "1\t2\t0\t4021\tDocs - Google Chrome\thttps://x.example.com/a\tA title\twith a tab\n"
         .. "garbage\n"
-        .. "2\t1\t77\t\t\t\n"
+        .. "2\t1\t1\t77\t\t\t\n"
     local list = launcher.parse_tabs("Google Chrome", text)
     t.eq(#list, 3)
     t.eq(list[1], {
-        browser = "Google Chrome", window = 1, tab = 1, window_id = 4021, window_name = "Docs - Google Chrome",
+        browser = "Google Chrome", window = 1, tab = 1, active = true, window_id = 4021, window_name = "Docs - Google Chrome",
         url = "https://docs.example.com/", title = "Docs",
     })
     t.eq(list[3].window_id, 77)
     t.eq(list[2].title, "A title\twith a tab", "the title is the rest of the line")
     t.eq(list[3].window, 2)
+    t.eq(list[2].active, false, "only the front tab is active")
     t.eq(launcher.parse_tabs("Safari", nil), {})
 end)
 

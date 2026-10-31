@@ -176,13 +176,13 @@ end
 -- The line under an item's title in the switcher.
 function M.subtitle(item)
     if item.kind == "tab" then
-        return join(item.browser, item.extra, item.ws)
+        return join(item.browser, item.extra, item.ws, item.muted and "muted" or nil)
     elseif item.kind == "window" then
-        return join(item.app, item.ws, item.minimized and "minimized" or nil)
+        return join(item.app, item.ws, item.minimized and "minimized" or nil, item.muted and "muted" or nil)
     elseif item.kind == "setting" then
         return "System Settings"
     elseif item.kind == "attention" then
-        return join(item.app, item.ws)
+        return join(item.app, item.ws, item.muted and "muted" or nil)
     elseif item.kind == "workspace" then
         return join(item.where, item.extra)
     end
@@ -195,18 +195,19 @@ local function host(url)
 end
 
 -- A browser's tabs from TAB_SCRIPTS' output, one per line: window index,
--- tab index, the window's id, its name, the tab's address and its title,
--- separated by tabs. Returns { browser, window, tab, window_id,
--- window_name, url, title }.
+-- tab index, 1 if it's the window's front tab or else 0, the window's id,
+-- its name, the tab's address and its title, separated by tabs. Returns
+-- { browser, window, tab, active, window_id, window_name, url, title }.
 function M.parse_tabs(browser, text)
     local out = {}
     for line in (text or ""):gmatch("[^\n]+") do
-        local w, t, id, wname, url, title = line:match("^(%d+)\t(%d+)\t(%d+)\t([^\t]*)\t([^\t]*)\t(.*)$")
+        local w, t, active, id, wname, url, title = line:match("^(%d+)\t(%d+)\t([01])\t(%d+)\t([^\t]*)\t([^\t]*)\t(.*)$")
         if w then
             out[#out + 1] = {
                 browser = browser,
                 window = tonumber(w),
                 tab = tonumber(t),
+                active = active == "1",
                 window_id = tonumber(id),
                 window_name = wname,
                 url = url,
@@ -238,8 +239,8 @@ end
 -- Items from what the adapter found: apps { name, path }, tabs { title, url,
 -- browser, window, tab, win, ws }, commands { title, action, arg, quick }, System
 -- Settings' panes { name, id }, the windows wanting attention { window,
--- title, app, ws }, newest first, the workspaces { name, apps, where }, in
--- bar order, and every window { id, title, app_name, ws, minimized }, most
+-- title, app, bundle, ws }, newest first, the workspaces { name, apps, where }, in
+-- bar order, and every window { id, title, app_name, bundle, ws, minimized }, most
 -- recently used first, `minimized` for one you minimized (SPEC.md §6.7). Each gets a stable key, for remembering
 -- when it was used, and an id that's unique among the items, for choosing
 -- it: two tabs on the same page share a key but not an id.
@@ -253,6 +254,7 @@ function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
             extra = w.app_name,
             app = w.app_name,
             window = w.id,
+            bundle = w.bundle,
             ws = w.ws,
             minimized = w.minimized or false,
             order = i,
@@ -288,6 +290,7 @@ function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
             kind = "tab",
             title = t.title ~= "" and t.title or (t.url or ""),
             extra = host(t.url),
+            url = t.url,
             browser = t.browser,
             window = t.window,
             window_id = t.window_id,
@@ -304,6 +307,7 @@ function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
             title = (w.title or "") ~= "" and w.title or (w.app or ""),
             extra = w.app,
             app = w.app,
+            bundle = w.bundle,
             window = w.window,
             ws = w.ws,
             order = i,

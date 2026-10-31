@@ -1607,6 +1607,9 @@ Each one names a workaround, or says there is none.
     list still applies. Malformed: not a string, empty, with a space, or
     `site:` with no host or with more than a host (a scheme, a path, a
     port).
+  - **A `muted` that isn't a list,** such as a JSON object, or a file that
+    doesn't parse, is an error at load too, naming the file, and the last
+    good list stays. So is a `namePatterns` that isn't a list (§6.2).
   - **tilemo writes only `workspaces.local.json`,** as tide's settings
     panel does: it reads the file just before each change, keeps every
     other key, and writes it whole, to a temporary file renamed over it.

@@ -129,4 +129,16 @@ assert.deepStrictEqual(zones(), []);
 assert.match(ids.error.textContent, /clocks\.local\.json: line 1/);
 assert.strictEqual(add.disabled, true);
 
+// The muted apps and sites, each with an Unmute button that tells tilemo.
+const muted = () => ids["muted-list"].children;
+sandbox.tilemo.update({ clockFiles: [], muted: [] });
+assert.strictEqual(muted().length, 1);
+assert.strictEqual(muted()[0].textContent, "Nothing is muted.");
+sandbox.tilemo.update({ clockFiles: [], muted: ["com.example.chat", "site:chat.example.com"] });
+assert.deepStrictEqual(muted().map((li) => li.children[0].textContent), ["com.example.chat", "chat.example.com"]);
+sent.length = 0;
+muted()[1].children[1].listeners.click();
+assert.deepStrictEqual(sent, [{ unmute: "site:chat.example.com" }]);
+assert.strictEqual(muted()[1].children[1].attrs["aria-label"], "Unmute chat.example.com");
+
 console.log("settings page: ok");
