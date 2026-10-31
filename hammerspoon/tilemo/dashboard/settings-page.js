@@ -244,6 +244,17 @@ document.getElementById("add-command").addEventListener("keydown", (e) => {
   if (changeStartup((cs) => withCommand(cs, input.value))) input.value = "";
 });
 
+// tilemo checks a typed entry with its mute module, mutes it and hands the
+// list back, or calls tilemo.mutedError(why, entry).
+document.getElementById("add-muted").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const entry = e.target.value.trim();
+  if (entry === "") return;
+  document.getElementById("muted-error").textContent = "";
+  send({ mute: entry });
+  e.target.value = "";
+});
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") send({ close: true });
 });
@@ -260,6 +271,7 @@ window.tilemo = {
     // New files: what went wrong before is about the old ones.
     showError("");
     showStartupError("");
+    document.getElementById("muted-error").textContent = "";
     render();
     renderStartup();
     renderClipboard();
@@ -270,6 +282,11 @@ window.tilemo = {
   count(n) {
     clipboardCount = Number.isInteger(n) ? n : 0;
     renderClipboard();
+  },
+  mutedError(why, entry) {
+    document.getElementById("muted-error").textContent = why;
+    const input = document.getElementById("add-muted");
+    if (input.value === "") input.value = entry ?? "";
   },
   reveal(id) {
     document.getElementById(id)?.scrollIntoView?.({ block: "start" });

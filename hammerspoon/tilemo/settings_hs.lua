@@ -108,6 +108,15 @@ function M.new(tilemo)
             elseif body.clearClipboard and tilemo.picker then
                 picker.clear(tilemo.picker.history)
                 push()
+            elseif type(body.mute) == "string" then
+                -- Typed at the Muted list's foot: as Cmd+M on a row, once
+                -- the mute module takes it.
+                local why = mute.add_problem(tilemo.wm.muted, body.mute)
+                if why and view then
+                    view:evaluateJavaScript("tilemo.mutedError(" .. hs.json.encode({ why, body.mute }):sub(2, -2) .. ")")
+                elseif not why and tilemo.toggle_mute(body.mute) == nil then
+                    push()
+                end
             elseif type(body.unmute) == "string" then
                 -- The same as Cmd+M on a muted row; it refreshes this page.
                 if not mute.has(tilemo.wm.muted, body.unmute) or tilemo.toggle_mute(body.unmute) == nil then

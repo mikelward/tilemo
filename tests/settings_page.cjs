@@ -252,4 +252,24 @@ sandbox.tilemo.reveal("startup");
 assert.strictEqual(revealed, "startup");
 sandbox.tilemo.reveal("nothing-by-this-id");
 
+// An app or site typed at the Muted list's foot goes to tilemo, which
+// checks it with the mute module and mutes it, or says why not.
+{
+  const input = sandbox.document.getElementById("add-muted");
+  sandbox.tilemo.update({ clockFiles: [], muted: [] });
+  sent.length = 0;
+  input.value = "  site:mail.example.com ";
+  press(input, "Enter");
+  assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ mute: "site:mail.example.com" }]));
+  assert.strictEqual(input.value, "", "the box empties once it's sent");
+  input.value = "";
+  press(input, "Enter");
+  assert.strictEqual(sent.length, 1, "nothing typed: nothing sent");
+  sandbox.tilemo.mutedError("com.example.chat is muted already", "com.example.chat");
+  assert.strictEqual(sandbox.document.getElementById("muted-error").textContent, "com.example.chat is muted already");
+  assert.strictEqual(input.value, "com.example.chat", "back in the box to fix");
+  sandbox.tilemo.update({ clockFiles: [], muted: ["com.example.chat"] });
+  assert.strictEqual(sandbox.document.getElementById("muted-error").textContent, "", "new files: the error was about the old ones");
+}
+
 console.log("settings page: ok");

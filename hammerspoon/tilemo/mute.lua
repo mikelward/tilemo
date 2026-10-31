@@ -182,6 +182,23 @@ function M.has(set, entry)
     return set.apps[entry] == true
 end
 
+-- Why `entry`, typed in the settings window, can't be muted, or nil: as
+-- tide's Notifications page refuses one the list wouldn't take back on
+-- loading, or one muted already.
+function M.add_problem(set, entry)
+    if entry == "" then
+        return "type an app's bundle id, or site: and a host"
+    end
+    local why = problem(entry)
+    if why then
+        return show(entry) .. " " .. why
+    end
+    if M.has(set, entry) then
+        local name = entry:sub(1, #M.SITE) == M.SITE and entry:sub(#M.SITE + 1):lower() or entry
+        return name .. " is muted already"
+    end
+end
+
 -- Whether two good entries name the same app or site.
 local function same(a, b)
     local sa, sb = a:sub(1, #M.SITE) == M.SITE, b:sub(1, #M.SITE) == M.SITE

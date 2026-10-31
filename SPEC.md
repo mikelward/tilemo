@@ -1535,7 +1535,10 @@ two tabs. C is for clipboard and characters.
 
 - **Notifications:** Notification Center, with Focus for Do Not Disturb.
   Automatic Do Not Disturb while sharing the screen is a Focus option
-  *(unverified)*. Clicking a notification counts as Activate, so its
+  *(unverified)*. tide's Notifications page's Do not disturb schedule and
+  *Critical alerts break through* are Focus's own here: a schedule on the
+  Do Not Disturb Focus, and Time Sensitive notifications, in System
+  Settings, so tilemo has no copy of either. Clicking a notification counts as Activate, so its
   window's workspace comes along (§6.1).
 - **Idle and lock** (tide §10):
   - System Settings sets the display sleep and when a password is required.
@@ -1956,6 +1959,10 @@ Each one names a workaround, or says there is none.
   - **The settings window also lists the muted apps and sites** (§14.2),
     each with an Unmute button, writing `workspaces.local.json` as the
     one-key mute does.
+    - As on tide's Notifications page, a bundle id or `site:HOST` typed at
+      the list's foot is muted with Enter. One the list wouldn't take back
+      on loading, or one muted already, is refused, and the section says
+      why.
 - **One owner per job** (tide §5): tilemo tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.
