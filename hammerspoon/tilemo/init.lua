@@ -263,7 +263,7 @@ function M.start(config)
     end
     self.load_muted = load_muted
     load_muted()
-    -- Cmd+I in the switcher (launcher_hs.lua): mute `entry`, or unmute it,
+    -- Cmd+M in the switcher (launcher_hs.lua): mute `entry`, or unmute it,
     -- named `name` in the notice. After a mute, a click on the notice opens
     -- Notifications settings, since macOS's banners are its own. Returns
     -- whether it's now muted, or nil if it couldn't be saved.

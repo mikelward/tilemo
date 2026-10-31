@@ -78,14 +78,26 @@ Mac:**
 ## Mute: apps and sites that never want attention
 
 **Built** (SPEC.md §14.2, §15): `muted` in tide's `workspaces.json` and
-`workspaces.local.json`, the marks suppressed and cleared, `Cmd+I` and the
+`workspaces.local.json`, the marks suppressed and cleared, `Cmd+M` and the
 right-click in the switcher's Windows and Attention tabs, the "muted"
 mark, each browser window's front tab, and the settings window's list.
+**The key is `Cmd+M`** (decided by the maintainer, 2026-10-31), physical
+Ctrl+M under `setup-macos`'s rotation, the same key as tide's `Ctrl+M`.
+It's an `hs.hotkey` bound only while the switcher's chooser is open and
+deleted as it closes, never globally, so it can't reach macOS's own
+`Cmd+M` minimize there and leaves it alone everywhere else; `Super+Z` is
+tilemo's minimize. Hammerspoon's hotkeys are Carbon hot keys
+(`RegisterEventHotKey`, `extensions/hotkey/libhotkey.m`), which take the
+key before the chooser or Hammerspoon's own Window › Minimize item
+(`MainMenu.xib`) sees it, and the chooser's panel isn't miniaturizable
+anyway (its `styleMask` in `HSChooserWindow.xib` is only
+`nonactivatingPanel` and `fullSizeContentView`).
 **Check on a Mac:**
 
 - the Notifications pane's URL on macOS 26, from the notice after a mute;
 - that clicking the notice opens it (`hs.notify`'s callback);
-- `Cmd+I` and the right-click reach tilemo while the switcher is open;
+- `Cmd+M` and the right-click reach tilemo while the switcher is open,
+  and `Cmd+M` doesn't minimize anything there;
 - Chrome's `active tab index` and Safari's `current tab` in the tab list.
 
 ## Launcher looks
@@ -106,9 +118,6 @@ mark, each browser window's front tab, and the settings window's list.
   `namePatterns`, rather than a file of its own, since it's another list
   of apps tide and tilemo share. Reversible: one name in `mute.lua`, and
   tide's agent may pick otherwise.
-- **The one key is `Cmd+I`,** physical Ctrl+I under `setup-macos`'s
-  rotation; nothing in the switcher uses it. Reversible: one
-  line in `launcher_hs.lua`.
 - **A right-click on a row stands in for a hover button,** which
   `hs.chooser` can't draw. Reversible: a webview switcher.
 - **A site matches a browser window by its front tab as the switcher last
