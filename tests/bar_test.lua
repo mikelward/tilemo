@@ -115,6 +115,14 @@ t.test("a bar's messages act on its own display, not where the keys are", functi
     }
     bar.handle(wm, { uuid = "B", dashboard = true }, act)
     t.eq(dash, { "B" })
+    -- tide's logo: the switcher, opened or closed by Hammerspoon.
+    local switched = {}
+    act.switcher = function(uuid)
+        switched[#switched + 1] = uuid
+    end
+    bar.handle(wm, { uuid = "B", switcher = true }, act)
+    t.eq(switched, { "B" })
+    t.eq(dash, { "B" }, "the logo isn't the clocks")
     wm:ensure_ws("4")
     bar.handle(wm, { uuid = "B", show = "4" }, act)
     t.eq(wm.screen_ws, { A = "in", B = "4" })

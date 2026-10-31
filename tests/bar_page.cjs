@@ -83,7 +83,7 @@ class Element {
 
 const ids = {};
 // The page's own elements, as bar.html has them.
-const TAGS = { bar: "header", workspaces: "nav", title: "span", "title-text": "span", right: "div", clocks: "ol", icons: "div" };
+const TAGS = { bar: "header", left: "div", logo: "button", workspaces: "nav", title: "span", "title-text": "span", right: "div", clocks: "ol", icons: "div" };
 const byId = (id) => {
   const e = new Element(TAGS[id] ?? id);
   e.id = id;
@@ -216,6 +216,7 @@ assert.ok(stopped, "the click stays with the icon");
 parts[4].listeners.click({ stopPropagation() {} });
 byName.wifi.listeners.click();
 ids.clocks.listeners.click();
+ids.logo.listeners.click();
 ids.bar.listeners.dblclick({ target: ids.title });
 // The free bar around the title is the title's too, but a double click on
 // an item isn't.
@@ -242,6 +243,7 @@ assert.strictEqual(
     { uuid: "B", focus: 14 },
     { uuid: "B", open: "wifi" },
     { uuid: "B", dashboard: true },
+    { uuid: "B", switcher: true },
     { uuid: "B", maximize: true },
     { uuid: "B", maximize: true },
     { uuid: "B", step: 1 },
@@ -313,7 +315,8 @@ assert.strictEqual(crowded(1200, 300, 500), true);
 // A long title is held to the room between the chips and the right side,
 // centered, so it can't run over either.
 Object.assign(ids.bar, { clientWidth: 1200 });
-Object.assign(ids.workspaces, { offsetWidth: 300 });
+// The logo and the chips together.
+Object.assign(ids.left, { offsetWidth: 300 });
 Object.assign(ids.right, { offsetWidth: 500 });
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
 const room = parseFloat(ids["title-text"].style.maxWidth);
@@ -383,6 +386,16 @@ ids.title.rect = { ...box(150, 170, 10, 26), width: 20 };
 sandbox.tick();
 assert.strictEqual(reachOf(ids.title), "10px 10px 70px 30px");
 
+// tide's logo comes first: it reaches the bar's left edge, so the corner
+// opens the switcher, and splits the gap to the first chip with it.
+ids.logo.rect = { ...box(10, 36), width: 26 };
+inChip2.rect = { ...box(40, 70), width: 30 };
+webChip2.rect = { ...box(74, 110), width: 36 };
+sandbox.tick();
+assert.strictEqual(reachOf(ids.logo), "5px 5px 10px 2px");
+assert.strictEqual(reachOf(inChip2), "5px 5px 2px 2px", "the first chip no longer reaches the edge");
+ids.logo.rect = { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+
 // Hover: tilemo says where the pointer is, and the target under it, its
 // innermost, is marked .hover, one at a time, until the pointer leaves.
 ids["title-text"].parent = ids.title;
@@ -396,7 +409,7 @@ sandbox.tilemo.update({
 const chip = ids.workspaces.children[0];
 const [, winIcon, plainIcon] = chip.children;
 const hoverOf = () =>
-  [chip, winIcon, plainIcon, ids.title, ids.clocks, ids.icons.children[0]].filter((e) => e.classList.contains("hover"));
+  [ids.logo, chip, winIcon, plainIcon, ids.title, ids.clocks, ids.icons.children[0]].filter((e) => e.classList.contains("hover"));
 const point = (e) => {
   under = e;
   sandbox.tilemo.pointer(1, 1);
@@ -415,6 +428,7 @@ assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip)), JSON.stringify([{ 
 assert.deepStrictEqual(point(ids.clocks), [ids.clocks]);
 assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip).pop()), JSON.stringify({ uuid: "B", tip: { text: "" } }), "gone off the title");
 assert.deepStrictEqual(point(ids.icons.children[0]), [ids.icons.children[0]]);
+assert.deepStrictEqual(point(ids.logo), [ids.logo], "tide's logo");
 assert.deepStrictEqual(point(ids.bar), [], "the bar itself is no target");
 point(chip);
 sandbox.tilemo.pointer(null);

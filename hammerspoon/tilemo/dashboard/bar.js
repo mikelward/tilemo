@@ -6,7 +6,7 @@
 // { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "presenter" | "source" },
 // { volume: 1 or -1 },
-// { dashboard: true }, { maximize: true }, { tip: { text, x } } while
+// { dashboard: true }, { switcher: true } from the logo, { maximize: true }, { tip: { text, x } } while
 // an item with a tip is hovered and { tip: { text: "" } } once none is, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
 
@@ -65,8 +65,8 @@ export function titleInsets(bar, title, leftEnd, rightStart) {
 }
 
 // What a click at an element reaches, innermost first: a chip's window
-// icon, then a chip, the title, the clocks or a status item.
-const TARGET = "nav > button .app.win, nav > button, #title, #clocks, #icons > button.icon";
+// icon, then the logo, a chip, the title, the clocks or a status item.
+const TARGET = "nav > button .app.win, #logo, nav > button, #title, #clocks, #icons > button.icon";
 
 // A trackpad sends many small scrolls; one step is this much of them.
 const STEP = 50;
@@ -285,7 +285,7 @@ function fit() {
   const side = document.getElementById("right");
   clocks.classList.toggle("compact", false);
   const width = document.getElementById("bar").clientWidth;
-  const left = document.getElementById("workspaces").offsetWidth;
+  const left = document.getElementById("left").offsetWidth;
   let right = side.offsetWidth;
   const tight = crowded(width, left, right);
   clocks.classList.toggle("compact", tight);
@@ -294,7 +294,9 @@ function fit() {
   // Unmeasured, as before the page lays out, leaves the title as it is.
   if (Number.isFinite(room)) document.getElementById("title-text").style.maxWidth = `${Math.max(0, room)}px`;
   const bar = document.getElementById("bar").getBoundingClientRect();
-  const lefts = reach(bar, [...document.getElementById("workspaces").children], { start: true });
+  // The logo first, reaching the bar's left edge, so the corner opens the
+  // switcher, then the chips.
+  const lefts = reach(bar, [document.getElementById("logo"), ...document.getElementById("workspaces").children], { start: true });
   const rights = reach(bar, [document.getElementById("clocks"), ...document.getElementById("icons").children], { end: true });
   // An empty title has no target: there's no window there to maximize.
   const title = document.getElementById("title");
@@ -385,6 +387,10 @@ document.getElementById("workspaces").addEventListener("wheel", (e) => {
 document.getElementById("bar").addEventListener("dblclick", (e) => {
   if (["bar", "title", "title-text"].includes(e.target.id)) send({ maximize: true });
 });
+
+// tide's logo opens the switcher on Launch, or closes it, as Super+Space
+// does (SPEC.md §8).
+document.getElementById("logo").addEventListener("click", () => send({ switcher: true }));
 
 // The clocks open the dashboard, with its clock panel.
 document.getElementById("clocks").addEventListener("click", () => send({ dashboard: true }));
