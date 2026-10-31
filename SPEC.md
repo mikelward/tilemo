@@ -1190,7 +1190,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   - a click elsewhere on a chip shows that workspace, and scrolling steps
     through them;
   - the title only on the display the focused window is on, where
-    double-clicking it maximizes;
+    double-clicking it maximizes, and hovering it shows it uncut, as on
+    tide (tide §7.1);
   - the clocks shrink to local time alone when the title would get narrower
     than 200 px.
 - **The bar on Hammerspoon** is built like the dashboard: one borderless
@@ -1233,6 +1234,16 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     doesn't fire there: tilemo's pointer tap tells the bar it's over where
     the pointer is, one small script per move over a bar, and the page
     marks that target. There's no appearance (dark mode) item in the bar.
+  - **Hovering the title shows all of it** in a tip below the bar,
+    centered on the title, since the bar cuts a long one with an ellipsis.
+    It wraps past 600 px. The page can't draw past its own strip, and a
+    `title` attribute's tooltip needs WebKit to follow the pointer, which
+    it doesn't here (above). So the page tells tilemo the title and where
+    it is when the hovered target becomes the title, and that it's gone
+    when it stops being; tilemo draws the tip as an `hs.canvas`, as the
+    tray's tips are (§6.7). With no title there's no tip. The tip goes
+    with its bar: when that bar hides for a full-screen window, its
+    display is removed, or it moves.
   - A first click isn't spent on bringing Hammerspoon forward:
     `hs.webview`'s view accepts the first mouse (its `acceptsFirstMouse`
     returns yes, in Hammerspoon 1.4.27's `libwebview.m`), so it reaches the

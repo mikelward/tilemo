@@ -155,6 +155,44 @@ t.test("a bar's clocks, kept while a file is wrong, go to Hammerspoon", function
     t.eq(kept, { { zone = "Asia/Tokyo", label = "TYO" } })
 end)
 
+t.test("hovering a bar's title asks Hammerspoon for its tip, naming the display", function()
+    local _, wm = two_displays()
+    local got = {}
+    local act = {
+        title_tip = function(uuid, tip)
+            got[#got + 1] = { uuid, tip.text, tip.x }
+        end,
+    }
+    bar.handle(wm, { uuid = "B", titleTip = { text = "A long title", x = 500 } }, act)
+    bar.handle(wm, { uuid = "B", titleTip = { text = "" } }, act)
+    t.eq(got, { { "B", "A long title", 500 }, { "B", "" } })
+end)
+
+t.test("the title's tip sits below the bar, centered on the title, on its display", function()
+    local frame = { x = 1920, y = 25, w = 1920, h = 30 }
+    t.eq(bar.title_tip_frame(frame, 960, 400, 26), { x = 1920 + 760, y = 25 + 30 + 6, w = 400, h = 26 })
+    t.eq(bar.title_tip_frame(frame, 50, 400, 26).x, 1920 + 6, "held off the left edge")
+    t.eq(bar.title_tip_frame(frame, 1900, 400, 26).x, 1920 + 1920 - 6 - 400, "and the right")
+end)
+
+t.test("the title's tip goes with its bar: hidden, removed or moved", function()
+    local frame = { x = 0, y = 25, w = 1920, h = 30 }
+    local views = { A = { frame = { x = 0, y = 25, w = 1920, h = 30 } } }
+    t.eq(bar.tip_orphaned("A", frame, views), false, "still there")
+    views.A.hidden = true
+    t.eq(bar.tip_orphaned("A", frame, views), true, "hidden for a full-screen window")
+    views.A.hidden = false
+    t.eq(bar.tip_orphaned("A", frame, views), false, "shown again")
+    views.A.frame = { x = 0, y = 25, w = 1440, h = 30 }
+    t.eq(bar.tip_orphaned("A", frame, views), true, "its display changed size")
+    t.eq(bar.tip_orphaned("B", frame, views), true, "its display was removed")
+end)
+
+t.test("the title's tip is as wide as the title, wrapping a long one", function()
+    t.eq({ bar.tip_size(200.4, 15, 600) }, { 219, 25 })
+    t.eq({ bar.tip_size(1500, 15, 600) }, { 618, 15 * 4 + 10 }, "three lines' worth, and one to spare")
+end)
+
 t.test("a chip shows no app icons for windows that don't want attention", function()
     local a, wm = two_displays()
     for id = 2, 4 do
