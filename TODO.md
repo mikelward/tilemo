@@ -129,6 +129,10 @@ tests and the bar page's test cover it. **Check on a Mac:**
 
 ## Decisions needing review
 
+- **A chip's tip shows only when the chip cuts its name** (SPEC.md §8),
+  since a whole name would say it again. The alternative is a tip on
+  every chip, as the old `title` attribute had. Reversible: one line in
+  `bar.js`'s `renderWorkspaces`.
 - **Start at login tells one login from the next by when `loginwindow`
   started,** kept in `hs.settings`, so a Hammerspoon reload runs nothing.
   A login it can't tell runs nothing. The alternatives are a file in

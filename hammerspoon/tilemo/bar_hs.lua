@@ -216,20 +216,20 @@ function M.new(tilemo)
         self.refresh()
     end
 
-    -- The full title's tip below a bar (SPEC.md §8), drawn as the tray's
-    -- tips are: the page can't draw past its own strip.
+    -- A bar item's tip, or the full title's, below a bar (SPEC.md §8),
+    -- drawn as the tray's tips are: the page can't draw past its own strip.
     local TIP_MAX = 600
     -- The tip on screen, if any: its canvas, and the display and bar frame
     -- it was drawn for, so it goes with that bar (drop_orphaned_tip).
     local tip
-    local function hide_title_tip()
+    local function hide_tip()
         if tip then
             tip.canvas:delete()
             tip = nil
         end
     end
-    local function title_tip(uuid, t)
-        hide_title_tip()
+    local function show_tip(uuid, t)
+        hide_tip()
         local v = uuid and self.views[uuid]
         local text = type(t.text) == "string" and t.text or ""
         if text == "" or not v or v.hidden then
@@ -238,7 +238,7 @@ function M.new(tilemo)
         local size = hs.drawing.getTextDrawingSize(text, { size = tray_hs.TIP_SIZE })
         local w, h = bar.tip_size(size.w, size.h, TIP_MAX)
         local c = tray_hs.colors()
-        local canvas = tray_hs.floating(hs.canvas.new(bar.title_tip_frame(v.frame, tonumber(t.x) or v.frame.w / 2, w, h)))
+        local canvas = tray_hs.floating(hs.canvas.new(bar.tip_frame(v.frame, tonumber(t.x) or v.frame.w / 2, w, h)))
         tip = { canvas = canvas, uuid = uuid, frame = { x = v.frame.x, y = v.frame.y, w = v.frame.w, h = v.frame.h } }
         canvas:appendElements({
             type = "rectangle",
@@ -275,7 +275,7 @@ function M.new(tilemo)
                 volume = step_volume,
                 clock_errors = tilemo.report_clock_errors,
                 good_clocks = tilemo.keep_good_clocks,
-                title_tip = title_tip,
+                tip = show_tip,
             })
         end)
     end
@@ -381,13 +381,13 @@ function M.new(tilemo)
     -- A tip whose bar was hidden (a full-screen window, entered from the
     -- keyboard with the pointer still), removed with its display, or moved
     -- goes too. That bar's page, if it's still there, is told the pointer
-    -- left, so it asks again once the pointer is back over its title.
+    -- left, so it asks again once the pointer is back over an item with a tip.
     local function drop_orphaned_tip()
         if not tip or not bar.tip_orphaned(tip.uuid, tip.frame, self.views) then
             return
         end
         local v = self.views[tip.uuid]
-        hide_title_tip()
+        hide_tip()
         if v and v.ready then
             run(v, "tilemo.pointer(null)")
         end

@@ -73,6 +73,9 @@ class Element {
   setAttribute(k, v) {
     this.attrs[k] = v;
   }
+  getAttribute(k) {
+    return k in this.attrs ? this.attrs[k] : null;
+  }
   addEventListener(type, fn) {
     this.listeners[type] = fn;
   }
@@ -152,7 +155,11 @@ assert.strictEqual(
   "in|web|docs|ABC-123 fix the …",
   "every workspace, by name, a long one cut",
 );
-assert.strictEqual(chips[3].title, "ABC-123 fix the login page", "the whole name on hover");
+// The bar's window is never key, so WebKit would show no title attribute's
+// tooltip: a tip is data-tip, which tilemo draws on hover (below).
+assert.strictEqual(chips[3].attrs["data-tip"], "ABC-123 fix the login page", "the whole name on hover");
+assert.strictEqual(chips[1].getAttribute("data-tip"), null, "a whole name has no tip");
+for (const e of [...chips, ...ids.icons.children]) assert.ok(e.attrs.title === undefined && e.title === undefined, `${e.className || "a chip"} has no title attribute`);
 // A chip's name, then one icon per window wanting attention, then how many
 // more.
 const parts = chips[3].children;
@@ -177,23 +184,23 @@ assert.deepStrictEqual(
   ["icon source", "icon awake", "icon camera", "icon mic", "icon volume", "icon wifi", "icon battery"],
 );
 assert.strictEqual(byName.source.textContent, "DVO");
-assert.strictEqual(byName.source.attrs.title, "Dvorak");
+assert.strictEqual(byName.source.attrs["data-tip"], "Dvorak");
 // Each icon is a line drawing, with its state in data-state.
 const state = (b) => b.attrs["data-state"];
 for (const b of icons) if (b.className !== "icon source") assert.ok(b.innerHTML.startsWith("<svg "), `${b.className} is drawn`);
 assert.strictEqual(state(byName.awake), "off");
 assert.strictEqual(state(byName.camera), "in-use");
-assert.strictEqual(byName.camera.attrs.title, "Camera in use");
-assert.strictEqual(byName.mic.attrs.title, "Microphone");
+assert.strictEqual(byName.camera.attrs["data-tip"], "Camera in use");
+assert.strictEqual(byName.mic.attrs["data-tip"], "Microphone");
 assert.strictEqual(state(byName.mic), "on");
 assert.ok(!byName.mic.innerHTML.includes("M2.5 2.5l11 11"), "no slash on a live microphone");
 assert.strictEqual(state(byName.wifi), "bars-2");
 assert.strictEqual(byName.wifi.innerHTML.split('opacity="0.3"').length - 1, 1, "two of three Wi-Fi arcs lit");
-assert.strictEqual(byName.wifi.attrs.title, "home");
+assert.strictEqual(byName.wifi.attrs["data-tip"], "home");
 assert.strictEqual(state(byName.volume), "mute");
 assert.ok(byName.volume.innerHTML.includes("M11 6.5l3 3"), "the speaker's cross");
 assert.strictEqual(state(byName.battery), "low");
-assert.strictEqual(byName.battery.attrs.title, "Battery 15%, 0:40 left");
+assert.strictEqual(byName.battery.attrs["data-tip"], "Battery 15%, 0:40 left");
 assert.ok(byName.battery.innerHTML.includes('width="1.20"'), "a bar 15% full");
 assert.strictEqual(byName.battery.children[0].textContent, "15%");
 
@@ -257,7 +264,7 @@ assert.strictEqual(ids.icons.children[0].className, "icon wired");
 ids.icons.children[0].listeners.click();
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
 assert.strictEqual(state(ids.icons.children[0]), "none");
-assert.strictEqual(ids.icons.children[0].attrs.title, "No network");
+assert.strictEqual(ids.icons.children[0].attrs["data-tip"], "No network");
 assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ uuid: "B", open: "network" }]));
 
 // The title keeps 200 px or the clocks shrink to local time.
@@ -366,9 +373,9 @@ assert.deepStrictEqual(point(ids["title-text"]), [ids.title]);
 // The page can't draw past its strip, so tilemo draws the uncut title's tip,
 // centered on the title; once, however often the pointer moves.
 point(ids["title-text"]);
-assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip)), JSON.stringify([{ uuid: "B", titleTip: { text: "Notes", x: 200 } }]));
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip)), JSON.stringify([{ uuid: "B", tip: { text: "Notes", x: 200 } }]));
 assert.deepStrictEqual(point(ids.clocks), [ids.clocks]);
-assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip).pop()), JSON.stringify({ uuid: "B", titleTip: { text: "" } }), "gone off the title");
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip).pop()), JSON.stringify({ uuid: "B", tip: { text: "" } }), "gone off the title");
 assert.deepStrictEqual(point(ids.icons.children[0]), [ids.icons.children[0]]);
 assert.deepStrictEqual(point(ids.bar), [], "the bar itself is no target");
 point(chip);
@@ -378,18 +385,49 @@ assert.deepStrictEqual(hoverOf(), [], "gone once the pointer leaves");
 point(ids["title-text"]);
 const long = "x".repeat(500);
 sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: long, icons: {} });
-assert.strictEqual(sent.filter((m) => m.titleTip).pop().titleTip.text, long);
+assert.strictEqual(sent.filter((m) => m.tip).pop().tip.text, long);
 // An empty title is no target, and has no tip.
 sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: "", icons: {} });
-assert.strictEqual(JSON.stringify(sent.filter((m) => m.titleTip).pop().titleTip), JSON.stringify({ text: "" }));
+assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip).pop().tip), JSON.stringify({ text: "" }));
 assert.deepStrictEqual(point(ids.title), []);
 sandbox.tilemo.pointer(null);
+// A status item's tip, a cut chip's whole name and the camera's tip take
+// the title's path, centered on the item; a window icon and a whole name
+// have none.
+sandbox.tilemo.update({
+  uuid: "B",
+  workspaces: [{ n: "in", apps: ["com.a"], wins: [7] }, { n: "ABC-123 fix the login page" }],
+  title: "",
+  app_icons: {},
+  icons: { camera: { in_use: true }, mic: { muted: true } },
+});
+const tipOf = () => JSON.stringify(sent.filter((m) => m.tip).pop().tip);
+const [shortChip, cutChip] = ids.workspaces.children;
+const [camera, mutedMicIcon] = ids.icons.children;
+cutChip.children[0].parent = cutChip;
+cutChip.rect = { left: 40, right: 140, top: 4, bottom: 32, width: 100, height: 28 };
+point(cutChip.children[0]);
+assert.strictEqual(tipOf(), JSON.stringify({ text: "ABC-123 fix the login page", x: 90 }));
+mutedMicIcon.rect = { left: 1800, right: 1820, top: 10, bottom: 26, width: 20, height: 16 };
+point(mutedMicIcon);
+assert.strictEqual(tipOf(), JSON.stringify({ text: "Microphone muted", x: 1810 }));
+point(shortChip);
+assert.strictEqual(tipOf(), JSON.stringify({ text: "" }), "a whole name has no tip");
+point(shortChip.children[1]);
+assert.strictEqual(tipOf(), JSON.stringify({ text: "" }), "nor a window icon");
+camera.parent = ids.icons;
+camera.rect = { left: 1770, right: 1786, top: 10, bottom: 26, width: 16, height: 16 };
+assert.deepStrictEqual(point(camera).length, 0, "the camera is no target");
+assert.ok(!camera.classList.contains("hover"));
+assert.strictEqual(tipOf(), JSON.stringify({ text: "Camera in use", x: 1778 }), "but has a tip");
+sandbox.tilemo.pointer(null);
+assert.strictEqual(tipOf(), JSON.stringify({ text: "" }), "gone once the pointer leaves");
 under = null;
 
 // Off, Wi-Fi shows its bars dimmed and no name.
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
 assert.strictEqual(state(ids.icons.children[0]), "off");
-assert.strictEqual(ids.icons.children[0].attrs.title, "Wi-Fi off");
+assert.strictEqual(ids.icons.children[0].attrs["data-tip"], "Wi-Fi off");
 // Lua's JSON leaves out a field that's nil: a chip that's only occupied
 // mustn't come out urgent or elsewhere.
 sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: "", icons: {} });
@@ -420,7 +458,7 @@ sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { 
 const presenting = ids.icons.children[0];
 assert.strictEqual(presenting.className, "icon awake");
 assert.strictEqual(state(presenting), "presenting");
-assert.strictEqual(presenting.attrs.title, "Presenting: Do Not Disturb and keep awake");
+assert.strictEqual(presenting.attrs["data-tip"], "Presenting: Do Not Disturb and keep awake");
 assert.strictEqual(presenting.children[0].textContent, "Presenting");
 presenting.listeners.click();
 assert.strictEqual(JSON.stringify(sent.filter((m) => !m.goodClocks)), JSON.stringify([{ uuid: "B", toggle: "presenter" }]));

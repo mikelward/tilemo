@@ -6,8 +6,8 @@
 // { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "presenter" | "source" },
 // { volume: 1 or -1 },
-// { dashboard: true }, { maximize: true }, { titleTip: { text, x } } while
-// the title is hovered and { titleTip: { text: "" } } once it isn't, { clockErrors } naming a clocks file that's wrong, or
+// { dashboard: true }, { maximize: true }, { tip: { text, x } } while
+// an item with a tip is hovered and { tip: { text: "" } } once none is, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
 
 import { renderClocks } from "./clockview.js";
@@ -83,7 +83,7 @@ function el(tag, className, text) {
 }
 
 // A long name is cut at 16 characters with an ellipsis (SPEC.md §8, a guess
-// to confirm); the chip's tooltip has it whole.
+// to confirm); the chip's tip has it whole.
 const NAME_MAX = 16;
 function shortName(name) {
   const chars = Array.from(String(name));
@@ -101,8 +101,10 @@ function renderWorkspaces(nav, workspaces, appIcons = {}) {
   for (const w of workspaces) {
     const b = el("button");
     b.type = "button";
-    b.title = String(w.n);
-    b.append(el("span", "n", shortName(w.n)));
+    const short = shortName(w.n);
+    // Only a cut name has a tip: a whole one would say it again.
+    if (short !== String(w.n)) b.setAttribute("data-tip", String(w.n));
+    b.append(el("span", "n", short));
     const wins = w.wins || [];
     (w.apps || []).forEach((app, i) => {
       const url = appIcons[app];
@@ -164,7 +166,7 @@ function icon(name, label, msg, art, state) {
   const b = el("button", `icon ${name}`);
   b.type = "button";
   b.setAttribute("aria-label", label);
-  b.setAttribute("title", label);
+  b.setAttribute("data-tip", label);
   b.setAttribute("data-state", state);
   b.innerHTML = art;
   b.addEventListener("click", () => send(msg));
@@ -216,7 +218,7 @@ function renderIcons(box, icons) {
   }
   if (icons.camera) {
     const c = el("span", "icon camera");
-    c.setAttribute("title", "Camera in use");
+    c.setAttribute("data-tip", "Camera in use");
     c.setAttribute("data-state", "in-use");
     c.innerHTML = svg(PATHS.camera);
     box.append(c);
@@ -302,21 +304,25 @@ function markHover() {
     target.classList.toggle("hover", true);
     hovered = target;
   }
-  titleTip();
+  // The camera is no target, since a click there does nothing, but has a tip.
+  showTip(hovered ?? (pointerAt && document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest("#icons > .icon")));
 }
 
-// While the title is hovered, tilemo shows it uncut in a tip below the bar,
-// centered on it at `x`: the page can't draw past its own strip. Sent only
-// when it changes, since the pointer moves often.
+// While the title, or an item with a tip, is hovered, tilemo shows the
+// uncut title, or the tip, below the bar, centered on it at `x`: the page
+// can't draw past its own strip, and WebKit shows no `title` attribute's
+// tooltip in a window that's never key (SPEC.md §8). Sent only when it
+// changes, since the pointer moves often.
 let tipSent = JSON.stringify({ text: "" });
-function titleTip() {
-  const text = document.getElementById("title-text");
-  const box = text.getBoundingClientRect();
-  const tip = hovered?.id === "title" ? { text: text.textContent, x: Math.round((box.left + box.right) / 2) } : { text: "" };
+function showTip(target) {
+  const at = target?.id === "title" ? document.getElementById("title-text") : target;
+  const text = target?.id === "title" ? at.textContent : (target?.getAttribute("data-tip") ?? "");
+  const box = at?.getBoundingClientRect();
+  const tip = text ? { text, x: Math.round((box.left + box.right) / 2) } : { text: "" };
   const json = JSON.stringify(tip);
   if (json === tipSent) return;
   tipSent = json;
-  send({ titleTip: tip });
+  send({ tip });
 }
 
 let settings = DEFAULT_SETTINGS;
