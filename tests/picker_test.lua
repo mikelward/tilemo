@@ -159,4 +159,71 @@ t.test("the shipped list, tide's, parses whole and finds the spec's examples", f
     t.eq(found["#\u{FE0F}\u{20E3}"], true, "keycap #")
 end)
 
+-- tide's Clipboard settings (SPEC.md §9.1, tide §16): clipboard.json and
+-- clipboard.local.json. The decoder knows each text these tests use.
+local DECODED = {
+    ['{"history": false}'] = { history = false },
+    ['{"maxItems": 25}'] = { maxItems = 25 },
+    ['{"maxItems": 25.0}'] = { maxItems = 25.0 },
+    ['{"maxItems": 0}'] = { maxItems = 0 },
+    ['{"maxItems": 2.5}'] = { maxItems = 2.5 },
+    ['{"history": "no"}'] = { history = "no" },
+    ['{"colour": 1}'] = { colour = 1 },
+    ["[]"] = {},
+}
+local function decode(text)
+    return DECODED[text]
+end
+local function files(shared, localf)
+    local by = { ["/c/tide/clipboard.json"] = shared, ["/c/tide/clipboard.local.json"] = localf }
+    return function(path)
+        return by[path]
+    end
+end
+
+t.test("the clipboard settings are tide's defaults with no files, then each file's, key by key", function()
+    local s, errors = picker.load_settings("/c/tide", files(nil, nil), decode)
+    t.eq(s, { history = true, max_items = 200 })
+    t.eq(errors, {})
+    s = picker.load_settings("/c/tide", files('{"history": false}', '{"maxItems": 25}'), decode)
+    t.eq(s, { history = false, max_items = 25 })
+    s = picker.load_settings("/c/tide", files(nil, '{"maxItems": 25.0}'), decode)
+    t.eq(s.max_items, 25, "a JSON number read as a float")
+    t.eq(math.type(s.max_items), "integer")
+end)
+
+t.test("a clipboard file that's wrong keeps the last good settings, naming the file and why", function()
+    local last = { history = false, max_items = 50 }
+    for text, why in pairs({
+        ['{"maxItems": 0}'] = "maxItems must be a whole number from 1 to 10000",
+        ['{"maxItems": 2.5}'] = "maxItems must be a whole number from 1 to 10000",
+        ['{"history": "no"}'] = "history must be true or false",
+        ['{"colour": 1}'] = "isn't a setting",
+        ["[]"] = "expected an object of settings",
+        ["{"] = "doesn't parse",
+    }) do
+        local s, errors = picker.load_settings("/c/tide", files(nil, text), decode, last)
+        t.eq(s, last, text)
+        t.eq(#errors, 1, text)
+        t.eq(errors[1]:find("clipboard.local.json: ", 1, true) == 1, true, errors[1])
+        t.eq(errors[1]:find(why, 1, true) ~= nil, true, errors[1])
+    end
+end)
+
+t.test("the history keeps as many copies as the settings say, and none while off", function()
+    local h = picker.history()
+    for i = 1, 5 do
+        picker.add(h, "copy " .. i)
+    end
+    picker.configure(h, { history = true, max_items = 3 })
+    t.eq(h.items, { "copy 5", "copy 4", "copy 3" }, "a smaller cap trims at once")
+    picker.add(h, "copy 6")
+    t.eq(h.items, { "copy 6", "copy 5", "copy 4" })
+    picker.configure(h, { history = false, max_items = 3 })
+    t.eq(picker.add(h, "copy 7"), false)
+    t.eq(h.items, { "copy 6", "copy 5", "copy 4" }, "off keeps what's kept, and nothing new")
+    picker.clear(h)
+    t.eq(h.items, {})
+end)
+
 t.done("picker")

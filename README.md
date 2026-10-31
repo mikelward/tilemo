@@ -36,12 +36,14 @@ It brings tide's desktop to macOS:
   Disturb Off", each one Set Focus action; tilemo says so if they're
   missing, and keep awake works without them;
 - tide's picker on Super+C: what you've copied since tilemo started,
-  never a password manager's copy, and emoji and symbols by name (§9.1);
+  never a password manager's copy, and emoji and symbols by name (§9.1),
+  with tide's Clipboard settings: the history on or off, how many copies it
+  keeps, and Clear history (§15);
 - tileco's dashboard on Super+Shift+Space;
 - a settings window, from the launcher or the dashboard, with tide's
-  Clocks and Start at login lists, sharing tide's
-  `~/.config/tide/clocks*.json` and `startup*.json`, and the muted apps and
-  sites; each section has its own launcher row (§15).
+  Clocks, Start at login and Clipboard settings, sharing tide's
+  `~/.config/tide/clocks*.json`, `startup*.json` and `clipboard*.json`, and
+  the muted apps and sites; each section has its own launcher row (§15).
 
 With [mikelward/scripts](https://github.com/mikelward/scripts),
 `setup-macos --wm tilemo` does all of this: it installs Hammerspoon and tilemo,

@@ -4,7 +4,7 @@
 #   make lint     check every Lua file parses
 #   make install  copy the Hammerspoon modules to ~/.hammerspoon/tilemo
 #   make check-tide   compare tilemo's copies of tide's geometry, clocks
-#                 and startup modules and character list with a tide checkout (TIDE=../tide
+#                 startup and clipboard modules and character list with a tide checkout (TIDE=../tide
 #                 by default)
 #   make check-tileco   compare the dashboard's copies of tileco's clock
 #                 modules with a tileco checkout (TILECO=../tileco by default)
@@ -47,11 +47,12 @@ install:
 
 # geometry.lua is tide's, copied unchanged, so a workspace looks the same on
 # both desktops; so is its clocks module, so tilemo reads and writes tide's
-# clocks files as tide does, and its startup module, for startup.json; so is the picker's character list.
+# clocks files as tide does, and its startup and clipboard modules, for startup.json and clipboard.json; so is the picker's character list.
 check-tide:
 	cmp $(TIDE)/hypr/tide/geometry.lua hammerspoon/tilemo/geometry.lua
 	cmp $(TIDE)/shell/lib/clocks.mjs hammerspoon/tilemo/dashboard/tide-clocks.js
 	cmp $(TIDE)/shell/lib/startup.mjs hammerspoon/tilemo/dashboard/tide-startup.js
+	cmp $(TIDE)/shell/lib/clipboard.mjs hammerspoon/tilemo/dashboard/tide-clipboard.js
 	cmp $(TIDE)/shell/chars/chars.tsv hammerspoon/tilemo/chars.tsv
 
 check-geometry: check-tide

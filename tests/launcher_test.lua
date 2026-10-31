@@ -529,7 +529,8 @@ t.test("each settings section has its own row, found by its name, opening the wi
             sections[#sections + 1] = c.arg
         end
     end
-    t.eq(sections, { "clocks", "startup", "muted" })
+    t.eq(sections, { "clocks", "startup", "clipboard", "muted" })
+    t.eq(first("clipboard history").arg, "clipboard")
 end)
 
 t.test("the switcher's mute key is Cmd+M, physical Ctrl+M as tide's", function()

@@ -13,7 +13,7 @@ M.MODULES = { "clocks.js", "calendar.js", "tide-clocks.js", "settings.js", "cloc
 -- The bar's page (bar_hs.lua) is built the same way, from the same files.
 M.BAR_MODULES = { "clocks.js", "calendar.js", "tide-clocks.js", "settings.js", "clockview.js", "bar.js" }
 -- And the settings page (settings_hs.lua).
-M.SETTINGS_MODULES = { "clocks.js", "tide-clocks.js", "tide-startup.js", "settings.js", "settings-page.js" }
+M.SETTINGS_MODULES = { "clocks.js", "tide-clocks.js", "tide-startup.js", "tide-clipboard.js", "settings.js", "settings-page.js" }
 
 -- tide's modules, copied unchanged, import each other by tide's names: a
 -- module registered here is also found by the name in `ALIASES`.
@@ -43,6 +43,13 @@ function M.startup_files(dir, read)
 end
 
 M.STARTUP_LOCAL_FILE = "startup.local.json"
+
+-- And the Clipboard settings' (picker.lua).
+function M.clipboard_files(dir, read)
+    return { shared = read(dir .. "/clipboard.json"), ["local"] = read(dir .. "/clipboard.local.json") }
+end
+
+M.CLIPBOARD_LOCAL_FILE = "clipboard.local.json"
 
 -- One module's source as a function that registers what it exports.
 local function wrap(name, src)

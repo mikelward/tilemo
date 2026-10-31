@@ -98,7 +98,9 @@ function M.new(tilemo)
     -- so a copy replaced within that moment is judged by its replacement's.
     self.watcher = hs.pasteboard.watcher.new(function()
         if picker.keep(hs.pasteboard.contentTypes()) then
-            picker.add(self.history, hs.pasteboard.readString())
+            if picker.add(self.history, hs.pasteboard.readString()) and tilemo.on_clipboard then
+                tilemo.on_clipboard()
+            end
         end
     end)
 
@@ -125,7 +127,9 @@ function M.new(tilemo)
             hs.hotkey.bind({ "shift" }, "forwarddelete", function()
                 local row = chooser:selectedRowContents()
                 if tab == "clipboard" and row and row.copy then
-                    picker.forget(self.history, row.copy)
+                    if picker.forget(self.history, row.copy) and tilemo.on_clipboard then
+                        tilemo.on_clipboard()
+                    end
                     chooser:choices(choices(chooser:query()))
                 end
             end),

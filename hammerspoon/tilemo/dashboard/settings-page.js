@@ -11,6 +11,7 @@
 
 import { editableClocks, editedClocks, movedClock, relabeledClock, withClock, withoutClock } from "./tide-clocks.js";
 import { editableStartup, editedStartup, movedCommand, withCommand, withoutCommand } from "./tide-startup.js";
+import { historySummary, loadClipboardSettings, steppedMax, withSetting } from "./tide-clipboard.js";
 import { isZone, localText, sharedText } from "./settings.js";
 
 const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage(msg);
@@ -18,6 +19,10 @@ const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage(msg);
 let files = null;
 let muted = [];
 let startupFiles = null;
+let clipboardFiles = null;
+let clipboardCount = 0;
+// The settings tilemo has in effect, the fallback when a file is wrong.
+let clipboardInEffect;
 
 const SOURCES = {
   "clocks.local.json": "From clocks.local.json, this Mac's own list.",
@@ -155,6 +160,56 @@ function renderStartup() {
   });
 }
 
+// The Clipboard section, as tide's Clipboard page: the history on or off,
+// how many copies it keeps, and Clear history. Changes go to
+// clipboard.local.json, key by key, with tide's own functions.
+const clipboardText = (which) => (typeof clipboardFiles?.[which] === "string" ? clipboardFiles[which] : null);
+
+function clipboardSettings() {
+  return loadClipboardSettings(clipboardText("shared"), clipboardText("local"), clipboardInEffect);
+}
+
+function setClipboard(key, value) {
+  const r = withSetting(clipboardText("local"), key, value);
+  const error = document.getElementById("clipboard-error");
+  if (r.error) {
+    error.textContent = r.error;
+    return;
+  }
+  error.textContent = "";
+  send({ writeClipboard: r.text });
+  clipboardFiles = { ...clipboardFiles, local: r.text };
+  renderClipboard();
+}
+
+function renderClipboard() {
+  const { settings: s, errors } = clipboardSettings();
+  const count = clipboardCount === 1 ? "1 copy kept now" : `${clipboardCount} copies kept now`;
+  document.getElementById("clipboard-summary").textContent = `${historySummary(s)}. ${count}.`;
+  document.getElementById("clipboard-error").textContent = errors.length ? `${errors.join("; ")}. Fix the file to change these here.` : "";
+  const toggle = document.getElementById("clipboard-history");
+  toggle.textContent = s.history ? "History on" : "History off";
+  toggle.setAttribute("aria-pressed", String(s.history));
+  document.getElementById("clipboard-max").textContent = String(s.maxItems);
+  for (const id of ["clipboard-history", "clipboard-fewer", "clipboard-more"]) {
+    document.getElementById(id).disabled = errors.length > 0;
+  }
+  document.getElementById("clipboard-fewer").disabled ||= steppedMax(s.maxItems, -1) === s.maxItems;
+  document.getElementById("clipboard-more").disabled ||= steppedMax(s.maxItems, 1) === s.maxItems;
+  document.getElementById("clipboard-clear").disabled = clipboardCount === 0;
+}
+
+document.getElementById("clipboard-history").addEventListener("click", () => {
+  setClipboard("history", !clipboardSettings().settings.history);
+});
+document.getElementById("clipboard-fewer").addEventListener("click", () => {
+  setClipboard("maxItems", steppedMax(clipboardSettings().settings.maxItems, -1));
+});
+document.getElementById("clipboard-more").addEventListener("click", () => {
+  setClipboard("maxItems", steppedMax(clipboardSettings().settings.maxItems, 1));
+});
+document.getElementById("clipboard-clear").addEventListener("click", () => send({ clearClipboard: true }));
+
 // Each muted entry: an app's bundle id, or site:<host>, shown as the host.
 function renderMuted() {
   const list = document.getElementById("muted-list");
@@ -197,13 +252,24 @@ window.tilemo = {
   update(state) {
     files = state.clockFiles;
     startupFiles = state.startupFiles ?? null;
+    clipboardFiles = state.clipboardFiles ?? null;
+    clipboardCount = Number.isInteger(state.clipboardCount) ? state.clipboardCount : 0;
+    const e = state.clipboardSettings;
+    clipboardInEffect = e && typeof e.history === "boolean" && Number.isInteger(e.maxItems) ? e : undefined;
     muted = Array.isArray(state.muted) ? state.muted : [];
     // New files: what went wrong before is about the old ones.
     showError("");
     showStartupError("");
     render();
     renderStartup();
+    renderClipboard();
     renderMuted();
+  },
+  // The clipboard history's count, from tilemo as copies come and go:
+  // only the Clipboard section redraws.
+  count(n) {
+    clipboardCount = Number.isInteger(n) ? n : 0;
+    renderClipboard();
   },
   reveal(id) {
     document.getElementById(id)?.scrollIntoView?.({ block: "start" });

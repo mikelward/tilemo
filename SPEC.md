@@ -1515,7 +1515,8 @@ two tabs. C is for clipboard and characters.
     can't be read isn't kept either.
   - The types are read when the watcher fires, so a copy replaced within
     that moment is judged by its replacement's types, as on tide.
-  - **In memory only,** the newest 200. Nothing is written to disk, so
+  - **In memory only,** the newest 200, or as many as the Clipboard
+    settings say (§15). Nothing is written to disk, so
     quitting Hammerspoon or reloading tilemo wipes it. That's cheaper
     than a file (no permissions to keep at 600, nothing to clean up), and
     safer: a copy you regret is gone at the next restart.
@@ -1928,15 +1929,30 @@ Each one names a workaround, or says there is none.
   (§11).
   - **Built: Clocks,** a window from the launcher ("Settings: clocks") or
     the dashboard ("Change the clocks…"). The window also has the Start at
-    login and Muted sections. Each section has its own launcher row
-    ("Settings: clocks", "Settings: start at login", "Settings: muted apps
-    and sites"), found by its name, which opens the window there, or
+    login, Clipboard and Muted sections. Each section has its own launcher
+    row ("Settings: clocks", "Settings: start at login", "Settings:
+    clipboard history", "Settings: muted apps and sites"), found by its name, which opens the window there, or
     scrolls an open one, as tide's per-page rows do (tide §16). As tide's Clocks page, it adds a
     zone by its ID, relabels, moves and removes clocks, and writes only
     `clocks.local.json`, with tide's own functions, so the first change
     copies the list the bar shows. A zone Intl doesn't know is refused.
     tilemo watches the folder, so the bar, the dashboard and the page
     follow a change, a hand edit's included.
+  - **Built: Clipboard,** a section of the settings window, as tide's
+    Clipboard page (tide §16), with tide's own `clipboard.mjs`, copied
+    unchanged as `dashboard/tide-clipboard.js`. It reads and writes tide's
+    `clipboard.json` and `clipboard.local.json`, key by key, so one setting
+    serves both desktops.
+    - `history` turns keeping new copies on or off, on by default. Off,
+      what's kept stays until it's cleared.
+    - `maxItems` is how many it keeps, 200 by default, from 1 to 10,000.
+      − and + step through tide's marks (25 to 1,000). A smaller cap trims
+      the history at once.
+    - **Clear history** forgets every copy, at once.
+    - A file that's wrong is an error at load, in a notification naming
+      the file and the setting, and the last good settings stay; the
+      section says so too, and changes nothing until it's fixed. tilemo
+      reads the files again when the folder changes.
   - **The settings window also lists the muted apps and sites** (§14.2),
     each with an Unmute button, writing `workspaces.local.json` as the
     one-key mute does.

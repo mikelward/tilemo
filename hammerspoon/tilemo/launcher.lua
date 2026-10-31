@@ -500,6 +500,7 @@ M.COMMANDS = {
     { title = "Dashboard: workspaces, clocks and calendar", action = "dashboard" },
     { title = "Settings: clocks", action = "settings", arg = "clocks" },
     { title = "Settings: start at login", action = "settings", arg = "startup" },
+    { title = "Settings: clipboard history", action = "settings", arg = "clipboard" },
     { title = "Settings: muted apps and sites", action = "settings", arg = "muted" },
     { title = "Monocle", action = "monocle" },
     { title = "Float or tile the window", action = "toggle_float" },

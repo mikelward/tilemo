@@ -137,7 +137,7 @@ tests and the bar page's test cover it. **Check on a Mac:**
   `blueutil -p` where it's installed. Reversible: one more item in
   `bar.lua`'s `ITEMS`.
 - **tilemo's settings are one window with sections, not tide's pages**
-  (SPEC.md §15): Clocks, Start at login and Muted, each with its own
+  (SPEC.md §15): Clocks, Start at login, Clipboard and Muted, each with its own
   launcher row that scrolls there. It's one short window, and an
   `hs.webview` has no sidebar to build. The alternative is a page per
   section, as tide's panel has. Reversible: `settings.html` and
