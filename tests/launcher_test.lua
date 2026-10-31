@@ -541,7 +541,8 @@ t.test("each settings section has its own row, found by its name, opening the wi
             sections[#sections + 1] = c.arg
         end
     end
-    t.eq(sections, { "clocks", "startup", "clipboard", "muted" })
+    t.eq(sections, { "clocks", "layouts", "startup", "clipboard", "muted" })
+    t.eq(first("layouts").arg, "layouts")
     t.eq(first("clipboard history").arg, "clipboard")
 end)
 

@@ -245,7 +245,7 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Key repeat: 600 ms, 25 a second | `InitialKeyRepeat` and `KeyRepeat` (§10) | **partial**: macOS's steps |
 | Caps Lock as Compose | no Compose; Karabiner can map key sequences | **partial** |
 | Setup checklist (tileco §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
-| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | tilemo reads the same files (§15) | **partial**: Clocks, Start at login, Clipboard and the muted list are built; Layouts, Workspaces, Keys and the checklist aren't, and the layouts and standing workspaces are still `start()` options |
+| Settings pages, shared `~/.config/tide` files, `.local` overrides (tide §16) | tilemo reads the same files (§15) | **partial**: Clocks, Layouts, Start at login, Clipboard and the muted list are built; Workspaces, Keys and the checklist aren't, and the standing workspaces and home's apps are still `start()` options |
 | `tide doctor` (tide §5.4) | `tilemo doctor` (§15) | **yes** |
 | Workspace swipe, three fingers (conf `hyprland.lua`) | no public gesture API (§13) | **no** |
 | kitty, Ubuntu Mono, shell config | native, through `setup` and `conf` | **yes** |
@@ -1884,6 +1884,19 @@ Each one names a workaround, or says there is none.
   `~/.config/tide/` (tide §16.1): the clocks list, the layouts, and the dim
   strength. One file serves every desktop. A `.local` file beside each
   overrides it for one machine.
+- **The layouts are tide's setting,** `layouts.json` and
+  `layouts.local.json` (tide §16), read as tilemo starts, before the first
+  workspace is made, and again whenever the folder changes.
+  - They're laid over `start()`'s `layout`, or tide's defaults without one,
+    so tilemo's own settings the files don't name (`cycle`, `mfact_step`)
+    stay.
+  - A change reaches every workspace, as on tide: each keeps its mode, and
+    takes the new `mfact` and master count, losing any it was given with
+    the keys. The displays are laid out again at once. Settings that
+    haven't changed change nothing, so another file's change in the folder
+    doesn't undo what the keys set.
+  - A file that's wrong, by tide's checks, is an error at load, in a
+    notification naming the file and why, and the last good settings stay.
   - **The workspace-name patterns** (§6.2) are tide's setting, in the same
     file tide reads them from *(its name to match tide's)*, so one list
     names workspaces on both desktops.
@@ -1960,6 +1973,15 @@ Each one names a workaround, or says there is none.
 - **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
   Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
   (§11).
+  - **Built: Layouts,** a section of the settings window, as tide's
+    Layouts page (tide §16), with tide's own `layouts.mjs` and `steps.mjs`,
+    copied unchanged as `dashboard/tide-layouts.js` and `tide-steps.js`:
+    where ultrawide begins, the mode a new workspace starts in on each kind
+    of display, where a new window goes, each mode's master width and
+    count, and a lone window's width. − and + step to tide's marks, ‹ and ›
+    through the choices. It writes only `layouts.local.json`, keeping what
+    else it says; a file that's wrong is named, and nothing changes here
+    until it's fixed. Its launcher row is "Settings: layouts".
   - **Built: Clocks,** a window from the launcher ("Settings: clocks") or
     the dashboard ("Change the clocks…"). The window also has the Start at
     login, Clipboard and Muted sections. Each section has its own launcher

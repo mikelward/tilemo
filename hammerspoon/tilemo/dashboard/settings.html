@@ -76,6 +76,20 @@ body.settings {
   align-items: center;
   gap: 6px;
 }
+/* A Layouts row: its name, then ‹ or −, the value, and › or +. */
+.settings #layout-rows .row {
+  display: grid;
+  grid-template-columns: 1fr auto 8em auto;
+  padding: 2px 0;
+}
+.settings #layout-rows .value {
+  text-align: center;
+}
+.settings #layout-rows h2 {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 12px 0 4px;
+}
 .settings .add input {
   width: 18em;
 }
@@ -90,6 +104,11 @@ body.settings {
 </p>
 <p class="error" id="error" role="alert"></p>
 <p class="note">A label shows on the bar: any text, nothing for just the time, or <code>abbr</code> for the zone's abbreviation. Enter sets it. The bar shows local last, after these.</p>
+<h1 id="layouts">Layouts</h1>
+<p class="source" id="layouts-source"></p>
+<div id="layout-rows"></div>
+<p class="error" id="layouts-error" role="alert"></p>
+<p class="note">How a workspace tiles, shared with tide's layouts.json. A change reaches every workspace at once: each keeps its layout, and takes the new widths and masters in place of any set with the keys.</p>
 <h1 id="startup">Start at login</h1>
 <p class="source" id="startup-source"></p>
 <ol id="startup-list"></ol>

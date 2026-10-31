@@ -649,4 +649,18 @@ t.test("the settings action opens the window on the section it names", function(
     t.eq(opened, { "startup", "none" })
 end)
 
+t.test("new layout settings retile every display at once, and the same ones change nothing", function()
+    local layout = require("tilemo.layout")
+    local a, wm = setup(3)
+    wm:act("mfact", 1)
+    local c = layout.copy(layout.defaults)
+    c.modes.tile.mfact = 0.5
+    wm:set_layout(c)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.5, "what the keys set gives way")
+    t.eq(frame(a, 1).w, 960)
+    wm:act("mfact", 1)
+    wm:set_layout(layout.copy(c))
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.525, "a reload with the same settings keeps the keys'")
+end)
+
 t.done("wm")

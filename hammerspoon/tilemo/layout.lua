@@ -190,4 +190,226 @@ function M.arrange(ws, area, ids, config)
     return out
 end
 
+-- tide's layouts files (tide SPEC.md §16), in its settings folder: the
+-- shared one, then this machine's, whose settings win.
+M.FILES = { "layouts.json", "layouts.local.json" }
+M.LOCAL_FILE = "layouts.local.json"
+
+-- The modes a workspace can start in, and the fewest masters each mode
+-- with a master takes: tide's shell/lib/layouts.mjs, whose checks these are.
+local START_MODES = { tile = true, threecol = true, twocol = true, monocle = true }
+local MIN_MASTERS = { tile = 0, threecol = 1, twocol = 1 }
+local NEW_WINDOW = { ["end"] = true, top = true, next = true, master = true }
+
+local function is_list(v)
+    if type(v) ~= "table" then
+        return false
+    end
+    local n = 0
+    for _ in pairs(v) do
+        n = n + 1
+    end
+    return n == #v
+end
+
+-- An object: a table with only string keys. An empty table passes as both,
+-- as JSON's {} and [] decode alike.
+local function is_object(v)
+    if type(v) ~= "table" then
+        return false
+    end
+    for k in pairs(v) do
+        if type(k) ~= "string" then
+            return false
+        end
+    end
+    return true
+end
+
+local function number_error(path, v, lo, hi, whole)
+    if type(v) ~= "number" or not (v >= lo and v <= hi) or (whole and v % 1 ~= 0) then
+        return string.format("%s must be %s from %s to %s", path, whole and "a whole number" or "a number", lo, hi)
+    end
+end
+
+local function sorted_keys(t)
+    local keys = {}
+    for k in pairs(t) do
+        keys[#keys + 1] = tostring(k)
+    end
+    table.sort(keys)
+    return keys
+end
+
+-- What's wrong with one file's settings, as layouts.mjs's settingsError
+-- words it, or nil.
+local function settings_error(v)
+    for _, key in ipairs(sorted_keys(v)) do
+        local x = v[key]
+        local err
+        if key == "ultrawideAspect" then
+            err = number_error(key, x, 0.1, 100)
+        elseif key == "defaultMode" then
+            if not is_object(x) then
+                err = "defaultMode must be an object of normal and ultrawide"
+            else
+                for _, k in ipairs(sorted_keys(x)) do
+                    if k ~= "normal" and k ~= "ultrawide" then
+                        err = err or ("defaultMode." .. k .. " is not a setting")
+                    elseif not START_MODES[x[k]] then
+                        err = err or ("defaultMode." .. k .. " must be one of tile, threecol, twocol, monocle")
+                    end
+                end
+            end
+        elseif key == "modes" then
+            if not is_object(x) then
+                err = "modes must be an object of tile, threecol and twocol"
+            else
+                for _, mode in ipairs(sorted_keys(x)) do
+                    local m = x[mode]
+                    if MIN_MASTERS[mode] == nil then
+                        err = err or ("modes." .. mode .. " is not a setting")
+                    elseif not is_object(m) then
+                        err = err or ("modes." .. mode .. " must be an object of mfact and nmaster")
+                    else
+                        for _, k in ipairs(sorted_keys(m)) do
+                            if k == "mfact" then
+                                err = err or number_error("modes." .. mode .. ".mfact", m[k], 0.1, 0.9)
+                            elseif k == "nmaster" then
+                                err = err or number_error("modes." .. mode .. ".nmaster", m[k], MIN_MASTERS[mode], 100, true)
+                            else
+                                err = err or ("modes." .. mode .. "." .. k .. " is not a setting")
+                            end
+                        end
+                    end
+                end
+            end
+        elseif key == "newWindow" then
+            if not NEW_WINDOW[x] then
+                err = "newWindow must be one of end, top, next, master"
+            end
+        elseif key == "single" then
+            if not is_list(x) then
+                err = "single must be a list of {minAspect, width}"
+            else
+                for i, rule in ipairs(x) do
+                    local at = "single entry " .. i
+                    if not is_object(rule) then
+                        err = err or (at .. " must be {minAspect, width}")
+                    else
+                        for _, k in ipairs(sorted_keys(rule)) do
+                            if k ~= "minAspect" and k ~= "width" then
+                                err = err or (at .. ": " .. k .. " is not a setting")
+                            end
+                        end
+                        err = err or number_error(at .. ": minAspect", rule.minAspect, 0, 100)
+                        err = err or number_error(at .. ": width", rule.width, 0.1, 1)
+                    end
+                end
+            end
+        else
+            err = 'unknown setting "' .. key .. '"'
+        end
+        if err then
+            return err
+        end
+    end
+end
+
+-- One file's settings laid over `config`, in tilemo's names: objects key by
+-- key, lists whole, as tide merges them (tide SPEC.md §16.1).
+local function apply(config, v)
+    if v.ultrawideAspect ~= nil then
+        config.ultrawide_aspect = v.ultrawideAspect
+    end
+    for _, k in ipairs({ "normal", "ultrawide" }) do
+        if v.defaultMode and v.defaultMode[k] ~= nil then
+            config.default_mode[k] = v.defaultMode[k]
+        end
+    end
+    for mode, m in pairs(v.modes or {}) do
+        config.modes[mode] = config.modes[mode] or {}
+        if m.mfact ~= nil then
+            config.modes[mode].mfact = m.mfact
+        end
+        if m.nmaster ~= nil then
+            config.modes[mode].nmaster = math.tointeger(m.nmaster) or m.nmaster
+        end
+    end
+    if v.single ~= nil then
+        config.single = {}
+        for i, rule in ipairs(v.single) do
+            config.single[i] = { min_aspect = rule.minAspect, width = rule.width }
+        end
+    end
+    if v.newWindow ~= nil then
+        config.new_window = v.newWindow
+    end
+end
+
+-- The layout settings in effect and the errors to say: tide's layouts files
+-- laid over `base` (M.defaults if nil), the local file's over the shared
+-- one's. A file that's wrong keeps `last` (`base` if none), as tide does,
+-- and an error names the file and why. `read(path)` gives a file's text or
+-- nil; `decode(text)` its value, or nil if it doesn't parse.
+function M.load_settings(dir, read, decode, base, last)
+    base = base or M.defaults
+    local config = copy(base)
+    local errors = {}
+    for _, name in ipairs(M.FILES) do
+        local text = read(dir .. "/" .. name)
+        if text then
+            local ok, v = pcall(decode, text)
+            local why
+            if not ok or v == nil then
+                why = "doesn't parse"
+            elseif not is_object(v) or not text:match("^%s*{") then
+                why = "expected an object of settings"
+            else
+                why = settings_error(v)
+            end
+            if why then
+                errors[#errors + 1] = name .. ": " .. why
+            else
+                apply(config, v)
+            end
+        end
+    end
+    if #errors > 0 then
+        return last or copy(base), errors
+    end
+    return config, errors
+end
+
+-- What of `config` tide's layouts files can set, in their names, for the
+-- settings page to show the files over: a `start()` layout that isn't
+-- tide's defaults is what the files lay over here, not tide's defaults.
+function M.file_form(config)
+    local modes = {}
+    for _, mode in ipairs({ "tile", "threecol", "twocol" }) do
+        local m = config.modes and config.modes[mode]
+        if m then
+            modes[mode] = { mfact = m.mfact, nmaster = m.nmaster }
+        end
+    end
+    local single = {}
+    for i, rule in ipairs(config.single or {}) do
+        single[i] = { minAspect = rule.min_aspect, width = rule.width }
+    end
+    return {
+        ultrawideAspect = config.ultrawide_aspect,
+        defaultMode = copy(config.default_mode),
+        modes = modes,
+        single = single,
+        newWindow = config.new_window,
+    }
+end
+
+-- Settings `config` take effect on workspace `ws`, as tide's reload does
+-- (tide SPEC.md §16): it keeps its mode, and takes the new mfact and
+-- master count, losing any it was given with the keys.
+function M.reconfigure(ws, config)
+    ws.opts = copy(config.modes)
+end
+
 return M

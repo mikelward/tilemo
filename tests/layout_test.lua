@@ -116,4 +116,104 @@ t.test("a lone window on an ultrawide is centered at 80%", function()
     t.eq(b.x, 344)
 end)
 
+-- tide's layouts files, as hs.json would decode them.
+local DECODED = {
+    ['{"modes": {"tile": {"mfact": 0.6}}}'] = { modes = { tile = { mfact = 0.6 } } },
+    ['{"newWindow": "top", "ultrawideAspect": 2.4}'] = { newWindow = "top", ultrawideAspect = 2.4 },
+    ['{"modes": {"tile": {"nmaster": 2}}, "defaultMode": {"ultrawide": "tile"}}'] =
+        { modes = { tile = { nmaster = 2 } }, defaultMode = { ultrawide = "tile" } },
+    ['{"single": [{"minAspect": 2.5, "width": 0.7}]}'] = { single = { { minAspect = 2.5, width = 0.7 } } },
+    ['{"modes": {"tile": {"mfact": 2}}}'] = { modes = { tile = { mfact = 2 } } },
+    ['{"modes": {"twocol": {"nmaster": 0}}}'] = { modes = { twocol = { nmaster = 0 } } },
+    ['{"newWindow": "left"}'] = { newWindow = "left" },
+    ['{"defaultMode": {"normal": "grid"}}'] = { defaultMode = { normal = "grid" } },
+    ['{"gaps": 4}'] = { gaps = 4 },
+    ['{"single": {"width": 0.5}}'] = { single = { width = 0.5 } },
+    ["[]"] = {},
+}
+local function decode(text)
+    return DECODED[text]
+end
+local function files(shared, localf)
+    local by = { ["/c/tide/layouts.json"] = shared, ["/c/tide/layouts.local.json"] = localf }
+    return function(path)
+        return by[path]
+    end
+end
+
+t.test("with no layouts files, the settings are tide's defaults", function()
+    local c, errors = layout.load_settings("/c/tide", files(nil, nil), decode)
+    t.eq(c, layout.defaults)
+    t.eq(errors, {})
+end)
+
+t.test("tide's layouts files set tilemo's layout, the local file's over the shared one's", function()
+    local c = layout.load_settings("/c/tide",
+        files('{"modes": {"tile": {"mfact": 0.6}}}', '{"modes": {"tile": {"nmaster": 2}}, "defaultMode": {"ultrawide": "tile"}}'),
+        decode)
+    t.eq(c.modes.tile, { mfact = 0.6, nmaster = 2 }, "objects merge key by key")
+    t.eq(c.modes.threecol, layout.defaults.modes.threecol)
+    t.eq(c.default_mode, { normal = "tile", ultrawide = "tile" })
+    c = layout.load_settings("/c/tide", files('{"newWindow": "top", "ultrawideAspect": 2.4}', nil), decode)
+    t.eq(c.new_window, "top")
+    t.eq(c.ultrawide_aspect, 2.4)
+    t.eq(c.cycle, layout.defaults.cycle, "what the files can't set stays")
+    c = layout.load_settings("/c/tide", files(nil, '{"single": [{"minAspect": 2.5, "width": 0.7}]}'), decode)
+    t.eq(c.single, { { min_aspect = 2.5, width = 0.7 } }, "a list is set whole")
+end)
+
+t.test("the files lay over start()'s layout, which stays tilemo's own base", function()
+    local base = layout.copy(layout.defaults)
+    base.mfact_step = 0.05
+    local c = layout.load_settings("/c/tide", files('{"modes": {"tile": {"mfact": 0.6}}}', nil), decode, base)
+    t.eq(c.mfact_step, 0.05)
+    t.eq(c.modes.tile.mfact, 0.6)
+    t.eq(base.modes.tile.mfact, 0.55, "the base isn't changed")
+end)
+
+t.test("a layouts file that's wrong keeps the last good settings, naming the file and why", function()
+    local last = layout.copy(layout.defaults)
+    last.new_window = "next"
+    for text, why in pairs({
+        ['{"modes": {"tile": {"mfact": 2}}}'] = "modes.tile.mfact must be a number from 0.1 to 0.9",
+        ['{"modes": {"twocol": {"nmaster": 0}}}'] = "modes.twocol.nmaster must be a whole number from 1 to 100",
+        ['{"newWindow": "left"}'] = "newWindow must be one of end, top, next, master",
+        ['{"defaultMode": {"normal": "grid"}}'] = "defaultMode.normal must be one of",
+        ['{"gaps": 4}'] = 'unknown setting "gaps"',
+        ['{"single": {"width": 0.5}}'] = "single must be a list of {minAspect, width}",
+        ["[]"] = "expected an object of settings",
+        ["{"] = "doesn't parse",
+    }) do
+        local c, errors = layout.load_settings("/c/tide", files('{"modes": {"tile": {"mfact": 0.6}}}', text), decode, nil, last)
+        t.eq(c, last, text)
+        t.eq(#errors, 1, text)
+        t.eq(errors[1]:find("layouts.local.json: ", 1, true) == 1, true, errors[1])
+        t.eq(errors[1]:find(why, 1, true) ~= nil, true, errors[1])
+    end
+    local c = layout.load_settings("/c/tide", files(nil, "{"), decode)
+    t.eq(c, layout.defaults, "with nothing good yet, the defaults")
+end)
+
+t.test("new settings keep a workspace's mode and reset what the keys set", function()
+    local ws = layout.new(1, HD)
+    layout.cycle(ws, 1)
+    layout.mfact(ws, 0.1)
+    local mode = ws.mode
+    local c = layout.copy(layout.defaults)
+    c.modes.threecol.mfact = 0.4
+    layout.reconfigure(ws, c)
+    t.eq(ws.mode, mode)
+    t.eq(ws.opts.threecol.mfact, 0.4)
+    t.eq(ws.opts.tile.mfact, 0.55)
+end)
+
+t.test("the settings page gets the layout in tide's files' names", function()
+    local f = layout.file_form(layout.defaults)
+    t.eq(f.ultrawideAspect, 2.1)
+    t.eq(f.defaultMode, { normal = "tile", ultrawide = "threecol" })
+    t.eq(f.modes, { tile = { mfact = 0.55, nmaster = 1 }, threecol = { mfact = 0.5, nmaster = 1 }, twocol = { mfact = 0.72, nmaster = 2 } })
+    t.eq(f.single, { { minAspect = 2.1, width = 0.8 }, { minAspect = 3.2, width = 0.6 } })
+    t.eq(f.newWindow, "end")
+end)
+
 t.done("layout")

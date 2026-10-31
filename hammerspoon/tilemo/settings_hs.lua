@@ -1,12 +1,13 @@
 -- tilemo's settings window on Hammerspoon (SPEC.md §15): the Clocks,
--- Start at login and Clipboard pages, dashboard.lua's settings page in an
--- hs.webview. It writes tide's clocks.local.json, startup.local.json and
--- clipboard.local.json, and tilemo hands
+-- Layouts, Start at login and Clipboard pages, dashboard.lua's settings page
+-- in an hs.webview. It writes tide's clocks.local.json, layouts.local.json,
+-- startup.local.json and clipboard.local.json, and tilemo hands
 -- the files back once they change on disk, so the page shows what the bar
 -- and the next login do. Not runnable outside
 -- Hammerspoon.
 
 local dashboard = require("tilemo.dashboard")
+local layout = require("tilemo.layout")
 local mute = require("tilemo.mute")
 local picker = require("tilemo.picker")
 
@@ -34,7 +35,7 @@ local function build()
 end
 
 -- `tilemo` is the started tilemo module: its wm, adapter, clock_dir,
--- clock_files, startup_files, clipboard_files and picker.
+-- clock_files, layout_files, startup_files, clipboard_files and picker.
 function M.new(tilemo)
     local self = {}
     local page = build()
@@ -50,6 +51,10 @@ function M.new(tilemo)
         local json = hs.json.encode({
             clockFiles = tilemo.clock_files,
             startupFiles = tilemo.startup_files,
+            layoutFiles = tilemo.layout_files,
+            -- What the files lay over: start()'s layout, or tide's
+            -- defaults, so the page shows and steps what's in effect.
+            layoutBase = tilemo.layout_base and layout.file_form(tilemo.layout_base) or nil,
             clipboardFiles = tilemo.clipboard_files,
             clipboardCount = tilemo.picker and #tilemo.picker.history.items or 0,
             -- The settings in effect, which a file gone wrong since leaves
@@ -70,7 +75,8 @@ function M.new(tilemo)
         end)
     end
 
-    -- Scroll to section `id` ("clocks", "startup", "clipboard" or "muted").
+    -- Scroll to section `id` ("clocks", "layouts", "startup", "clipboard" or
+    -- "muted").
     local function reveal(id)
         if not (view and id) then
             return
@@ -101,6 +107,8 @@ function M.new(tilemo)
         tilemo.adapter.after(0, function()
             if type(body.write) == "string" then
                 save(dashboard.LOCAL_FILE, body.write, "the clocks")
+            elseif type(body.writeLayouts) == "string" then
+                save(dashboard.LAYOUTS_LOCAL_FILE, body.writeLayouts, "the layouts")
             elseif type(body.writeStartup) == "string" then
                 save(dashboard.STARTUP_LOCAL_FILE, body.writeStartup, "Start at login's commands")
             elseif type(body.writeClipboard) == "string" then

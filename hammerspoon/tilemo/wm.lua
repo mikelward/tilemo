@@ -24,6 +24,24 @@ local names = require("tilemo.names")
 local rules = require("tilemo.rules")
 
 local M = {}
+
+-- Whether two layout settings are the same, value by value.
+local function layout_equal(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then
+        return a == b
+    end
+    for k, v in pairs(a) do
+        if not layout_equal(v, b[k]) then
+            return false
+        end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then
+            return false
+        end
+    end
+    return true
+end
 M.__index = M
 
 local function remove_value(list, v)
@@ -1465,6 +1483,21 @@ function M:follow_floats()
             end
         end
     end
+end
+
+-- New layout settings, from tide's layouts files (SPEC.md §15): every
+-- workspace keeps its mode and takes the new mfact and master count, as on
+-- tide, and the displays are laid out again at once. Unchanged settings
+-- change nothing, so a reload doesn't undo what the keys set.
+function M:set_layout(config)
+    if layout_equal(self.layout, config) then
+        return
+    end
+    self.layout = config
+    for _, ws in pairs(self.workspaces) do
+        layout.reconfigure(ws, config)
+    end
+    self:retile()
 end
 
 -- Lay out every display, moving only windows that aren't already where
