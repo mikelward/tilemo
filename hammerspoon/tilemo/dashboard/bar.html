@@ -28,20 +28,99 @@ nav button {
   gap: 3px;
   padding: 0 6px;
 }
+/* A window icon's click target is the chip's full height and halfway to
+   its neighbors (the chip's gap is 3px), from padding the margin takes back,
+   so a click just beside the icon still focuses the window. */
 nav button .app {
+  box-sizing: content-box;
   width: 16px;
   height: 16px;
+  padding: 4px 1.5px;
+  margin: -4px -1.5px;
 }
 nav button .app.none {
-  border-radius: 4px;
   background: var(--muted);
+  /* The square is the content box, its corners 4px once the padding's
+     taken off. */
+  background-clip: content-box;
+  border-radius: 5.5px / 8px;
   opacity: 0.4;
 }
 nav button .more {
   font-size: 0.85em;
 }
-/* Held to the room between the two sides by bar.js, one line. */
+/* Each item's click target: a box under its content (so a window icon in a
+   chip stays its own target) reaching as far as bar.js's --reach-* say, to
+   the bar's top and bottom and halfway to each neighbor. ::before takes the
+   clicks; ::after, the same box, shows it on hover (tileco's stylesheet). */
+nav > button,
+#clocks,
+#icons > .icon {
+  position: relative;
+  z-index: 0;
+}
+nav > button::before,
+nav > button::after,
+#clocks::before,
+#clocks::after,
+#icons > .icon::before,
+#icons > .icon::after,
+#title::before,
+#title::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: calc(-1 * var(--reach-top, 0px));
+  bottom: calc(-1 * var(--reach-bottom, 0px));
+  left: calc(-1 * var(--reach-left, 0px));
+  right: calc(-1 * var(--reach-right, 0px));
+}
+#icons > .icon::after,
+#title::after {
+  border-radius: 6px;
+  pointer-events: none;
+}
+/* The title's target is the free bar around it, between the two groups,
+   for a double click. Its text is the inner span, which clips. */
 #title {
+  z-index: 0;
+}
+/* From the chip's border edge, not its padding's. */
+nav > button::before,
+nav > button::after {
+  margin: -1px;
+}
+/* Under the pointer the whole target shows, a rounded rect half pressed.
+   bar.js marks it .hover: the bar's window is never key, and WebKit only
+   follows the pointer in the key window, so :hover never fires here. */
+nav > button.hover::after,
+#clocks.hover::after,
+#icons > button.icon.hover::after,
+#icons > button.icon:hover::after,
+#title.hover::after {
+  background: var(--hover);
+}
+/* Over a window icon, the icon's target shows rather than the chip's: the
+   chip's height and halfway to its neighbors, from its padding. Its corners
+   are always round, so hovering doesn't move where a click goes. */
+nav > button:has(.app.hover)::after,
+nav > button:has(.app.win:hover)::after {
+  background: none;
+}
+nav button img.app.win {
+  border-radius: 4px;
+}
+nav button img.app.win.hover,
+nav button img.app.win:hover {
+  background: var(--hover);
+}
+nav button .app.none.win.hover,
+nav button .app.none.win:hover {
+  background: linear-gradient(var(--muted), var(--muted)) content-box, var(--hover);
+}
+/* Held to the room between the two sides by bar.js, one line. */
+#title-text {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -73,9 +152,6 @@ nav button .more {
   color: var(--fg);
   font: inherit;
   cursor: pointer;
-}
-#icons button.icon:hover {
-  background: var(--raised);
 }
 #icons svg {
   display: block;
@@ -115,7 +191,7 @@ nav button .more {
 <body>
 <header class="bar" id="bar">
 <nav id="workspaces" aria-label="Workspaces"></nav>
-<span id="title"></span>
+<span id="title"><span id="title-text"></span></span>
 <div id="right">
 <ol id="clocks"></ol>
 <div id="icons"></div>

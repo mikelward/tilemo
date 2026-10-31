@@ -1,12 +1,12 @@
 // tilemo's bar (SPEC.md §8): tide's bar along the top of each display, with
 // the workspaces left, the focused window's title in the middle, and the
-// clocks and status icons right. tilemo fills it with tilemo.update(state) and
-// hears back through the "tilemo" message handler: { uuid, show: n },
+// clocks and status icons right. tilemo fills it with tilemo.update(state),
+// says where the pointer is with tilemo.pointer(x, y), and hears back through the "tilemo" message handler: { uuid, show: n },
 // { uuid, step: 1 or -1 }, { uuid, focus: window id } from an attention icon,
 // { open: "battery" | "wifi" | "network" },
 // { toggle: "mic" | "volume" | "awake" | "presenter" | "source" },
 // { volume: 1 or -1 },
-// { dashboard: true }, { clockErrors } naming a clocks file that's wrong, or
+// { dashboard: true }, { maximize: true }, { clockErrors } naming a clocks file that's wrong, or
 // { goodClocks }, the clocks to keep while one is.
 
 import { renderClocks } from "./clockview.js";
@@ -29,6 +29,43 @@ export function titleRoom(width, left, right, gap = 24) {
 export function crowded(width, left, right, gap = 24) {
   return titleRoom(width, left, right, gap) < MIN_TITLE;
 }
+
+// Each item's click target, as how far it reaches past its own box on each
+// side: to the bar's top and bottom, and halfway across the gap to each
+// neighbor, so a click between two items goes to the nearer one rather than
+// nowhere. A group's outer end (`start` on the left, `end` on the right)
+// reaches the bar's edge; its inner end stops at the item, leaving the room
+// between the groups to the title. Boxes are { left, right, top, bottom },
+// left to right.
+export function hitInsets(bar, items, { start = false, end = false } = {}) {
+  const half = (a, b) => Math.max(0, (b - a) / 2);
+  return items.map((r, i) => {
+    const prev = items[i - 1];
+    const next = items[i + 1];
+    return {
+      top: Math.max(0, r.top - bar.top),
+      bottom: Math.max(0, bar.bottom - r.bottom),
+      left: prev ? half(prev.right, r.left) : start ? Math.max(0, r.left - bar.left) : 0,
+      right: next ? half(r.right, next.left) : end ? Math.max(0, bar.right - r.right) : 0,
+    };
+  });
+}
+
+// The title's target: the free bar between the two groups, from the left
+// group's last item (`leftEnd`, its right edge) to the right group's first
+// (`rightStart`), to the bar's top and bottom.
+export function titleInsets(bar, title, leftEnd, rightStart) {
+  return {
+    top: Math.max(0, title.top - bar.top),
+    bottom: Math.max(0, bar.bottom - title.bottom),
+    left: Math.max(0, title.left - leftEnd),
+    right: Math.max(0, rightStart - title.right),
+  };
+}
+
+// What a click at an element reaches, innermost first: a chip's window
+// icon, then a chip, the title, the clocks or a status item.
+const TARGET = "nav > button .app.win, nav > button, #title, #clocks, #icons > button.icon";
 
 // A trackpad sends many small scrolls; one step is this much of them.
 const STEP = 50;
@@ -77,6 +114,7 @@ function renderWorkspaces(nav, workspaces, appIcons = {}) {
         icon = el("span", "app none");
       }
       if (wins[i] !== undefined) {
+        icon.className += " win";
         icon.addEventListener("click", (e) => {
           // The window, not the chip's workspace.
           e.stopPropagation();
@@ -207,6 +245,22 @@ function renderIcons(box, icons) {
   if (icons.battery) box.append(battery(icons.battery));
 }
 
+// Sets each item's reach (hitInsets) as --reach-* for its ::before, which
+// bar.html draws as its click target. Hidden items take no room.
+const SIDES = ["top", "bottom", "left", "right"];
+const setReach = (e, h) => {
+  for (const side of SIDES) e.style.setProperty(`--reach-${side}`, `${h ? h[side] : 0}px`);
+};
+
+// Returns the shown items' boxes.
+function reach(bar, items, opts) {
+  const shown = items.filter((e) => e.getBoundingClientRect().width > 0);
+  for (const e of items) if (!shown.includes(e)) setReach(e, null);
+  const boxes = shown.map((e) => e.getBoundingClientRect());
+  hitInsets(bar, boxes, opts).forEach((h, i) => setReach(shown[i], h));
+  return boxes;
+}
+
 // Every clock if the title keeps MIN_TITLE, else local time alone. Then the
 // title is held to the room left, so a long one ends in an ellipsis rather
 // than running over the chips or the clocks.
@@ -222,7 +276,31 @@ function fit() {
   if (tight) right = side.offsetWidth;
   const room = titleRoom(width, left, right);
   // Unmeasured, as before the page lays out, leaves the title as it is.
-  if (Number.isFinite(room)) document.getElementById("title").style.maxWidth = `${Math.max(0, room)}px`;
+  if (Number.isFinite(room)) document.getElementById("title-text").style.maxWidth = `${Math.max(0, room)}px`;
+  const bar = document.getElementById("bar").getBoundingClientRect();
+  const lefts = reach(bar, [...document.getElementById("workspaces").children], { start: true });
+  const rights = reach(bar, [document.getElementById("clocks"), ...document.getElementById("icons").children], { end: true });
+  // An empty title has no target: there's no window there to maximize.
+  const title = document.getElementById("title");
+  const box = title.getBoundingClientRect();
+  const leftEnd = lefts.length ? lefts[lefts.length - 1].right : bar.left;
+  const rightStart = rights.length ? rights[0].left : bar.right;
+  setReach(title, box.width > 0 ? titleInsets(bar, box, leftEnd, rightStart) : null);
+}
+
+// Where the pointer is on this bar, from tilemo, or null off it; kept so a
+// redraw marks the new target.
+let pointerAt = null;
+let hovered = null;
+
+function markHover() {
+  hovered?.classList.toggle("hover", false);
+  hovered = null;
+  if (!pointerAt) return;
+  const target = document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest(TARGET);
+  if (!target || (target.id === "title" && !document.getElementById("title-text").textContent)) return;
+  target.classList.toggle("hover", true);
+  hovered = target;
 }
 
 let settings = DEFAULT_SETTINGS;
@@ -237,7 +315,7 @@ window.tilemo = {
   update(state) {
     uuid = state.uuid;
     renderWorkspaces(document.getElementById("workspaces"), state.workspaces, state.app_icons || {});
-    document.getElementById("title").textContent = state.title;
+    document.getElementById("title-text").textContent = state.title;
     renderIcons(document.getElementById("icons"), state.icons);
     const loaded = nextSettings(state, settings);
     settings = loaded.settings;
@@ -248,6 +326,13 @@ window.tilemo = {
       send({ goodClocks: settings.tideClocks });
     }
     tick();
+    markHover();
+  },
+  // tilemo says where the pointer is, in this page's coordinates, or null
+  // once it's left the bar.
+  pointer(x, y) {
+    pointerAt = x === null || x === undefined ? null : { x, y };
+    markHover();
   },
 };
 
@@ -259,9 +344,12 @@ document.getElementById("workspaces").addEventListener("wheel", (e) => {
   scrolled = 0;
 });
 
-// Double-clicking the title maximizes the focused window, as on a Mac's
-// title bar; tilemo acts only if that window is on this bar's display.
-document.getElementById("title").addEventListener("dblclick", () => send({ maximize: true }));
+// Double-clicking the title, or the free bar around it, maximizes the
+// focused window, as on a Mac's title bar; tilemo acts only if that window is
+// on this bar's display. A double click on an item is that item's.
+document.getElementById("bar").addEventListener("dblclick", (e) => {
+  if (["bar", "title", "title-text"].includes(e.target.id)) send({ maximize: true });
+});
 
 // The clocks open the dashboard, with its clock panel.
 document.getElementById("clocks").addEventListener("click", () => send({ dashboard: true }));

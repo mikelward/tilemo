@@ -481,6 +481,27 @@ local function read(name)
     return s
 end
 
+t.test("the pointer over a bar is told to that bar, in its page's coordinates", function()
+    local frames = {
+        A = { x = 0, y = 25, w = 1920, h = 36 },
+        B = { x = 1920, y = 0, w = 1920, h = 36 },
+        C = { x = 3840, y = 0, w = 1920, h = 36, hidden = true },
+    }
+    local uuid, x, y = bar.pointer_at(frames, 100, 30)
+    t.eq({ uuid, x, y }, { "A", 100, 5 })
+    uuid, x, y = bar.pointer_at(frames, 1920, 35)
+    t.eq({ uuid, x, y }, { "B", 0, 35 })
+    t.eq(bar.pointer_at(frames, 100, 61), nil, "just below the bar")
+    t.eq(bar.pointer_at(frames, 3900, 10), nil, "a hidden bar")
+end)
+
+t.test("a page's script failing is told from Hammerspoon's empty error", function()
+    -- hs.webview passes { code = 0 } when the script ran.
+    t.eq(bar.js_failed({ code = 0 }), false)
+    t.eq(bar.js_failed(nil), false)
+    t.eq(bar.js_failed({ code = 4, localizedDescription = "A JavaScript exception occurred" }), true)
+end)
+
 t.test("the bar's page carries tileco's stylesheet and its own script", function()
     local sources = {}
     for _, name in ipairs(dashboard.BAR_MODULES) do

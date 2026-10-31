@@ -134,6 +134,19 @@ tests and the bar page's test cover it. **Check on a Mac:**
   title with no such word gives the app's name,** matching tide's list.
   The alternatives are a shorter list (only `:` `,` `|`), or an empty
   default as tide gives. Reversible: `names.fallback`.
+- **The title's target is the whole free bar between the two groups,**
+  for a double click and on hover, so it isn't just its text. The
+  alternative was the title's own box stretched to the bar's height,
+  leaving the rest of the middle dead. Reversible: `titleInsets` and the
+  bar's `dblclick` listener in `bar.js`.
+- **Hover comes from tilemo's pointer tap,** one `evaluateJavaScript` per
+  pointer move over a bar, since WebKit gives the never-key bar no
+  `:hover`. The alternative, making the bar's window key on entry, would
+  take focus from the app under it. Reversible: `bar_hs`'s `pointer`.
+- **The clocks stay one target, opening the dashboard,** rather than a
+  target per clock: they did one thing before, and the dashboard's clock
+  panel is where a single zone is picked. Reversible: `bar.js`'s clocks
+  listener.
 - **Presenter mode turns Do Not Disturb off when it ends,** even if it
   was on before, since tilemo can't read a Focus. Keep awake goes back as
   it was. A third shortcut using "Get Current Focus" could read it, at

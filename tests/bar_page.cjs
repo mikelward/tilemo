@@ -14,7 +14,10 @@ class Element {
     this.className = "";
     this.textContent = "";
     this.innerHTML = "";
-    this.style = {};
+    // Custom properties, as style.setProperty sets them, beside the rest.
+    this.style = { setProperty: (k, v) => (this.style[k] = v) };
+    // No layout: a test sets `rect` to give an element a box.
+    this.rect = { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
     this.attrs = {};
     this.listeners = {};
     const classes = new Set();
@@ -28,9 +31,41 @@ class Element {
       },
       contains: (c) => classes.has(c),
     };
+    this.classes = () => new Set([...this.className.split(" ").filter(Boolean), ...classes]);
   }
   append(...xs) {
-    for (const x of xs) this.children.push(typeof x === "string" ? { text: x } : x);
+    for (const x of xs) {
+      if (typeof x !== "string") x.parent = this;
+      this.children.push(typeof x === "string" ? { text: x } : x);
+    }
+  }
+  // One compound selector: tag, #id and .classes.
+  is(compound) {
+    const tag = compound.match(/^[a-z]+/)?.[0];
+    const id = compound.match(/#([\w-]+)/)?.[1];
+    const classes = [...compound.matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
+    return (!tag || tag === this.tag) && (!id || id === this.id) && classes.every((c) => this.classes().has(c));
+  }
+  // Enough of the DOM's: compounds joined by " " and " > ".
+  matches(selector) {
+    return selector.split(",").some((sel) => {
+      const parts = sel.trim().split(/\s+/);
+      const at = (e, i) => {
+        if (!e || !e.is(parts[i])) return false;
+        if (i === 0) return true;
+        if (parts[i - 1] === ">") return at(e.parent, i - 2);
+        for (let a = e.parent; a; a = a.parent) if (at(a, i - 1)) return true;
+        return false;
+      };
+      return at(this, parts.length - 1);
+    });
+  }
+  closest(selector) {
+    for (let e = this; e; e = e.parent) if (e.matches(selector)) return e;
+    return null;
+  }
+  getBoundingClientRect() {
+    return this.rect;
   }
   replaceChildren() {
     this.children = [];
@@ -44,14 +79,28 @@ class Element {
 }
 
 const ids = {};
+// The page's own elements, as bar.html has them.
+const TAGS = { bar: "header", workspaces: "nav", title: "span", "title-text": "span", right: "div", clocks: "ol", icons: "div" };
+const byId = (id) => {
+  const e = new Element(TAGS[id] ?? id);
+  e.id = id;
+  return e;
+};
+// What's under a point, as a test sets it.
+let under = null;
 const sent = [];
 const sandbox = {
   document: {
     createElement: (tag) => new Element(tag),
-    getElementById: (id) => (ids[id] ??= new Element(id)),
+    getElementById: (id) => (ids[id] ??= byId(id)),
+    elementFromPoint: () => under,
     addEventListener: () => {},
   },
-  setInterval: () => 0,
+  // The page's clock tick, which fits the bar again.
+  setInterval: (fn) => {
+    sandbox.tick = fn;
+    return 0;
+  },
   Intl,
   Date,
   Math,
@@ -109,7 +158,7 @@ assert.strictEqual(chips[3].title, "ABC-123 fix the login page", "the whole name
 const parts = chips[3].children;
 assert.deepStrictEqual(
   parts.map((c) => c.tag + "." + c.className),
-  ["span.n", "img.app", "img.app", "img.app", "span.app none", "span.app none", "span.more"],
+  ["span.n", "img.app win", "img.app win", "img.app win", "span.app none win", "span.app none win", "span.more"],
 );
 assert.strictEqual(parts[1].src, "data:image/png;base64,QQ==");
 assert.strictEqual(parts[3].src, parts[1].src, "one icon per window, so an app's second window repeats it");
@@ -118,7 +167,7 @@ assert.strictEqual(chips[0].children.length, 1, "an empty chip is its name alone
 assert.ok(chips[1].classList.contains("current"));
 assert.ok(chips[2].classList.contains("elsewhere"));
 assert.ok(chips[3].classList.contains("urgent"));
-assert.strictEqual(ids.title.textContent, "Chat (1)");
+assert.strictEqual(ids["title-text"].textContent, "Chat (1)");
 assert.ok(ids.clocks.children.length >= 1, "the clocks row");
 
 const icons = ids.icons.children;
@@ -160,7 +209,11 @@ assert.ok(stopped, "the click stays with the icon");
 parts[4].listeners.click({ stopPropagation() {} });
 byName.wifi.listeners.click();
 ids.clocks.listeners.click();
-ids.title.listeners.dblclick();
+ids.bar.listeners.dblclick({ target: ids.title });
+// The free bar around the title is the title's too, but a double click on
+// an item isn't.
+ids.bar.listeners.dblclick({ target: ids.bar });
+ids.bar.listeners.dblclick({ target: chips[0] });
 const wheel = (deltaY) => ids.workspaces.listeners.wheel({ deltaY, preventDefault() {} });
 wheel(20);
 wheel(40);
@@ -182,6 +235,7 @@ assert.strictEqual(
     { uuid: "B", focus: 14 },
     { uuid: "B", open: "wifi" },
     { uuid: "B", dashboard: true },
+    { uuid: "B", maximize: true },
     { uuid: "B", maximize: true },
     { uuid: "B", step: 1 },
     { uuid: "B", step: -1 },
@@ -217,11 +271,107 @@ Object.assign(ids.bar, { clientWidth: 1200 });
 Object.assign(ids.workspaces, { offsetWidth: 300 });
 Object.assign(ids.right, { offsetWidth: 500 });
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
-const room = parseFloat(ids.title.style.maxWidth);
+const room = parseFloat(ids["title-text"].style.maxWidth);
 assert.strictEqual(room, 1200 - 2 * 500 - 2 * 24);
 assert.ok(1200 / 2 - room / 2 >= 300, "clear of the chips");
 assert.ok(1200 / 2 + room / 2 <= 1200 - 500, "clear of the clocks and icons");
 assert.ok(ids.clocks.classList.contains("compact"), "and the clocks shrank");
+
+// Click targets: each item reaches the bar's top and bottom and halfway to
+// each neighbor, a group's outer end reaches the bar's edge, and the room
+// between the groups is left to the title.
+const { hitInsets } = vm.runInContext('modules["./bar.js"]', sandbox);
+const barBox = { left: 0, right: 400, top: 0, bottom: 36 };
+const box = (left, right, top = 5, bottom = 31) => ({ left, right, top, bottom });
+const lefts = [box(10, 40), box(44, 80), box(84, 120)];
+// From the page's realm, so compared as plain data.
+const hits = (...args) => JSON.parse(JSON.stringify(hitInsets(...args)));
+const leftHits = hits(barBox, lefts, { start: true });
+assert.deepStrictEqual(leftHits[0], { top: 5, bottom: 5, left: 10, right: 2 });
+assert.deepStrictEqual(leftHits[1], { top: 5, bottom: 5, left: 2, right: 2 });
+assert.deepStrictEqual(leftHits[2], { top: 5, bottom: 5, left: 2, right: 0 }, "stops short of the title's room");
+// The clocks' line is shorter than the icons, and 14px from them.
+const rights = [box(200, 300, 10, 26), box(314, 340), box(342, 390)];
+const rightHits = hits(barBox, rights, { end: true });
+assert.deepStrictEqual(rightHits[0], { top: 10, bottom: 10, left: 0, right: 7 });
+assert.deepStrictEqual(rightHits[2], { top: 5, bottom: 5, left: 1, right: 10 });
+// Every point from a group's outer edge to its last item's far side, top to
+// bottom, is in exactly one item's target.
+const owners = (items, hits, x, y) =>
+  items.filter((r, i) => x >= r.left - hits[i].left && x < r.right + hits[i].right && y >= r.top - hits[i].top && y < r.bottom + hits[i].bottom).length;
+for (const [items, hits, from, to] of [
+  [lefts, leftHits, 0, 120],
+  [rights, rightHits, 200, 400],
+]) {
+  for (let x = from; x < to; x += 0.5) {
+    for (const y of [0, 4, 18, 35.5]) assert.strictEqual(owners(items, hits, x, y), 1, `one target at ${x},${y}`);
+  }
+}
+assert.strictEqual(hits(barBox, [box(10, 50), box(45, 90)])[0].right, 0, "overlapping items reach no further");
+
+// fit() gives each shown item its reach, as the --reach-* its ::before uses.
+sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "", icons: { mic: { muted: false } } });
+ids.bar.rect = { ...barBox, width: 400, height: 36 };
+const [inChip, webChip] = ids.workspaces.children;
+inChip.rect = { ...box(10, 40), width: 30 };
+webChip.rect = { ...box(44, 80), width: 36 };
+ids.clocks.rect = { ...box(200, 300, 10, 26), width: 100 };
+const micItem = ids.icons.children[0];
+micItem.rect = { ...box(314, 390), width: 76 };
+sandbox.tick();
+const reachOf = (e) => ["top", "bottom", "left", "right"].map((k) => e.style[`--reach-${k}`]).join(" ");
+assert.strictEqual(reachOf(inChip), "5px 5px 10px 2px");
+assert.strictEqual(reachOf(webChip), "5px 5px 2px 0px");
+assert.strictEqual(reachOf(ids.clocks), "10px 10px 0px 7px");
+assert.strictEqual(reachOf(micItem), "5px 5px 7px 10px");
+// The title's target is the free bar between the groups: here from the
+// "web" chip's right edge to the clocks.
+assert.strictEqual(reachOf(ids.title), "0px 0px 0px 0px", "no target with no title");
+const { titleInsets } = vm.runInContext('modules["./bar.js"]', sandbox);
+assert.strictEqual(JSON.stringify(titleInsets(barBox, box(150, 170, 10, 26), 80, 200)), '{"top":10,"bottom":10,"left":70,"right":30}');
+sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "Notes", icons: { mic: { muted: false } } });
+const [inChip2, webChip2] = ids.workspaces.children;
+inChip2.rect = { ...box(10, 40), width: 30 };
+webChip2.rect = { ...box(44, 80), width: 36 };
+ids.icons.children[0].rect = { ...box(314, 390), width: 76 };
+ids.title.rect = { ...box(150, 170, 10, 26), width: 20 };
+sandbox.tick();
+assert.strictEqual(reachOf(ids.title), "10px 10px 70px 30px");
+
+// Hover: tilemo says where the pointer is, and the target under it, its
+// innermost, is marked .hover, one at a time, until the pointer leaves.
+ids["title-text"].parent = ids.title;
+sandbox.tilemo.update({
+  uuid: "B",
+  workspaces: [{ n: "in", apps: ["com.a", "com.b"], wins: [7] }],
+  title: "Notes",
+  app_icons: {},
+  icons: { mic: { muted: false } },
+});
+const chip = ids.workspaces.children[0];
+const [, winIcon, plainIcon] = chip.children;
+const hoverOf = () =>
+  [chip, winIcon, plainIcon, ids.title, ids.clocks, ids.icons.children[0]].filter((e) => e.classList.contains("hover"));
+const point = (e) => {
+  under = e;
+  sandbox.tilemo.pointer(1, 1);
+  return hoverOf();
+};
+assert.deepStrictEqual(point(winIcon), [winIcon], "a window icon, not its chip");
+assert.deepStrictEqual(point(plainIcon), [chip], "an icon with no window to focus is the chip's");
+assert.deepStrictEqual(point(chip.children[0]), [chip], "the chip's name");
+assert.deepStrictEqual(point(ids["title-text"]), [ids.title]);
+assert.deepStrictEqual(point(ids.clocks), [ids.clocks]);
+assert.deepStrictEqual(point(ids.icons.children[0]), [ids.icons.children[0]]);
+assert.deepStrictEqual(point(ids.bar), [], "the bar itself is no target");
+point(chip);
+sandbox.tilemo.pointer(null);
+assert.deepStrictEqual(hoverOf(), [], "gone once the pointer leaves");
+// An empty title is no target.
+sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: "", icons: {} });
+assert.deepStrictEqual(point(ids.title), []);
+sandbox.tilemo.pointer(null);
+under = null;
 
 // Off, Wi-Fi shows its bars dimmed and no name.
 sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });

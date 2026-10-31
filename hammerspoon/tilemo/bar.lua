@@ -61,6 +61,24 @@ function M.below(area, h)
     return { x = area.x, y = area.y + h, w = area.w, h = math.max(0, area.h - h) }
 end
 
+-- Which bar the pointer at x, y is over, and where on it: the uuid and the
+-- point in that bar's page, or nil off every bar. `frames` are the bars'
+-- frames by display uuid; a hidden one doesn't count.
+function M.pointer_at(frames, x, y)
+    for uuid, f in pairs(frames) do
+        if not f.hidden and x >= f.x and x < f.x + f.w and y >= f.y and y < f.y + f.h then
+            return uuid, x - f.x, y - f.y
+        end
+    end
+    return nil
+end
+
+-- Whether hs.webview:evaluateJavaScript's error says it failed. It passes a
+-- table even on success, made from no error at all: { code = 0 }.
+function M.js_failed(err)
+    return type(err) == "table" and ((err.code or 0) ~= 0 or err.localizedDescription ~= nil)
+end
+
 -- A chip shows the app icon of each window there wanting attention, up to
 -- this many, then "+n" (SPEC.md §8).
 M.CHIP_APPS = 5
