@@ -210,7 +210,7 @@ local TARGETS_JS = [==[
     for (let x = Math.ceil(from); x < to; x++) {
       for (const y of [0, innerHeight / 2, innerHeight - 1]) {
         const e = document.elementFromPoint(x, y);
-        if (!e || e === bar || e.id === "workspaces" || e.id === "right" || e.id === "icons") {
+        if (!e || e === bar || e.id === "left" || e.id === "workspaces" || e.id === "right" || e.id === "icons") {
           dead.push(x + "," + y);
           continue;
         }
@@ -223,6 +223,8 @@ local TARGETS_JS = [==[
     }
   }
   tilemo.pointer(null);
+  // The corner is tide's logo's, which opens the switcher.
+  if (!document.elementFromPoint(0, innerHeight / 2)?.closest("#logo")) dead.push("corner, not the logo");
   return dead.length ? dead.slice(0, 10).join(" ") : "ok";
 })()
 ]==]
@@ -312,6 +314,19 @@ local function check_launcher_attention()
             fail("launcher: the Windows tab doesn't list %s", tostring(want))
         else
             say("launcher: Windows lists %s", want)
+        end
+        -- The bar's logo closes the switcher on any tab, and opens it on
+        -- Launch (SPEC.md §8).
+        tilemo.launcher.show("windows")
+        tilemo.launcher.toggle()
+        local closed = not tilemo.launcher.is_open()
+        tilemo.launcher.toggle()
+        local opened = tilemo.launcher.is_open() and tilemo.launcher.scope() == "launch"
+        tilemo.launcher.cancel()
+        if not (closed and opened) then
+            fail("launcher: the logo's toggle %s", closed and "didn't open it on Launch" or "didn't close it on Windows")
+        else
+            say("launcher: the logo closes the switcher and opens it on Launch")
         end
     end, debug.traceback)
     if not ok then

@@ -458,7 +458,8 @@ end
 -- B's bar brings a hidden workspace to B with its window, its clocks open the
 -- dashboard on B, and a double-click on its title maximizes the focused
 -- window only if that window is on B, where the title shows. `act` holds what needs Hammerspoon: open(url),
--- dashboard(uuid), toggle(what), volume(step) and tip(uuid, tip).
+-- dashboard(uuid), switcher(uuid) for the logo, toggle(what), volume(step)
+-- and tip(uuid, tip).
 function M.handle(wm, body, act)
     local uuid = body.uuid
     if body.show then
@@ -482,6 +483,8 @@ function M.handle(wm, body, act)
         end
     elseif body.dashboard then
         act.dashboard(uuid)
+    elseif body.switcher and act.switcher then
+        act.switcher(uuid)
     elseif body.toggle then
         act.toggle(body.toggle)
     elseif body.volume then

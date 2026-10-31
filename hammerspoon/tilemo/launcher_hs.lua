@@ -478,6 +478,24 @@ function M.new(tilemo)
         chooser:show()
     end
 
+    -- The bar's logo (SPEC.md §8): closes the switcher on any tab, as a
+    -- tap on tide's does, or opens it on Launch.
+    function self.toggle()
+        if chooser:isVisible() then
+            chooser:cancel()
+        else
+            self.show("launch")
+        end
+    end
+
+    -- Whether it's open, and on which tab: for CI's smoke test.
+    function self.is_open()
+        return chooser:isVisible()
+    end
+    function self.scope()
+        return scope
+    end
+
     -- The row the launcher shows `n`th, and closing it as Esc does: for
     -- CI's smoke test.
     function self.row(n)

@@ -20,6 +20,15 @@ body {
   background: var(--bar);
   overflow: hidden;
 }
+/* tide's logo, then the chips: tileco's #logo styles place and color it.
+   A click opens the switcher, as Super+Space does. */
+#left {
+  display: flex;
+  align-items: center;
+}
+#logo svg {
+  display: block;
+}
 /* A chip's window icons follow its number. */
 nav button {
   display: flex;
@@ -53,14 +62,21 @@ nav button .more {
    chip stays its own target) reaching as far as bar.js's --reach-* say, to
    the bar's top and bottom and halfway to each neighbor. ::before takes the
    clicks; ::after, the same box, shows it on hover (tileco's stylesheet). */
+#logo,
 nav > button,
 #clocks,
 #icons > .icon {
   position: relative;
   z-index: 0;
 }
+#logo::before,
+#logo::after,
 nav > button::before,
 nav > button::after,
+nav > button:first-child::before,
+nav > button:first-child::after,
+#logo + nav > button:first-child::before,
+#logo + nav > button:first-child::after,
 #clocks::before,
 #clocks::after,
 #icons > .icon::before,
@@ -75,6 +91,7 @@ nav > button::after,
   left: calc(-1 * var(--reach-left, 0px));
   right: calc(-1 * var(--reach-right, 0px));
 }
+#logo::after,
 #icons > .icon::after,
 #title::after {
   border-radius: 6px;
@@ -93,6 +110,7 @@ nav > button::after {
 /* Under the pointer the whole target shows, a rounded rect half pressed.
    bar.js marks it .hover: the bar's window is never key, and WebKit only
    follows the pointer in the key window, so :hover never fires here. */
+#logo.hover::after,
 nav > button.hover::after,
 #clocks.hover::after,
 #icons > button.icon.hover::after,
@@ -190,7 +208,10 @@ nav button .app.none.win:hover {
 </head>
 <body>
 <header class="bar" id="bar">
+<div id="left">
+<button type="button" id="logo" aria-label="Switcher"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.75 6.25q2.083-2 4.167 0t4.166 0t4.167 0"/><path d="M1.75 10.75q2.083-2 4.167 0t4.166 0t4.167 0"/></svg></button>
 <nav id="workspaces" aria-label="Workspaces"></nav>
+</div>
 <span id="title"><span id="title-text"></span></span>
 <div id="right">
 <ol id="clocks"></ol>

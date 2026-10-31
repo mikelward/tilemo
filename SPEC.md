@@ -1248,6 +1248,12 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 - **If it's a bar, it's tide's** (tide §7.1–§7.4):
   - a flush 36 px strip, one per display, with the tiling area starting
     below it;
+  - **tide's logo first,** two waves in the accent color, as on tide
+    (tide §7.1). A click opens the switcher on Launch, as `Super+Space`
+    does, or closes it if it's open, on any tab. It opens where
+    `Super+Space` opens it, on the display with the focused window, not
+    always the clicked bar's: `hs.chooser` centers itself there *(a
+    guess, to confirm on two displays)*;
   - workspace chips in list order, each with its name, that show current,
     occupied, showing on another display, and wanting attention. A long
     name is cut with an ellipsis at 16 characters *(a guess, to confirm)*. The only empty chips are "in" and
@@ -1288,8 +1294,9 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     chip, the clocks row with every zone's name and time, a status icon
     with its text) reaching the bar's top and bottom and halfway across
     the gap to each neighbor, so a click between two items goes to the
-    nearer one. The first chip reaches the display's left edge and the
-    last item its right edge; the room between the two groups is the
+    nearer one. The logo reaches the display's left edge, and splits the
+    gap to the first chip with it, and the last item reaches its right
+    edge; the room between the two groups is the
     title's, while there is one. Inside a chip, a window icon's target is
     the chip's height and halfway to its neighbors. `bar.js` measures the
     items on each fit and draws each target as a box under the item's
@@ -1298,7 +1305,7 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     shows as a rounded rect, half pressed: tileco's `--hover`, a shade
     darker than the bar in light and lighter in dark. A chip shows with
     the space around it, a window icon as its own, the title as the free
-    bar, a status item with its text, and the clocks as one row. The
+    bar, a status item with its text, the logo, and the clocks as one row. The
     rounding is drawn, not hit-tested, so it moves no click. WebKit
     follows the pointer only in the key window, which the bar never is
     (WebKit's `trackingAreaOptions` in `WebViewImpl.mm`), so `:hover`

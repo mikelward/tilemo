@@ -158,6 +158,12 @@ tests and the bar page's test cover it. **Check on a Mac:**
   *(unverified that it fits the chooser's default width on a Mac)*. The
   alternatives are a wider chooser (`chooser:width`), or the keys as a
   row of their own. Reversible: `launcher.SCOPE_KEYS`.
+- **The bar's logo opens the switcher where `Super+Space` does,** on the
+  display with the focused window, not always the clicked bar's (SPEC.md
+  §8), as tide's opens on that bar's monitor. `hs.chooser:show` takes a
+  top-left point, so it could be placed on the bar's display, at the cost
+  of working out the chooser's width there. Reversible: `launcher_hs`'s
+  `toggle`.
 
 - **tilemo's settings are one window with sections, not tide's pages**
   (SPEC.md §15): Clocks, Start at login, Clipboard and Muted, each with its own

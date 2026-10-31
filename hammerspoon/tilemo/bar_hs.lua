@@ -289,6 +289,10 @@ function M.new(tilemo)
                 dashboard = function(uuid)
                     tilemo.dashboard.show(uuid)
                 end,
+                -- tide's logo: the switcher on Launch, or closed if open.
+                switcher = function()
+                    tilemo.launcher.toggle()
+                end,
                 toggle = toggle,
                 volume = step_volume,
                 clock_errors = tilemo.report_clock_errors,
