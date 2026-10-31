@@ -119,6 +119,9 @@ function M.check_standing(list)
         if not n then
             error(string.format("workspaces[%d] must be a name", i), 3)
         end
+        if names.unsafe(n) then
+            error(string.format("workspaces[%d]: %q can't have quotes, backslashes or control characters", i, n), 3)
+        end
         local f = M.fold(n)
         if seen[f] then
             error(string.format("workspaces[%d]: %q is already workspaces[%d]", i, n, seen[f]), 3)
@@ -1597,13 +1600,36 @@ function M:asked_done(q)
     end
 end
 
+-- A name typed at the prompt for question `q` that holds what a name
+-- can't (names.UNSAFE) is refused, said so, and asked again, with those
+-- characters dropped where the question has a default of its own to show.
+-- True if refused.
+function M:refuse_unsafe(q, name)
+    if not (name and names.unsafe(M.clean_name(name) or "")) then
+        return false
+    end
+    self:asked_done(q)
+    if self.a.notify then
+        self.a.notify(names.UNSAFE_MESSAGE)
+    end
+    if q.launch then
+        q.launch.default = M.clean_name(names.safe(name)) or ""
+    end
+    table.insert(self.asking, 1, q)
+    self:ask_next()
+    return true
+end
+
 -- The prompt's answer for window `id`: a name moves it there, making the
 -- workspace if it's new, and shows it, on the display home was on, with
 -- focus; nil (Esc) closes the window, politely. Home itself is refused,
--- and asked again.
+-- and asked again, as is a name with what a name can't hold.
 function M:answer(id, name)
     local q = self.prompting
     if not (q and q.window == id) then
+        return
+    end
+    if self:refuse_unsafe(q, name) then
         return
     end
     self:asked_done(q)
@@ -1637,7 +1663,7 @@ end
 -- workspace, making it if it's new, then launches with its
 -- TIDE_WORKSPACE; nil (Esc) launches nothing.
 function M:launch_answer(q, name)
-    if self.prompting ~= q then
+    if self.prompting ~= q or self:refuse_unsafe(q, name) then
         return
     end
     self:asked_done(q)
@@ -1656,7 +1682,7 @@ end
 -- The prompt's answer for Super+Return's question `q`: a name sends the
 -- window there, as A.send does; nil (Esc) leaves it.
 function M:move_answer(q, name)
-    if self.prompting ~= q then
+    if self.prompting ~= q or self:refuse_unsafe(q, name) then
         return
     end
     self:asked_done(q)

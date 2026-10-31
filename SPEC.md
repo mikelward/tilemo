@@ -659,6 +659,17 @@ numbered ones:
   workspaces can't share a name; names are compared ignoring case
   *(a guess, to confirm)*, with Unicode's case folding for Latin, Greek
   and Cyrillic letters, so "Équipe" and "équipe" are one workspace.
+- **A name has no quotes (`"`, `'`, `` ` ``), backslashes or control
+  characters,** as on tide (tide §6.5).
+  - A name reaches JSON, the bar's web view, logs, and `workspace.name`,
+    which a script or a shell prompt prints (§6.3). Without those
+    characters, no quoting can go wrong, and no escape sequence reaches a
+    terminal.
+  - A standing name with one is an error at load, naming the setting.
+  - The prompt refuses one with a short notice and asks again. A launch's
+    prompt comes back with them dropped.
+  - A default name from a title drops them, as tide's short names do.
+  - A tab or newline typed in a name is a space, as before, not a refusal.
 - **Shared across displays.** Each display shows one at a time. Decided, as
   tide decided (tide §6.5): per display, not one desktop spanning every
   display.
