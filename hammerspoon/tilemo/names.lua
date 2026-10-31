@@ -17,9 +17,36 @@ M.KEY = "namePatterns"
 -- boundary (SPEC.md §6.2, a guess to confirm).
 M.FALLBACK_MAX = 20
 
--- TIDE_WORKSPACE's value: the name with only ASCII letters and digits kept.
-function M.sanitize(name)
-    return (tostring(name or ""):gsub("[^A-Za-z0-9]", ""))
+-- JavaScript giving `name` as TIDE_WORKSPACE holds it: its letters and
+-- digits (Unicode's L and N) in any script, NFC-normalized. Normalizing
+-- first makes a decomposed é (e and U+0301, as macOS hands it over) one
+-- letter, which is kept where the bare mark would go; normalizing again
+-- composes what dropping the rest put side by side.
+function M.sanitize_script(name)
+    return "(function(){return " .. M.js_string(name)
+        .. ".normalize(\"NFC\").replace(/[^\\p{L}\\p{N}]/gu,\"\").normalize(\"NFC\");})()"
+end
+
+-- TIDE_WORKSPACE's value (SPEC.md §6.3): the name with only its letters and
+-- digits, in any script, NFC-normalized, as on tide. Lua has no Unicode
+-- tables, so a name past ASCII goes to `run_js` (JavaScriptCore on a Mac),
+-- whose \p{L}, \p{N} and normalize are Unicode's; ASCII alone needs none,
+-- since its letters and digits are A-Z, a-z and 0-9, and it's NFC already.
+-- Returns the value, or "" and why when the JavaScript can't be run: an
+-- empty value names no session, where a guess could name the wrong one.
+function M.sanitize(name, run_js)
+    name = tostring(name or "")
+    if not name:find("[\128-\255]") then
+        return (name:gsub("[^A-Za-z0-9]", ""))
+    end
+    if not run_js then
+        return "", "no JavaScript to keep the workspace's letters and digits"
+    end
+    local ok, result = run_js(M.sanitize_script(name))
+    if not ok or type(result) ~= "string" then
+        return "", "couldn't keep the workspace's letters and digits: " .. tostring(result)
+    end
+    return result
 end
 
 -- What a workspace's name can't hold, as on tide (tide SPEC.md §6.5):
