@@ -971,6 +971,13 @@ t.test("the standing workspaces are a setting, checked at start, the first being
     t.eq(err({ "work", "  " }):find("workspaces[2] must be a name", 1, true) ~= nil, true)
     t.eq(err("work"):find("workspaces must be a list", 1, true) ~= nil, true)
     t.eq(err({ "work", "in" }), nil, '"in" anywhere is fine')
+    -- What a name can't hold is an error at load, naming the setting.
+    for _, bad in ipairs({ 'team "x"', "it's", "a`b", "a\\b", "a\27[31mb", "a\127b", "a\0b" }) do
+        local e = err({ "work", bad })
+        t.eq(e and e:find("workspaces[2]", 1, true) ~= nil, true, bad)
+        t.eq(e and e:find("can't have quotes, backslashes or control characters", 1, true) ~= nil, true, bad)
+    end
+    t.eq(err({ "work", "PR-12 login", "café" }), nil, "anything else is fine")
 end)
 
 t.test("a numbered state becomes workspaces after the standing ones", function()
@@ -1103,6 +1110,24 @@ t.test("Super+Return asks for a workspace and sends the window there, focus stay
     asked("IN")
     t.eq(wm.windows[2].ws, "Web")
     t.eq(#a.notes, 1)
+end)
+
+t.test("Super+Return refuses a name with what a name can't hold, and asks again", function()
+    local a, wm = setup(2)
+    local asks = {}
+    wm.ask_move = function(done)
+        asks[#asks + 1] = done
+    end
+    a.focus_ = 2
+    wm:act("move_to")
+    asks[1]('it\'s "web"')
+    t.eq(wm.windows[2].ws, "in", "left where it was")
+    t.eq(a.notes, { "A workspace's name can't have quotes, backslashes or control characters" })
+    t.eq(#asks, 2, "asked again")
+    t.eq(wm.holding_keyboard, true)
+    asks[2]("web")
+    t.eq(wm.windows[2].ws, "web")
+    t.eq(wm.holding_keyboard, false)
 end)
 
 t.done("workspaces")

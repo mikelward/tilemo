@@ -118,6 +118,14 @@ mark, each browser window's front tab, and the settings window's list.
 - **A site's host matches exactly,** ignoring case, so
   `site:chat.google.com` doesn't cover `mail.google.com`, and
   `site:google.com` doesn't cover either. Reversible: `mute.matches`.
+- **Workspace names take tide's character rule but not its 32-character
+  cap.** No quotes, backslashes or control characters, refused at load and
+  at the prompt. Long names are left alone, since nothing here breaks on
+  them and the bar already shortens a long name. A refused launch prompt
+  comes back with the characters dropped. A refused window prompt comes
+  back with the title's default, as before. The alternatives were the cap
+  too, or dropping the characters silently instead of refusing.
+  Reversible: `names.UNSAFE` and `wm:refuse_unsafe`.
 - **Minimize is `Super+Z`, not `Super+Delete`:** a PC keyboard's Delete
   may arrive as forward delete or as Backspace, and `Super+Backspace`
   already closes the window. Reversible: one line in `keys.map`.

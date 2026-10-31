@@ -22,6 +22,25 @@ function M.sanitize(name)
     return (tostring(name or ""):gsub("[^A-Za-z0-9]", ""))
 end
 
+-- What a workspace's name can't hold, as on tide (tide SPEC.md §6.5):
+-- quotes, backslashes and control characters. A name reaches JSON, the
+-- bar's web view, logs, and the workspace.name file a script or a shell
+-- prompt prints (SPEC.md §6.3); with none of these in it, no quoting can
+-- go wrong, and no escape sequence reaches a terminal.
+M.UNSAFE = "[%c\"'`\\]"
+M.UNSAFE_MESSAGE = "A workspace's name can't have quotes, backslashes or control characters"
+
+-- Whether `name` holds one of M.UNSAFE.
+function M.unsafe(name)
+    return tostring(name or ""):find(M.UNSAFE) ~= nil
+end
+
+-- `name` with M.UNSAFE's characters dropped, for a default made from a
+-- window's title.
+function M.safe(name)
+    return (tostring(name or ""):gsub(M.UNSAFE, ""))
+end
+
 local function trim(s)
     return (s:gsub("%s+", " "):match("^ ?(.-) ?$"))
 end
@@ -173,14 +192,15 @@ function M.load(dir, read, decode, run_js)
 end
 
 -- The default name for a window titled `title` of app `app`: the first
--- pattern's capture, else M.fallback. A pattern run that fails falls back
+-- pattern's capture, else M.fallback, with M.UNSAFE's characters dropped,
+-- as tide's short names drop them. A pattern run that fails falls back
 -- too, with `log` told why.
 function M.default_name(title, app, patterns, run_js, log)
     title = title or ""
     if title ~= "" and patterns and #patterns > 0 then
         local ok, result = run_js(M.match_script(patterns, title))
         if ok and type(result) == "string" and result ~= "" then
-            local name = trim(result)
+            local name = trim(M.safe(result))
             if name ~= "" then
                 return name
             end
@@ -188,7 +208,7 @@ function M.default_name(title, app, patterns, run_js, log)
             log("name patterns: " .. tostring(result))
         end
     end
-    return M.fallback(title, app)
+    return trim(M.safe(M.fallback(title, app)))
 end
 
 return M
