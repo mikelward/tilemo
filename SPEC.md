@@ -422,6 +422,12 @@ is.
 6. **One focus in flight at a time.** Until macOS confirms the focus
    change, new moves update the target but don't start another. yabai
    holds back in the same way.
+   - The next one starts the moment macOS confirms, or once the wait runs
+     out, which can be before tilemo hears the report for the one before.
+     So the focus guard (§14.1) takes every focus tilemo asked for in the
+     last second as asked for, not only the latest. Otherwise it would
+     take the window you just crossed for an app stealing focus, and hand
+     focus back to where the pointer started.
 
 #### When it stays still
 
@@ -500,6 +506,8 @@ Each of these must pass before focus follows mouse is on by default:
   TextEdit's window focuses the sheet, not the document under it.
 - A Settings window (Notes, say) floats, and stays in front while the
   pointer moves over the tile behind it and back.
+- Sweeping the pointer quickly across three apps' windows leaves focus in
+  the last, with none of them marked for attention.
 - Spotlight, Launchpad and the auto-hidden menu bar stay open while the
   pointer moves.
 - Cmd-Shift-4 keeps its region picker while the pointer crosses windows.

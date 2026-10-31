@@ -382,4 +382,65 @@ t.test("a late confirmation for an earlier window doesn't settle the one in flig
     t.eq(focuses(a), {})
 end)
 
+-- Three tiles of three apps, 1 focused long enough ago that only what
+-- tilemo asks for since counts for the focus guard (SPEC.md §14.1). Returns
+-- a point inside each window too.
+local function three_apps()
+    local a = fake.new()
+    a.add(1, { app = "a", pid = 1 })
+    a.add(2, { app = "b", pid = 2 })
+    a.add(3, { app = "c", pid = 3 })
+    local wm = wm_mod.new(a, {})
+    wm:sync()
+    wm:retile()
+    local ffm = ffm_mod.new(wm, a)
+    wm.ffm = ffm
+    local move = ffm.move
+    function ffm.move(self, x, y, ...)
+        a.px, a.py = x, y
+        return move(self, x, y, ...)
+    end
+    local function inside(id)
+        local f = a.wins[id].frame
+        return f.x + f.w // 2, f.y + f.h // 2
+    end
+    ffm:move(inside(1))
+    wm:focused(1)
+    a.clock = 100
+    a.calls = {}
+    return a, wm, ffm, inside
+end
+
+local function marked(wm, id)
+    for _, m in ipairs(wm.attention:list()) do
+        if m.id == id then
+            return true
+        end
+    end
+    return false
+end
+
+t.test("crossing two other apps' windows quickly ends in the second, not back in the first", function()
+    local a, wm, ffm, inside = three_apps()
+    ffm:move(inside(2)) -- in flight
+    ffm:move(inside(3)) -- queued
+    wm:focused(2) -- macOS confirms 2, so 3 goes
+    wm:focused(3)
+    t.eq(focuses(a), { "focus 2", "focus 3" })
+    t.eq(a.focused(), 3)
+    t.eq(marked(wm, 2), false, "2 isn't taken for a thief")
+end)
+
+t.test("a focus macOS confirms after its wait ran out isn't taken for theft", function()
+    local a, wm, ffm, inside = three_apps()
+    ffm:move(inside(2)) -- in flight
+    ffm:move(inside(3)) -- queued
+    a.tick() -- 2's wait runs out, so 3 goes
+    wm:focused(2) -- 2's report, late
+    wm:focused(3)
+    t.eq(focuses(a), { "focus 2", "focus 3" })
+    t.eq(a.focused(), 3)
+    t.eq(marked(wm, 2), false)
+end)
+
 t.done("ffm")

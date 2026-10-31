@@ -257,13 +257,13 @@ function M.new(adapter, config)
         history = {},   -- ids, most recently focused first, across workspaces
         -- The focus guard's inputs: when you last typed or clicked, when you
         -- last did something that switches apps, whether Command is down,
-        -- the launch grant, the focus tilemo last asked for, and the last
-        -- window refused.
+        -- the launch grant, the focuses tilemo asked for within M.GRACE, and
+        -- the last window refused.
         last_input = -math.huge,
         last_switch = -math.huge,
         cmd_down = false,
         granted = nil,  -- { app (nil: any), at, first_only }
-        asked = nil,    -- { id, app, at }
+        asked = {},     -- { id, app, at }, oldest first
         last_steal = nil, -- { id, at }
     }, M)
     -- What the last run saved (snapshot()). Window ids may come back as
@@ -1926,8 +1926,19 @@ function M:focus_window(id)
         self.focus_after = nil
     end
     -- The focus report this causes is tilemo's, not an app helping itself,
-    -- and moving focus ends a launch's grant.
-    self.asked = { id = id, app = w.app, at = self.a.now() }
+    -- and moving focus ends a launch's grant. Every ask within M.GRACE is
+    -- kept, not just the last: focus follows mouse starts its next focus
+    -- as soon as macOS confirms one, or once its wait runs out, which can be
+    -- before tilemo has heard the report for the one before.
+    local now = self.a.now()
+    local asked = {}
+    for _, q in ipairs(self.asked) do
+        if q.id ~= id and now - q.at <= M.GRACE then
+            asked[#asked + 1] = q
+        end
+    end
+    asked[#asked + 1] = { id = id, app = w.app, at = now }
+    self.asked = asked
     self.granted = nil
     self.a.focus(id)
     if not w.floating then
@@ -2023,9 +2034,10 @@ function M:may_focus(id, w)
         return true
     end
     local now = self.a.now()
-    local asked = self.asked
-    if asked and now - asked.at <= M.GRACE and (asked.id == id or asked.app == w.app) then
-        return true
+    for _, q in ipairs(self.asked) do
+        if now - q.at <= M.GRACE and (q.id == id or q.app == w.app) then
+            return true
+        end
     end
     if self.cmd_down or now - self.last_switch <= M.GRACE then
         return true

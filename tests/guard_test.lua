@@ -71,6 +71,29 @@ t.test("a focus tilemo asked for is kept", function()
     t.eq(marked(wm, 2), false)
 end)
 
+t.test("each focus tilemo asked for just now is kept, not only the last", function()
+    local a, wm = setup()
+    a.add(3, { app = "c", pid = 3 })
+    wm:sync()
+    wm:retile()
+    wm:focus_window(2)
+    wm:focus_window(3)
+    a.calls = {}
+    wm:focused(2) -- the first one's report, after the second was asked
+    t.eq(a.calls, {}, "no hand-back")
+    t.eq(marked(wm, 2), false)
+    t.eq(wm.history[1], 2)
+
+    -- One asked for longer ago than that is no excuse.
+    a, wm = setup()
+    wm:focus_window(2)
+    a.clock = a.clock + wm_mod.GRACE + 1
+    wm:focus_window(1)
+    wm:focused(1)
+    steal(a, wm, 2)
+    t.eq(a.focused(), 1)
+end)
+
 t.test("a click just before is yours; one long before isn't", function()
     local a, wm = setup()
     wm:clicked()
