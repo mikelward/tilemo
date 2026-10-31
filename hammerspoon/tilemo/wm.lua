@@ -1713,15 +1713,29 @@ function M:go_answer(q, name)
     self:ask_next()
 end
 
--- The prompt's answer for Super+Shift+Return's question `q`: a name sends
--- the window there, as A.send does; nil (Esc) leaves it.
+-- The prompt's answer for Super+Shift+Return's question `q`: a name moves
+-- the window there and follows it, as tide's does: that workspace shows on
+-- the display the window was on, with the window focused. Nil (Esc) leaves
+-- it, and you where you are.
 function M:move_answer(q, name)
     if self.prompting ~= q or self:refuse_unsafe(q, name) then
         return
     end
     self:asked_done(q)
-    if name and self.windows[q.move] then
-        self:send_keeping_focus(q.move, name)
+    local id = q.move
+    local w = self.windows[id]
+    if name and w then
+        -- The display it moves from, noted before it moves.
+        local uuid = (w.ws and self:shown(w.ws)) or self:current_screen()
+        -- Reconciled once, after the show, so the window never hides on
+        -- the way, as for a new window's answer.
+        if self:send(id, name, true) then
+            self:show(self.windows[id].ws, uuid)
+            -- Already showing there, show() had nothing to do.
+            self:reconcile()
+            self:retile()
+            self:focus_window(id)
+        end
     end
     self:ask_next()
 end
@@ -2537,8 +2551,8 @@ function A.go_to(self)
 end
 
 -- Super+Shift+Return (SPEC.md §7.2): move the focused window to a
--- workspace by name, with the prompt listing them all. This is Send: focus
--- stays put. Esc leaves the window where it is. With no window there's
+-- workspace by name, with the prompt listing them all, and follow it there,
+-- as Carry does. Esc leaves the window where it is. With no window there's
 -- nothing to move, so it does nothing, and the log says why.
 function A.move_to(self)
     local id = self.a.focused()
