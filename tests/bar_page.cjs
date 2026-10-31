@@ -189,6 +189,7 @@ assert.strictEqual(byName.source.attrs["data-tip"], "Dvorak");
 const state = (b) => b.attrs["data-state"];
 for (const b of icons) if (b.className !== "icon source") assert.ok(b.innerHTML.startsWith("<svg "), `${b.className} is drawn`);
 assert.strictEqual(state(byName.awake), "off");
+assert.strictEqual(byName.awake.attrs["data-tip"], "Not keeping awake", "what it's doing, in the sign's words");
 assert.strictEqual(state(byName.camera), "in-use");
 assert.strictEqual(byName.camera.attrs["data-tip"], "Camera in use");
 assert.strictEqual(byName.mic.attrs["data-tip"], "Microphone");
