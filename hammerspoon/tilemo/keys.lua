@@ -47,20 +47,22 @@ M.map = {
 -- the app's windows and launches it by bundle ID; `run` is one of tide's
 -- helpers, run through runenv for the login environment (SPEC.md §7.2).
 -- `new` opens a new window every time instead, as tide's terminal key does.
+-- `home_app` marks one of the home workspace's apps, which launches from home without
+-- asking for a workspace (SPEC.md §7.2).
 M.APPS = {
     { key = "t", spec = { bundle = "net.kovidgoyal.kitty", new = true } },
     { key = "w", spec = { run = "terminal_on_workstation" } },
     { key = "g", spec = { run = "browser1" } },
     { key = "g", shift = true, spec = { run = "browser3" } },
     { key = "f", spec = { run = "browser2" } },
-    { key = "c", spec = { run = "google-calendar" } },
-    { key = "c", shift = true, spec = { run = "google-chat" } },
+    { key = "c", spec = { run = "google-calendar", home_app = true } },
+    { key = "c", shift = true, spec = { run = "google-chat", home_app = true } },
     { key = "h", spec = { run = "home" } },
     { key = "i", spec = { run = "irc" } },
     { key = "m", spec = { run = "google-meet" } },
     { key = "n", spec = { run = "notepad" } },
     { key = "r", spec = { run = "remote-desktop" } },
-    { key = "y", spec = { run = "youtube-music" } },
+    { key = "y", spec = { run = "youtube-music", home_app = true } },
     { key = "e", spec = { run = "kitty -e yazi" } },
 }
 for _, a in ipairs(M.APPS) do

@@ -181,10 +181,16 @@ function M.new()
         a.saved = snap
     end
 
-    a.launched, a.fresh = {}, {}
-    function a.launch(spec, fresh)
+    a.launched, a.fresh, a.envs = {}, {}, {}
+    function a.launch(spec, fresh, env)
         a.launched[#a.launched + 1] = spec
         a.fresh[#a.launched] = fresh or false
+        a.envs[#a.launched] = env
+    end
+
+    a.app_names = {}
+    function a.app_name(bundle)
+        return a.app_names[bundle]
     end
 
     function a.close(id)

@@ -15,6 +15,9 @@
 -- whose windows always open on home (SPEC.md §6.2); it defaults to
 -- wm.HOME_APPS.
 -- tilemo.toggle_focus_follows_mouse() turns focus follows mouse off and on.
+-- tilemo.workspace() gives the current workspace's TIDE_WORKSPACE. Scripts
+-- read it from ~/Library/Caches/tilemo/workspace instead (SPEC.md §6.3):
+-- tilemo never loads hs.ipc, whose port runs any Lua a local process sends.
 
 local keys = require("tilemo.keys")
 local mouse = require("tilemo.mouse")
@@ -29,6 +32,9 @@ local shots = require("tilemo.shots")
 local tap_mod = require("tilemo.tap")
 local bar = require("tilemo.bar")
 local bar_hs = require("tilemo.bar_hs")
+local names = require("tilemo.names")
+local current = require("tilemo.current")
+local prompt_hs = require("tilemo.prompt_hs")
 
 local M = {}
 
@@ -180,7 +186,25 @@ function M.start(config)
     self.keep_good_clocks = function(clocks)
         self.good_clocks = clocks
     end
+    -- tide's title patterns for workspace names, from the same folder
+    -- (SPEC.md §6.2, §15), checked when tilemo starts and whenever the
+    -- folder changes. A bad list is said once, naming the file and the
+    -- pattern, and the last good one stays.
+    self.name_patterns = {}
+    local reported_patterns
+    local function load_patterns()
+        local list, err = names.load(self.clock_dir, self.adapter.read, self.adapter.decode, self.adapter.javascript)
+        if list then
+            self.name_patterns = list
+            reported_patterns = nil
+        elseif err ~= reported_patterns then
+            reported_patterns = err
+            self.adapter.notify("Workspace name patterns stay as they were: " .. err)
+        end
+    end
+    load_patterns()
     self.clock_watch = adapter_mod.watch_folder(self.clock_dir, function()
+        load_patterns()
         self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
         if self.bar then
             self.bar.update()
@@ -204,6 +228,16 @@ function M.start(config)
     self.shot_options = adapter_mod.screenshot_options(function()
         self.shots.folder(adapter_mod.screenshot_folder())
     end)
+    -- The name prompt, for a window opening on "in" and for launches from
+    -- it (SPEC.md §6.2). Windows found at start don't ask.
+    self.prompt = prompt_hs.new(self)
+    self.wm.ask_name = function(id)
+        self.prompt.window(id)
+    end
+    self.wm.ask_launch = function(default, done)
+        self.prompt.launch(default, done)
+    end
+    self.wm.ready = true
     self.launcher = launcher_hs.new(self)
     self.wm.open_launcher = function()
         self.launcher.show()
@@ -233,12 +267,26 @@ function M.start(config)
             self.wm:key_down(key, flags.cmd or false)
         end
     end)
+    -- The current workspace's name, for scripts, written whenever it
+    -- changes (SPEC.md §6.3). A failure is said once, until a write works.
+    self.workspace_file = current.new(current.dir(os.getenv("HOME") or ""), adapter_mod.current_fs)
+    local file_error
+    self.publish_workspace = function()
+        local ok, err = self.workspace_file.write(self.wm:current_ws())
+        if ok then
+            file_error = nil
+        elseif err ~= file_error then
+            file_error = err
+            self.adapter.notify("Couldn't write the workspace's name for scripts: " .. tostring(err))
+        end
+    end
     -- The workspaces, in the bar or else in the menu bar, and the name
     -- shown on each switch (SPEC.md §8).
     if config.bar ~= false then
         self.bar = bar_hs.new(self)
         self.wm.on_change = function()
             self.bar.update()
+            self.publish_workspace()
         end
     else
         self.menubar = hs.menubar.new()
@@ -246,6 +294,7 @@ function M.start(config)
             if self.menubar then
                 self.menubar:setTitle(bar.title(self.wm:bar_state()))
             end
+            self.publish_workspace()
         end
         self.menubar:setMenu(function()
             local items = {}
@@ -285,6 +334,11 @@ function M.start(config)
         choose_super(self, false)
     end)
     return self
+end
+
+-- The current workspace's TIDE_WORKSPACE, as the file holds it.
+function M.workspace()
+    return names.sanitize(M.wm:current_ws())
 end
 
 function M.toggle_focus_follows_mouse()

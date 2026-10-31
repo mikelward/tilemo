@@ -773,18 +773,23 @@ the home workspace, the first standing one (§6.1), which is "in" unless
     for the window through its remote control, `kitten @ launch
     --type=os-window --env TIDE_WORKSPACE=…`, which needs conf's
     `kitty.conf` to allow remote control on a socket *(unverified)*. With
-    none, it falls back to Cmd+N, and the shell asks tilemo (below).
+    none, it falls back to Cmd+N, and the shell reads the name from
+    tilemo's file (below).
 - **A running process can't see later changes.** It keeps the name it
   started with, after a rename or a move to another workspace, as on tide.
-- **Scripts can ask for the current name** with `hs -c
-  'tilemo.workspace()'`, through Hammerspoon's IPC.
-  - It needs `hs.ipc` loaded in tilemo's config, and the `hs` command
-    installed once with `hs.ipc.cliInstall()`.
-  - Each call starts a process and does a round trip to Hammerspoon,
-    tens of milliseconds *(unverified)*. That's fine once in a shell's
-    startup, when the variable is missing, but not in a prompt.
-  - With Hammerspoon not running, it fails, and the caller takes its
-    default.
+- **Scripts read the current name from a file:**
+  `~/Library/Caches/tilemo/workspace` holds `TIDE_WORKSPACE`'s value, and
+  `workspace.name` beside it holds the name as it shows, each ending in a
+  newline. `cat ~/Library/Caches/tilemo/workspace` gives it.
+  - tilemo writes both whenever the current workspace changes. Each is
+    written whole: a temporary file, mode 600, renamed over the last.
+  - The folder is mode 700, so only you can read them.
+  - **Not Hammerspoon's IPC:** `hs.ipc` opens a port that runs any Lua a
+    local process sends it, with tilemo's Accessibility grant, so tilemo
+    never loads it. A config of your own that loads it is your choice.
+  - Reading the file costs no process and no round trip, so it's fine
+    even in a prompt.
+  - With tilemo not running, the file says the last workspace it showed.
   - The cost is nothing in money, and no network.
 
 ### 6.4 Displays
@@ -1490,9 +1495,9 @@ Each one names a workaround, or says there is none.
   - a symbolichotkey holding one of tilemo's keys (§7.3), and any key that
     failed to register;
   - Karabiner's rules loaded, the Alt+Tab rule included (§7.2);
-  - the `hs` command installed, for scripts that ask the workspace's name,
-    and kitty's remote control on, for `TIDE_WORKSPACE` in new kitty windows
-    (§6.3);
+  - the workspace file written and private, for scripts that read the
+    workspace's name, and kitty's remote control on, for `TIDE_WORKSPACE`
+    in new kitty windows (§6.3);
   - Stage Manager or Sequoia's tiling on (§6.6);
   - a second bar running, such as SketchyBar.
 
@@ -1514,7 +1519,7 @@ Each one names a workaround, or says there is none.
   - Karabiner's rules (`config/karabiner/`), updated for §7.1 and §7.3, with
     physical Alt+Tab going to tilemo (§7.2);
   - the shell's shpool and tmux startup, which reads `TIDE_WORKSPACE`, and
-    on a Mac asks `hs -c` when it's missing (§6.3);
+    on a Mac reads tilemo's workspace file when it's missing (§6.3);
   - `kitty.conf`'s remote control socket, for `TIDE_WORKSPACE` in new kitty
     windows (§6.3);
   - `amethyst.yml` retired;

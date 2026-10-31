@@ -19,6 +19,7 @@ local attention = require("tilemo.attention")
 local bar = require("tilemo.bar")
 local layout = require("tilemo.layout")
 local mouse = require("tilemo.mouse")
+local names = require("tilemo.names")
 local rules = require("tilemo.rules")
 
 local M = {}
@@ -275,6 +276,12 @@ function M.new(adapter, config)
     -- Numbered workspaces left empty once their windows are back go after
     -- the first sync (SPEC.md §6.5).
     self.migrated = migrated
+    -- The name prompt (SPEC.md §6.2): the questions waiting, oldest first,
+    -- and the one being asked (ask_next). Windows found at start don't
+    -- ask: init.lua sets `ready` once the first sync is done.
+    self.ready = false
+    self.asking = {}
+    self.prompting = nil
     self.saved = {}
     for k, v in pairs(saved.windows or {}) do
         self.saved[tonumber(k) or k] = v
@@ -624,6 +631,35 @@ function M:parent_ws(id, f)
     return p and p.ws
 end
 
+-- Launches tilemo made, oldest first, each { app, ws, at }: the window a
+-- launch opens goes to the workspace it was for (`ws`), whatever's showing
+-- when it arrives. `app` is the bundle ID, or nil for a helper script,
+-- whose window may be any app's. Each is used once, within M.GRANT.
+function M:launch_to(app, ws)
+    self.launches = self.launches or {}
+    self.launches[#self.launches + 1] = { app = app, ws = ws, at = self.a.now() }
+end
+
+-- The workspace the oldest launch that window `w` may be from was for, if
+-- any; `take` uses that launch up.
+function M:launched_to(w, take)
+    local now = self.a.now()
+    local list = self.launches or {}
+    for i = #list, 1, -1 do
+        if now - list[i].at > M.GRANT then
+            table.remove(list, i)
+        end
+    end
+    for i, l in ipairs(list) do
+        if l.app == nil or l.app == w.app then
+            if take then
+                table.remove(list, i)
+            end
+            return l.ws
+        end
+    end
+end
+
 -- Start managing a window. Returns what it was decided to be.
 function M:add(id)
     if self.windows[id] then
@@ -664,10 +700,25 @@ function M:add(id)
         -- Home's apps always open there (SPEC.md §6.2).
         w.ws = self.home
         w.mine = f.minimized or false
+    elseif self:launched_to(w) then
+        -- A launch tilemo made goes to the workspace it was for, even if
+        -- you've moved on since, marked if that isn't showing (SPEC.md
+        -- §6.1, §14.2).
+        w.ws = self:ensure_ws(self:launched_to(w, true), self:screen_for(f.frame).area)
+        w.mine = f.minimized or false
+        if not self:shown(w.ws) then
+            self.attention:activated(id, w.app)
+        end
     else
         w.ws = self:ws_on_screen(self:screen_for(f.frame)) or self.home
         -- Minimized before tilemo knew it: you did that.
         w.mine = f.minimized or false
+    end
+    -- Any other app's new window on "in" asks for a name first. Dialogs and
+    -- other floats go where their parent is, and a window coming back to
+    -- its place doesn't ask.
+    if self.ready and kind == "tile" and w.ws == self.home and not (saved and saved.ws) and not self:is_home_app(w) then
+        self.asking[#self.asking + 1] = { window = id }
     end
     if kind == "float" then
         w.floating = true
@@ -1147,6 +1198,9 @@ end
 -- Keep keys on display `uuid` until focus moves.
 function M:keep_keys_on(uuid)
     self.kbd = { uuid = uuid, focused = self.a.focused() }
+    -- The current workspace changed with it, for the bar and the file
+    -- scripts read.
+    self:changed()
 end
 
 -- The display keys act on: the focused window's, else the pointer's. After
@@ -1227,8 +1281,10 @@ end
 -- Move window `id` to the end of workspace `name`'s stack, making the
 -- workspace, at the end of the list, if the name is new. Only home's apps
 -- may be sent home (SPEC.md §6.2); another app's window is refused, with
--- a notice. Says whether the window moved.
-function M:send(id, name)
+-- a notice. Says whether the window moved. `defer` leaves the screen to
+-- the caller's next reconcile, for a Send followed by a Show, so the window
+-- isn't minimized and restored between the two.
+function M:send(id, name, defer)
     local w = self.windows[id or false]
     local n = self:canonical(name)
     if not w or not w.ws or not n or w.ws == n then
@@ -1253,8 +1309,10 @@ function M:send(id, name)
         layout.insert(self.workspaces[n], id, nil, { new_window = "end" })
     end
     table.insert(self.mru[n], 1, id)
-    self:reconcile()
-    self:retile()
+    if not defer then
+        self:reconcile()
+        self:retile()
+    end
     return true
 end
 
@@ -1386,7 +1444,134 @@ function M:schedule()
         for n in pairs(lost) do
             self:refocus(n)
         end
+        self:ask_next()
     end)
+end
+
+-- The name prompt (SPEC.md §6.2) ---------------------------------------------
+
+-- Every question for the prompt waits its turn in `asking`, oldest first:
+-- { window = id } for a window opening on home, { launch = opts, go = fn }
+-- for a launch. There's one prompt, so asking a second question while one
+-- is open would replace it, and the replaced one would read as Esc,
+-- closing a window or canceling a launch.
+
+-- Ask the next question waiting, if nothing is being asked already.
+-- `ask_name(id)` and `ask_launch(default, done)`, from init.lua, open the
+-- prompt. It holds the keyboard, so focus follows mouse pauses.
+function M:ask_next()
+    if self.prompting then
+        return
+    end
+    while #self.asking > 0 do
+        local q = table.remove(self.asking, 1)
+        if q.window then
+            local w = self.windows[q.window]
+            if w and w.ws == self.home and self.ask_name then
+                self.prompting = q
+                self:hold("prompt", true)
+                self.ask_name(q.window)
+                return
+            end
+        elseif self.ask_launch then
+            self.prompting = q
+            self:hold("prompt", true)
+            self.ask_launch(q.launch.default or "", function(name)
+                self:launch_answer(q, name)
+            end)
+            return
+        end
+    end
+end
+
+-- Done with question `q`: let the keyboard go, and ask the next.
+function M:asked_done(q)
+    if self.prompting == q then
+        self.prompting = nil
+        self:hold("prompt", false)
+    end
+end
+
+-- The prompt's answer for window `id`: a name moves it there, making the
+-- workspace if it's new, and shows it, on the display home was on, with
+-- focus; nil (Esc) closes the window, politely. Home itself is refused,
+-- and asked again.
+function M:answer(id, name)
+    local q = self.prompting
+    if not (q and q.window == id) then
+        return
+    end
+    self:asked_done(q)
+    local w = self.windows[id]
+    if w and w.ws == self.home then
+        if name == nil then
+            self.a.close(id)
+        else
+            local n = self:canonical(name)
+            if n == self.home or not n then
+                if n then
+                    self.a.notify(self.home .. " is for its own apps: give this window another name")
+                end
+                table.insert(self.asking, 1, q)
+            else
+                local uuid = self:shown(self.home)
+                if self:send(id, n, true) then
+                    self:show(self.windows[id].ws, uuid)
+                    -- Already showing there, show() had nothing to do.
+                    self:reconcile()
+                    self:retile()
+                    self:focus_window(id)
+                end
+            end
+        end
+    end
+    self:ask_next()
+end
+
+-- The prompt's answer for launch question `q`: a name shows that
+-- workspace, making it if it's new, then launches with its
+-- TIDE_WORKSPACE; nil (Esc) launches nothing.
+function M:launch_answer(q, name)
+    if self.prompting ~= q then
+        return
+    end
+    self:asked_done(q)
+    local n = name and self:canonical(name)
+    if n == self.home and not q.launch.home_app then
+        self.a.notify(self.home .. " is for its own apps: nothing was opened")
+    elseif n then
+        self:show(n, nil, true)
+        n = self:find(n) or n
+        self:launch_to(q.launch.app, n)
+        q.go(self:env(n))
+    end
+    self:ask_next()
+end
+
+-- TIDE_WORKSPACE for a process tilemo starts on workspace `n` (SPEC.md §6.3).
+function M:env(n)
+    return { TIDE_WORKSPACE = names.sanitize(n) }
+end
+
+-- Before a launch tilemo makes (the switcher's Launch tab, an app key,
+-- Cmd+Return), the workspace it's for (SPEC.md §6.2, §9): from home, or
+-- for Cmd+Return (`opts.fresh`) from anywhere, it asks for a name first,
+-- with `opts.default` typed in, unless the app is one of home's
+-- (`opts.home_app`, and never for Cmd+Return). `opts.app` is the bundle
+-- ID, if known, which the launch's window is matched by (launch_to). The question waits its turn
+-- behind any other. A name shows that workspace, making it if it's new,
+-- then `go(env)` launches with its TIDE_WORKSPACE; Esc launches nothing.
+-- Elsewhere it launches straight away, on the workspace you're on.
+function M:before_launch(opts, go)
+    local cur = self:current_ws()
+    local ask = opts.fresh or (cur == self.home and not opts.home_app)
+    if not ask or not self.ask_launch then
+        self:launch_to(opts.app, cur)
+        go(self:env(cur))
+        return
+    end
+    self.asking[#self.asking + 1] = { launch = opts, go = go }
+    self:ask_next()
 end
 
 -- The mouse (SPEC.md §5.3) --------------------------------------------------
@@ -1739,6 +1924,11 @@ end
 -- or app switch. A window too new to have been synced is added now, so its
 -- focus isn't lost.
 function M:focused(id)
+    self:focused_window(id)
+    self:ask_next()
+end
+
+function M:focused_window(id)
     if not self.windows[id] then
         self:map_screens()
         -- A relaunched app focuses its first window before the next sync:
@@ -2073,19 +2263,26 @@ end
 -- An app key: bring the app's window forward, with its workspace, or
 -- launch it. `fresh` opens a new window instead (Cmd+Return in the
 -- launcher), even if the app is running. A spec marked `new` opens a new
--- window every time, on this workspace, as tide's terminal key does.
+-- window every time, on this workspace, as tide's terminal key does. A
+-- launch asks for a workspace first where before_launch says, and starts
+-- with that workspace's TIDE_WORKSPACE.
 function A.app(self, spec, fresh)
+    local default = spec.name or (spec.bundle and self.a.app_name and self.a.app_name(spec.bundle)) or spec.run
     if fresh or spec.new then
-        self:grant(spec.bundle)
-        self.a.launch(spec, true)
+        self:before_launch({ fresh = fresh, home_app = spec.home_app, default = default, app = spec.bundle }, function(env)
+            self:grant(spec.bundle)
+            self.a.launch(spec, true, env)
+        end)
         return
     end
     local ids = spec.bundle and self:app_windows(spec.bundle) or {}
     if ids[1] then
         self:activate(ids[1])
     else
-        self:grant(spec.bundle)
-        self.a.launch(spec)
+        self:before_launch({ home_app = spec.home_app, default = default, app = spec.bundle }, function(env)
+            self:grant(spec.bundle)
+            self.a.launch(spec, false, env)
+        end)
     end
 end
 
