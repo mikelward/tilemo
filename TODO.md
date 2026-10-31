@@ -400,10 +400,6 @@ tests and the bar page's test cover it. **Check on a Mac:**
   for every kind of menu)*. Mission Control isn't watched for; the hit test
   landing on something unmanaged stands in *(unverified)*. Reversible:
   `AXMenuOpened` observers in the adapter.
-- **No key turns focus follows mouse off** (SPEC.md open question 8):
-  `tilemo.toggle_focus_follows_mouse()` from Hammerspoon's console, or
-  `focus_follows_mouse = false` in `start()`. Reversible: bind it in
-  `keys.map`.
 - **A window minimized before tilemo first starts counts as yours,** so tilemo
   never restores something you put away. Reversible: `wm.add`.
 - **Restarts match windows by app and title, closest first** (SPEC.md

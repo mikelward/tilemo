@@ -2082,7 +2082,9 @@ Each one names a workaround, or says there is none.
 6. **Karabiner for Super:** decided, yes (§7.1).
 7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
    only (§7.1)?
-8. **Which key toggles focus follows mouse** (§5.2)?
+8. **A key to toggle focus follows mouse:** decided, none;
+   `tilemo.toggle_focus_follows_mouse()` from Hammerspoon's console, or
+   `focus_follows_mouse = false` in `start()` (§5.2).
 9. **`Super+1…9` and `Super+Shift+1…9`:** decided, positions in bar order
    (§7.2).
 10. **`Super+End`:** decided, the last workspace other than "in" and the
