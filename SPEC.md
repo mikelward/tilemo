@@ -18,9 +18,10 @@ checked against a source or a Mac is marked *(unverified)*.
 ## 1. Goals
 
 - **Everything tide and tileco do,** where macOS allows it:
-  - window management: layouts, workspaces and the dim;
+  - window management: layouts, named workspaces and the dim;
   - keys: one key map across the three desktops;
-  - a launcher and dashboard: tab search, clocks, a calendar;
+  - one switcher for apps, workspaces, windows and tabs, and a dashboard
+    with clocks and a calendar;
   - attention, focus, idle, theme, and the setup checklist.
 - **The same key map and layouts** as tide and tileco, so a hand moving
   between Linux, chromeOS and a Mac doesn't notice. Where those two
@@ -133,7 +134,8 @@ checked against a source or a Mac is marked *(unverified)*.
 - **Browser tabs:** Chrome and Safari list their tabs, with titles and
   addresses, to AppleScript or JavaScript for Automation. The user grants
   **Automation** per browser the first time *(unverified on macOS 26)*. That
-  gives tileco's tab search without an extension.
+  gives tileco's tab search without an extension, as the switcher's
+  Windows tab (§9).
 
 ### 2.6 What macOS does natively
 
@@ -191,7 +193,9 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Lone window 80% on ultrawide, 60% from 32:9 | same layout, per display (§5) | **yes** |
 | New windows join the end of the stack, with a setting for elsewhere (tide §6.1) | tilemo state (§5) | **yes** |
 | Layout, `mfact`, master count per workspace | tilemo state | **yes** |
-| 9 workspaces, Super+1…9, Shift to send | minimized windows, as tileco does (§6) | **partial**: each switch animates |
+| Named workspaces, "in" first, Super+Home to "in", Super+Return to send (tide §6.5) | minimized windows, as tileco does, named in tilemo's state (§6) | **partial**: each switch animates |
+| A new window on "in" asks for a workspace name (tide §6.5) | tilemo's name prompt, an `hs.chooser` (§6.2) | **yes** |
+| `TIDE_WORKSPACE` in launched apps (tide §6.5) | `hs.task`'s environment, `open --env`, and kitty's remote control (§6.3) | **partial**: an app already running keeps its own |
 | One workspace per monitor from a shared pool (tide §6.5) | tilemo tracks which display shows each workspace, as tileco does (§6) | **yes** |
 | Dim inactive, 0.07, not a lone window or video (tide §6.2) | one dark layer behind the focused window (§5.6) | **partial**: dims the desktop too, as HazeOver does *(unverified)* |
 | No borders, no gaps | gaps 0; title bars stay | **partial** |
@@ -205,11 +209,11 @@ Status: **yes** = tilemo or macOS meets the tide or tileco behavior;
 | Resize mode for floats, Super+Shift+R (tide §6.6) | a tilemo key mode (§5.3) | **yes** |
 | Focus follows mouse (KDE) | tilemo's own (§5.2) | **yes**, but focusing raises (§13) |
 | Nothing steals focus (tide §14) | macOS activation rules, plus tilemo's focus guard (§14) | **partial**: apps can still activate themselves |
-| Super+Tab to the window wanting attention (tide §14.3, tileco §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
+| Super+A lists the windows wanting attention, newest first (tide §14.4, tileco §10.3) | Dock badges, title counts, and apps activating themselves (§14.2) | **partial**: not every app says so |
 | Full-width bar with workspaces and urgency (tide §7) | tilemo's own bar over an auto-hidden menu bar, with its own status items (§8) | **partial**: app menus and other apps' status items still need the menu bar revealed |
 | SYD / LAX / NYC / LON clocks (tileco `src/clocks.js`) | bar clocks, and tileco's clock panel in the dashboard | **yes** |
-| Launcher on a Super tap (tide §8) | tilemo launcher, or Spotlight; the lone-modifier tap needs an event tap or Karabiner (§7) | **yes** |
-| Tab search (tileco §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
+| One switcher with tabs: launcher, workspaces, windows, attention (tide §8) | tilemo's switcher, an `hs.chooser`; the lone Super tap needs an event tap or Karabiner (§7, §9) | **yes** |
+| Browser tabs in the Windows tab (tileco §9.4) | Chrome and Safari tabs through AppleScript (§2.5) | **yes**, with Automation granted |
 | App keys (tide `hyprland.lua`, tileco §9.1) | global keys that bring an app's window, and its workspace, forward (§7) | **yes** |
 | Second and third Chrome profiles (`browser2`, `browser3`) | separate `--user-data-dir`s, as tide runs them (§7) | **yes** |
 | Notifications, history, DND (tide §9) | Notification Center and Focus | **yes**, native |
@@ -418,8 +422,8 @@ Focus follows mouse pauses, and focus stays where it is:
 - **While the pointer is in the menu bar's strip,** including an
   auto-hidden menu bar's reveal edge, or over the Dock or tilemo's bar
   (Amethyst#1221).
-- **While tilemo's launcher or dashboard is open.** It keeps the keyboard
-  until it closes (tide §14.2).
+- **While tilemo's switcher, name prompt or dashboard is open.** It keeps
+  the keyboard until it closes (tide §14.2).
 - **While an app that must keep focus is in front:** the screenshot picker
   (`com.apple.screencaptureui`) and password prompts
   (`com.apple.SecurityAgent`), from AutoRaise's own list. More can be added
@@ -432,7 +436,7 @@ Focus follows mouse pauses, and focus stays where it is:
   leave nothing focused (Amethyst#1560). This is tide's
   `focus_on_close cursor`.
 - **No warping, ever.** tilemo has no "mouse follows focus". `Super+J`,
-  `Super+Tab` and a new window move focus, not the pointer, as on tide
+  the switcher and a new window move focus, not the pointer, as on tide
   (tide §14.2). Amethyst's warp sends a fake pointer move that its own
   focus follows mouse then reacts to (Amethyst#995, #1006).
 - **More than one display:** every position is in macOS's single global
@@ -482,7 +486,7 @@ Each of these must pass before focus follows mouse is on by default:
 - Spotlight, Launchpad and the auto-hidden menu bar stay open while the
   pointer moves.
 - Cmd-Shift-4 keeps its region picker while the pointer crosses windows.
-- Typing into tilemo's launcher works with the pointer resting on a window,
+- Typing into tilemo's switcher works with the pointer resting on a window,
   and again after moving it across two (tide §14.2).
 - Moving onto a window focuses it at once, with no wait.
 - After `Super+J`, a small move within the old window doesn't take focus
@@ -607,19 +611,40 @@ than the other two choices.
 ### 6.1 Model
 
 This is tileco's model (tileco §6.1), which already solves minimizing on
-chromeOS:
+chromeOS, with tide's named workspaces (tide §6.5) in place of nine
+numbered ones:
 
-- **Nine workspaces, shared across displays.** Each display shows one at a
-  time. Decided, as tide decided (tide §6.5): per display, not one desktop
-  spanning every display.
+- **Workspaces have names, not numbers.** A workspace exists once it has a
+  name, and the list is in creation order. The bar lists them by name (§8).
+- **"in" comes first.** tilemo makes it at start. It can't be removed or
+  renamed (§6.2).
+- **`Super+Home` goes to "in"** (§7.2).
+- **Whether Super+1…9 stay is undecided.** With names, the switcher and
+  `Super+Return` replace them. If they stay, they'd go to and send to the
+  first nine in bar order, and a digit past the last would do nothing
+  (TODO.md).
+- **An empty workspace is removed once you leave it,** other than "in".
+  Leaving means no display shows it any more. A workspace holding only
+  windows you minimized isn't empty.
+- **Names are tilemo's own.** Its workspaces are minimized windows, not
+  Spaces, so a name is just tilemo state, saved with the rest (§6.5). Two
+  workspaces can't share a name; names are compared ignoring case
+  *(a guess, to confirm)*.
+- **Shared across displays.** Each display shows one at a time. Decided, as
+  tide decided (tide §6.5): per display, not one desktop spanning every
+  display.
 - **Each workspace keeps** its windows in tile order, its layout, `mfact`
   and master count, and its focused window.
 - **Each window belongs to one workspace,** and carries one flag: whether
   you minimized it yourself.
 - **A new window joins the workspace showing** on the display it opens on.
-  A window from a launch you made, which opens after you've moved to
-  another workspace, goes to the workspace you launched it from instead,
-  marked for attention (tide §14.2).
+  Two exceptions:
+  - A window of one of "in"'s apps always opens on "in" (§6.2).
+  - A window from a launch you made, which opens after you've moved to
+    another workspace, goes to the workspace you launched it from instead,
+    marked for attention (tide §14.2).
+- **A new window opening on "in"** that isn't one of its apps asks for a
+  workspace name first (§6.2).
 
 **One rule decides what's on screen:** a window shows if its workspace is
 showing on some display and you haven't minimized it. Every operation
@@ -629,11 +654,11 @@ then minimizes the rest, so the screen is never empty in between.
 
 | Operation | What changes | Focus |
 |---|---|---|
-| **Show N** (`Super+N`) on a display | That display shows N. If N was on another display, the two swap, as on tide. | N's last focused window |
-| **Send** a window to N (`Super+Shift+N`) | It moves to the end of N's stack. | stays put, as on tide |
-| **Next or previous** (`Super+Left`, `Right`, `PgUp`, `PgDn`) | Show N±1, stopping at 1 and 9. | as Show N |
+| **Show** a workspace (the switcher's Workspaces tab, `Super+Home` for "in", a bar click) on a display | That display shows it. If it was on another display, the two swap, as on tide. | its last focused window |
+| **Send** a window to a workspace (`Super+Return`'s prompt, §7.2) | It moves to the end of that workspace's stack. A new name makes the workspace first, at the end of the list. | stays put, as on tide *(a guess, to confirm)* |
+| **Next or previous** (`Super+Left`, `Right`, `PgUp`, `PgDn`) | Show the one after or before, in bar order, stopping at the first and last. | as Show |
 | **Carry** a window to the next or previous (`Super+Shift+Left`, `Right`) | Send, then show that workspace. | that window |
-| **Activate**: an app key, `Super+Tab`, Cmd+Tab, a Dock click, a notification click | If the window's workspace isn't showing, show it on the focused display. | that window |
+| **Activate**: an app key, the switcher, Cmd+Tab, a Dock click, a notification click | If the window's workspace isn't showing, show it on the focused display. | that window |
 | **Moved to another display** by you | It joins the stack of the workspace showing there. | that window |
 | **Minimize** by you (Cmd+M, the yellow button) | Set the flag. | macOS decides |
 | **Restore** by you, from the Dock or Cmd+Tab | Clear the flag. If its workspace is hidden, this is Activate. | that window |
@@ -646,16 +671,117 @@ then minimizes the rest, so the screen is never empty in between.
   so it can't stop a workspace switch. tilemo then stops managing it, as
   tileco does (tileco §6.4).
 
-### 6.2 Displays
+### 6.2 "in" and the name prompt
+
+This is tide's (tide §6.5), on tilemo's own workspaces.
+
+- **"in" holds the apps you keep open all day:** mail, chat, calendar and
+  music by default. Their windows always open there, and only theirs.
+  - The list is a setting (§15), matched by app name, since Chrome's
+    installed web apps each get a bundle ID of their own per install
+    *(unverified)*. Which names stand for those four is a guess, to
+    confirm: Mail, Gmail; Messages, Google Chat; Calendar, Google
+    Calendar; Music, YouTube Music.
+  - The list is tilemo's, not shared with tide: tide names apps by their
+    Wayland app ID, which a Mac doesn't have.
+  - A web app open in a plain Chrome tab isn't its app. Only the installed
+    web app's own window counts.
+  - Sending another app's window to "in" is refused, with a short notice
+    *(a guess, to confirm)*.
+  - Moving one of "in"'s windows elsewhere by hand is allowed: the rule
+    says where they open, not where they must stay *(a guess, to
+    confirm)*.
+- **Any other window opening while you're on "in" asks for a name.** That
+  includes a link a browser opens as a new window.
+  - Dialogs and other windows that follow a parent (§5.1), and
+    picture-in-picture (§5.5), don't ask: they go where their parent is.
+  - The prompt is an `hs.chooser` listing the existing names, with a
+    default name typed in and selected. Typing replaces it or filters the
+    list.
+  - **Enter** makes the workspace, or uses the existing one of that name,
+    moves the window there, and shows it. Focus follows.
+  - **Esc closes the window,** politely, as the close-window key does
+    (§7.2): Accessibility presses its close button, so the app can still
+    ask to save.
+  - A window's title often arrives after the window. The default follows
+    the title until you type *(a guess, to confirm)*.
+  - Focus follows mouse pauses while it's open (§5.2), and the window
+    stays put until you answer.
+- **tilemo's own launches from "in" ask before launching:** the switcher's
+  Launch tab, app keys and Cmd+Return (§9).
+  - The process then starts with the right `TIDE_WORKSPACE` (§6.3), and its
+    first window goes straight to the named workspace.
+  - Esc cancels the launch, so nothing opens.
+  - An app key for one of "in"'s apps doesn't ask.
+- **The default name** comes from the window's title:
+  - A setting holds a list of patterns, tried in order against the title.
+    The first that matches gives its first capture, such as a ticket ID or
+    a repository name.
+  - With no match, it's the title with the app's name stripped from its
+    end (" - Google Chrome", " — Mozilla Firefox"), cut to 20 characters
+    at a word boundary *(the cut is a guess, to confirm)*.
+  - With no title, the app's name.
+- **The patterns are JavaScript regular expressions, not Lua patterns.**
+  - tide's shell is QML, so tide's are JavaScript's. The setting lives in
+    tide's shared files (tide §16.1), and one list serves both desktops
+    only if both read it the same way.
+  - Lua patterns couldn't: they have no alternation (`a|b`), no `{n}`
+    counts, and `%d` where JavaScript says `\d`.
+  - tilemo runs them in JavaScriptCore through `hs.osascript.javascript`,
+    once per prompt, not per keystroke. That's an OSA call of some tens of
+    milliseconds *(unverified)*, and no permission.
+  - **A bad pattern is an error at load,** naming the setting and the
+    pattern. tilemo compiles each one when it starts and whenever the file
+    changes, and keeps the last good list.
+
+### 6.3 `TIDE_WORKSPACE`
+
+- **The variable is tide's** (tide §6.5), with the same name, so conf's
+  shpool and tmux startup reads one variable on every desktop.
+- **Its value** is the current workspace's name with only ASCII letters and
+  digits kept: `my-repo` gives `myrepo`. A name with none, such as one in
+  another script, gives an empty value, and conf's startup takes its
+  default *(a guess, to confirm)*.
+- **tilemo sets it for the processes it launches.** On a Mac that takes
+  more than one way, since an app launched through LaunchServices (`open`,
+  the Dock, Finder) gets launchd's environment, not Hammerspoon's:
+  - **Helpers** (`runenv`, §7.2) run through `hs.task`, whose
+    `setEnvironment` sets it. So does anything they start directly.
+  - **Apps** the helpers open with `open` get it through `open --env
+    NAME=value`, added in macOS 13 *(unverified on macOS 26)*. That covers a
+    new process only: `open -na` starts one, as the browser keys do, but
+    an app that's already running gets nothing.
+  - **kitty** on Super+T: Cmd+N to a running kitty starts a shell with
+    kitty's environment from when it launched. tilemo instead asks kitty
+    for the window through its remote control, `kitten @ launch
+    --type=os-window --env TIDE_WORKSPACE=…`, which needs conf's
+    `kitty.conf` to allow remote control on a socket *(unverified)*. With
+    none, it falls back to Cmd+N, and the shell asks tilemo (below).
+- **A running process can't see later changes.** It keeps the name it
+  started with, after a rename or a move to another workspace, as on tide.
+- **Scripts can ask for the current name** with `hs -c
+  'tilemo.workspace()'`, through Hammerspoon's IPC.
+  - It needs `hs.ipc` loaded in tilemo's config, and the `hs` command
+    installed once with `hs.ipc.cliInstall()`.
+  - Each call starts a process and does a round trip to Hammerspoon,
+    tens of milliseconds *(unverified)*. That's fine once in a shell's
+    startup, when the variable is missing, but not in a prompt.
+  - With Hammerspoon not running, it fails, and the caller takes its
+    default.
+  - The cost is nothing in money, and no network.
+
+### 6.4 Displays
 
 - **A display that goes away,** from a lid closing or a cable coming out,
   hands its workspaces to the remaining display, as on tide (tide §6.5).
-  Its windows move with them. They stay put when it comes back; Show N
-  puts any workspace on it.
+  Its windows move with them. They stay put when it comes back; Show puts
+  any workspace on it.
 - Each display is keyed by its UUID, so its settings follow it from port to
   port, as tide keys displays by description (tide §16).
+- **A new workspace** from the name prompt shows on the display the window
+  opened on.
 
-### 6.3 Restarts
+### 6.5 Restarts and saved state
 
 - **When an app quits and relaunches,** its windows come back with new IDs.
   tilemo matches each to its old place by app and title, closest first, as
@@ -665,8 +791,20 @@ then minimizes the rest, so the screen is never empty in between.
   left stranded in the Dock.
 - **If it crashes,** the next start restores what it can't place and
   reconciles the rest. `tilemo restore` does it by hand (§16).
+- **What's saved:** `hs.settings`' `tilemo.state` names each window's
+  workspace, and each display's, by name, and keeps the list of names in
+  order.
+- **Moving on from numbered workspaces:** a saved state whose workspaces
+  are numbers is read once, then saved by name *(a guess, to confirm)*:
+  - each numbered workspace with windows becomes one named by its number,
+    "1" to "9", in that order after "in";
+  - a window of one of "in"'s apps goes to "in" instead;
+  - an empty number is dropped;
+  - a display showing a number shows that workspace, or "in" if it was
+    dropped.
+  - The same holds for timo's state, which tilemo still reads (README).
 
-### 6.4 Mission Control settings
+### 6.6 Mission Control settings
 
 The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
 
@@ -680,10 +818,12 @@ The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
   Option, the second would fight Super+drag (§5.3).
 - **"Click wallpaper to reveal desktop"** set to "Only in Stage Manager".
 
-### 6.5 The alternatives, to revisit if minimizing doesn't work out
+### 6.7 The alternatives, to revisit if minimizing doesn't work out
 
-1. **Native Spaces, nine per display:**
+1. **Native Spaces, one per workspace:**
    - Switching uses symbolichotkeys, as `setup-macos` does now.
+   - Spaces have no names in any public API, and each has to exist first,
+     so named workspaces made on demand fit them poorly.
    - Sending a window uses the private calls Amethyst and yabai use.
    - It matches the user's current Mac, Cmd+Tab stays honest, and full
      screen works.
@@ -754,19 +894,22 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 
 | Keys | Action | How |
 |---|---|---|
-| tap `Super` | launcher (§9) | event tap, or a Karabiner tap rule (below) |
-| `Super+Space` | launcher | hotkey |
+| tap `Super` | the switcher, on its Workspaces tab (§9) | event tap, or a Karabiner tap rule (below) |
+| `Super+Space` | the switcher, on its Launch tab | hotkey |
+| `Super+Tab` | the switcher, on its Workspaces tab | hotkey |
+| `Super+A` | the switcher, on its Attention tab (§14.2) | hotkey |
 | `Super+Shift+Space` | dashboard (§8) | hotkey |
 | `Super+Alt+Space` | next input source | macOS's own "Select next source" *(unverified key)* |
 | `Super+T` / `W` / `G` / `F` / `Shift+G` / `E` / `B` / `Shift+B` / `C` / `Shift+C` / `H` / `I` / `M` / `N` / `R` / `Y` | app keys (below) | hotkey |
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
 | `Super+L` | lock | hotkey; macOS's lock screen |
 | `Super+Shift+E` | log out | hotkey; System Events, which asks first |
-| `Super+1…9` / `Super+Shift+1…9` | show / send to workspace | hotkey |
+| `Super+Home` | show "in" (§6.2) | hotkey |
 | `Super+Left` / `Right`, `Super+PgUp` / `PgDn` | previous / next workspace | hotkey |
 | `Super+Shift+Left` / `Right` | carry the window to the previous / next workspace | hotkey |
 | `Super+J` / `K`, with Shift | focus / move down and up the stack | hotkey |
-| `Super+Return` | swap with the master | hotkey |
+| `Super+Return` | move the window to a workspace, by name (below) | hotkey |
+| `Alt+Tab` | swap with the master; on the master, swap with the previous master | Karabiner rule on physical Alt+Tab (below) |
 | `Super+\` / `Super+/` | grow / shrink the master (`mfact` ±0.025), repeating | hotkey |
 | `Super+=` / `Super+-` | add / remove a master | hotkey |
 | `Super+.` / `Super+,` | next / previous layout | hotkey |
@@ -775,7 +918,6 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Shift+F`, `Super+Insert` | float or tile | hotkey |
 | `Super+Shift+R` | resize mode for a float (§5.3) | hotkey, then plain keys until Esc |
 | `Super`+drag, `Super`+right-drag, `Super`+middle-click | move, resize, maximize (§5.3) | event tap |
-| `Super+Tab`, `Super+Home` | the next window wanting attention (§14) | hotkey, and an event tap to see Super let go |
 | `Super+Shift+N` | Notification Center | no public way to open it *(unverified)*; else the clock in the menu bar |
 | `Print` / `Alt+Print` / `Shift+Print`, `Super+Print` | screenshot screen / window / region, Super+Print a region too (§10) | hotkey on F13, which a PC keyboard's Print sends *(unverified)* |
 | mic-mute key, `Super+Shift+M` | mute the microphone, everywhere | tilemo, through `hs.audiodevice`'s input mute on the default input device, with an on-screen sign; the bar's microphone item does the same |
@@ -786,13 +928,38 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   in between.
   - An event tap needs Accessibility and maybe Input Monitoring (§11). A
     Karabiner rule (`to_if_alone` on physical Win) avoids both.
-- **Super+Tab** steps to the next waiting window each time it's pressed
-  with Super held, and letting Super go ends the round (tide §14.3).
-  `RegisterEventHotKey` doesn't report a modifier being let go, so that
-  part needs the event tap.
+  - Karabiner's rule is the better of the two here: it sees the physical
+    key, and needs neither permission. tilemo's own tap is the fallback.
+- **Undecided: `Super+1…9` and `Super+Shift+1…9`.** They went to and sent
+  to the nine numbered workspaces. With names, the switcher and
+  `Super+Return` cover both, and the user leans toward dropping them.
+  They're left out until that's settled (TODO.md). If kept, they'd take
+  the first nine in bar order (§6.1).
+- **`Super+End` is unassigned.** It pairs with `Super+Home`, which goes to
+  "in"; what it does is open (TODO.md).
+- **`Super+Return` moves the focused window to a workspace,** with tide's
+  prompt (tide §6.5): an `hs.chooser` listing the existing names. Typing
+  filters them or gives a new name, and Enter moves the window, making the
+  workspace if the name is new. Esc leaves it where it is. This is Send
+  (§6.1).
+- **`Alt+Tab` takes `Super+Return`'s old job.** It makes the focused window
+  the master. On the master, it swaps with the one that was master before.
+  - Under the rotation, physical Alt sends Control, so physical Alt+Tab
+    arrives as Ctrl+Tab, which is the apps' own next tab (scripts
+    `docs/MACOS.md`, "The one binding the rotation inverts").
+  - conf's Karabiner rule now turns physical Alt+Tab into Cmd+Tab, macOS's
+    app switcher. It changes to send a combination nothing else uses,
+    which tilemo registers *(which one to settle in conf)*.
+  - So physical Alt+Tab no longer switches apps. The switcher's Windows
+    tab (§9) stands in, and a Mac keyboard's own Cmd+Tab still works.
+  - Without Karabiner, tilemo doesn't take Ctrl+Tab, since that would take
+    every app's next tab. Swap with the master has no key then *(a guess,
+    to confirm)*.
 - **App keys** are tide's (conf `hyprland.lua`). Each brings the app's
   window forward, launching the app if it has none, and brings its
   workspace with it (Activate, §6.1).
+  - From "in", a key that would launch asks for a workspace name first,
+    unless the app is one of "in"'s (§6.2). Esc cancels the launch.
   - **Super+T opens a new kitty window every time,** on the workspace
     you're on, as tide's terminal key does: Cmd+N to a running kitty, or a
     launch.
@@ -822,7 +989,9 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   Ctrl+Option+arrows *(unverified)*. It goes.
 - **Karabiner's Win+arrow rule** sends Ctrl+Option+arrow for native Spaces
   and Win+Shift+arrow for Amethyst's throw. Both now go to tilemo.
-- **Super+Shift+N sends to workspace N.** Under the rotation that's
+- **Karabiner's Alt+Tab rule** sends Cmd+Tab now. It goes to tilemo's swap
+  with the master instead (§7.2).
+- **Super+Shift+N sent to workspace N,** if those keys stay (§7.2). Under the rotation that's
   Option+Shift+digit, which makes a character in typing but can still be
   registered. Hammerspoon passes Option and Shift straight to
   `RegisterEventHotKey`
@@ -852,16 +1021,19 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     the pointer reaches the top edge, over the bar, which sits below the
     menu bar's level.
   - **Option 2 stays as the fallback,** with `bar = false` in `start()`: a
-    tilemo menu bar item draws the workspaces as text, current, occupied,
-    and wanting attention. A click switches. It sits on the right, since
+    tilemo menu bar item draws the workspaces' names as text, current,
+    occupied, and wanting attention. A click switches. It sits on the right, since
     the menu bar's left side is the Apple menu and the app's menus.
-  - Either way, a large number shows briefly in the middle of the screen on
-    each switch.
+  - Either way, the workspace's name shows briefly, large, in the middle
+    of the screen on each switch.
 - **If it's a bar, it's tide's** (tide §7.1–§7.4):
   - a flush 36 px strip, one per display, with the tiling area starting
     below it;
-  - workspace chips that show current, occupied (up to five app icons, then
-    `+n`), showing on another display, empty, and wanting attention;
+  - workspace chips in list order, each with its name, that show current,
+    occupied (up to five app icons, then `+n`), showing on another display,
+    and wanting attention. A long name is cut with an ellipsis at 16
+    characters *(a guess, to confirm)*. There's no empty chip: an empty
+    workspace other than "in" goes once you leave it (§6.1);
   - a click shows that workspace, and scrolling steps through them;
   - the title only on the display the focused window is on, where
     double-clicking it maximizes;
@@ -960,23 +1132,41 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     copied unchanged, and CI checks they still match tileco's.
   - A webview can't load ES modules from files, so tilemo joins them into one
     script, each module in its own scope.
-  - A workspace number or a click on its chip shows it. Esc, the key again,
+  - A click on a workspace's chip shows it. Esc, the key again,
     or clicking away closes it.
-  - The launcher stays `hs.chooser` (§9), so the dashboard has no search.
+  - The switcher stays `hs.chooser` (§9), so the dashboard has no search.
   - Focus follows mouse pauses while it's open (§5.2).
 
-## 9. Launcher
+## 9. The switcher
 
-- **Scopes, as tileco's** (tileco §9.4), which Tab moves through and
-  Shift+Tab moves back through, the search field naming the one you're in.
-  It opens on the first:
-  - **Launch:** apps, System Settings' panes and tilemo's commands;
-  - **Tabs:** open Chrome and Safari tabs;
-  - **Attention:** the windows wanting attention (§14.2), newest first, by
-    title, with their app and workspace. Return goes there with its
-    workspace, as Super+Tab does.
+**One overlay, with tabs,** as tide's (tide §8): the launcher, the
+workspaces, every window, and the windows wanting attention. It's the
+launcher's `hs.chooser` with tileco's scopes (tileco §9.4), one scope per
+tab, the search field naming the tab you're in.
 
-  An empty scope says so, in a row that can't be chosen.
+- **Tabs,** in this order *(the order is a guess, to confirm)*:
+  - **Launch:** apps, System Settings' panes and tilemo's commands.
+  - **Workspaces:** every workspace by name, in bar order, with its app
+    icons and where it's showing. Return shows it (§6.1).
+  - **Windows:** every window on every workspace, by title, with its app
+    and workspace, and every Chrome and Safari tab, with its window's
+    workspace. Return on a window activates it with its workspace (§6.1).
+    Return on a tab brings that tab forward in its window, then does the
+    same. This takes in the old Tabs scope.
+  - **Attention:** the windows wanting attention on any workspace (§14.2),
+    most recent first, by title, with their app and workspace. Return goes
+    there with its workspace.
+
+  An empty tab says so, in a row that can't be chosen.
+- **Each key opens it on its own tab:** `Super+Space` on Launch,
+  `Super+Tab` and the Super tap on Workspaces, `Super+A` on Attention
+  (§7.2). The Windows tab has no key of its own *(a guess, to confirm)*.
+- **`Tab` and `Shift+Tab` move between tabs,** forward and back, as the
+  scopes do now.
+- **A switcher key pressed while it's open** closes it if it's on that
+  key's tab, as tide's second Super tap closes its launcher (tide §8), and
+  otherwise moves to that tab *(a guess, to confirm)*. Esc closes it.
+- **Where the rows come from:**
   - **Apps** come from `/Applications` and `~/Applications`, with the folders
     in them (vendor folders, Chrome's web apps), `/System/Applications` and
     its Utilities, `/System/Library/CoreServices/Applications` (Archive
@@ -987,17 +1177,36 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     (`com.apple.Settings.extension.ui`), listed as "Mouse settings" and so on,
     and opened with their `x-apple.systempreferences:` URL. Read once a start,
     since only a macOS update changes them.
-  - **Tabs** come from Chrome and Safari through AppleScript (§2.5).
+  - **Workspaces, windows and attention** are tilemo's own state, so they
+    cost nothing to list.
+  - **Browser tabs** come from Chrome and Safari through AppleScript, run
+    with `hs.osascript` (§2.5).
+- **Browser tabs, cost and reliability:**
+  - **Permission:** macOS asks once per browser for Automation, the first
+    time the Windows tab lists its tabs (§11.1). Refused, that browser's
+    windows still show, without their tabs.
+  - **Latency:** each call is an Apple Event round trip to the browser,
+    slower with many tabs, and slow or stuck while the browser is busy
+    *(unverified how slow)*. So tilemo asks when the switcher opens, shows
+    the windows at once, and adds the tabs when they arrive. The call gets
+    a timeout, and a browser that misses it is skipped this time.
+  - **A browser that isn't running** isn't asked, since an Apple Event to it
+    would launch it.
+  - **Cost:** nothing in money, no network, and no work at all while the
+    switcher is closed.
 - **Matching:** tileco's fuzzy match and ranking (`src/launcher.js`), with
   the most used and most recent first, and tide's empty-query sections
-  (tide §8). Text matching nothing in a scope searches all of them, so a
-  tab still turns up from Launch.
+  (tide §8). Text matching nothing in a tab searches all of them, so a
+  window or a tab still turns up from Launch.
 - **Quick actions, as tide's** (tide §8): screenshot the window, screen or
   a region; lock, log out, sleep, restart, shut down; Do Not Disturb,
   keep awake, and dark style; tilemo's settings; reload tilemo.
-- **Cmd+Return** (physical Ctrl+Enter) runs the app on the first empty
-  workspace, as Ctrl+Enter does on tide.
-- **The window before the launcher** gets focus back if you dismiss it, and
+- **Launching from "in" asks for a workspace name first** (§6.2), so the
+  app starts with the right `TIDE_WORKSPACE` (§6.3). Esc cancels the launch.
+- **Cmd+Return** (physical Ctrl+Enter) runs the app on a new workspace, as
+  Ctrl+Enter does on tide: it asks for a name first, from any workspace,
+  since there's no empty one to use (§6.1).
+- **The window before the switcher** gets focus back if you dismiss it, and
   is the window "screenshot window" captures (tide §13).
 - **Kept out of screen shares,** as tide keeps its launcher out (tide §12),
   by marking tilemo's windows unshareable (`NSWindow.sharingType`)
@@ -1068,7 +1277,7 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
   *(unverified units)*. US Dvorak is a native input source.
 - **Setup checklist:** as tileco's (tileco §3.4). Each item links to its System
   Settings pane with an `x-apple.systempreferences:` URL *(unverified per
-  pane on macOS 26)*. It covers the Mission Control settings (§6.4), the
+  pane on macOS 26)*. It covers the Mission Control settings (§6.6), the
   minimize settings (§6), Chrome's notifications (§5.1), and each
   permission (§11).
 - **The rest of the setup:** tileco's Appendix A lists the helper scripts
@@ -1086,8 +1295,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | Accessibility | first run; tiling needs it | moving windows, focus follows mouse, mouse drags (§5.3), Dock badges |
 | Input Monitoring | only for the lone Super tap, if done by an event tap (§7) *(unverified that Accessibility alone isn't enough)* | seeing Option go down and up |
 | Screen Recording | never: titles come through Accessibility (§2.5), and screenshots use macOS's own keys (§10) | nothing tilemo needs |
-| Automation, per browser | the first tab search | tab titles and addresses |
-| none | — | global keys, the bar, clocks, the launcher's app list |
+| Automation, per browser | the first time the switcher's Windows tab lists tabs (§9) | tab titles and addresses |
+| none | — | global keys, the bar, clocks, the switcher's apps, workspaces and windows |
 
 Ask for each only when a feature needs it, as tileco does with its extras
 (tileco §14.1).
@@ -1114,8 +1323,8 @@ it's IT's call. tileco has the same section for chromeOS (tileco §14.4).
 | Feature | What MDM can do | If it's blocked |
 |---|---|---|
 | Accessibility, so all of tiling | grant it to a named app with a Privacy Preferences (PPPC) profile, or block it | **No workaround**: no tiling, no focus follows mouse, no mouse drags. Global keys and the launcher still work. |
-| Input Monitoring and Screen Recording | only let a standard user approve them, or block them; a profile can't switch them on silently *(unverified for Input Monitoring)* | Super+Space for the launcher (§7), or Karabiner's tap rule. tilemo shouldn't need Screen Recording (§2.5). |
-| Automation for tab search | grant it per app pair in the same profile, or block it | No tab search. Apps and commands still work. |
+| Input Monitoring and Screen Recording | only let a standard user approve them, or block them; a profile can't switch them on silently *(unverified for Input Monitoring)* | Super+Space for the switcher (§7), or Karabiner's tap rule. tilemo shouldn't need Screen Recording (§2.5). |
+| Automation for browser tabs | grant it per app pair in the same profile, or block it | No tabs in the Windows tab. Apps, workspaces, windows and commands still work. |
 | Karabiner's system extension | allow or block it by team ID, and the rotation needs it too | Skip Karabiner (§11.2). |
 | Running tilemo or Hammerspoon at all | block apps by name or signature, with Gatekeeper rules or a tool such as Santa | **No workaround.** Ask IT to allow it. A Developer ID build (§12) is easier for IT to allow than an unsigned one. |
 | Login items | manage background items, and hide or block them | Start tilemo by hand. |
@@ -1177,15 +1386,15 @@ Each one names a workaround, or says there is none.
 
 **Nothing takes the keyboard unless you asked for it,** as on tide
 (tide §14). A window that wants attention is marked, never focused, and
-`Super+Tab` takes you there.
+`Super+A` lists it, to go there.
 
 ### 14.1 Who gets focus
 
 | When | Gets focus? |
 |---|---|
-| tilemo's launcher, dashboard or resize mode is open | It keeps it until it closes. Focus follows mouse pauses meanwhile (§5.2). |
+| tilemo's switcher, name prompt, dashboard or resize mode is open | It keeps it until it closes. Focus follows mouse pauses meanwhile (§5.2). |
 | A new window from the app you're in: a dialog, a second window | **Yes**, as tide (tide §14.1). |
-| The first window of an app you launched from tilemo (the launcher, an app key) | **Yes**, if you haven't typed, clicked or moved focus since. The grant lasts 10 s and is used once. |
+| The first window of an app you launched from tilemo (the switcher, an app key) | **Yes**, if you haven't typed, clicked or moved focus since. The grant lasts 10 s and is used once. |
 | A window started from the focused terminal (`open .` in kitty) | **Yes**, on the same terms *(how tilemo learns of it unsettled; tide's shell tells its guard, tide §14.3)*. |
 | A notification you click | **Yes**: the click was yours (§10). |
 | A password prompt | **Yes** when it follows something you did in the app that asks; otherwise it's macOS's to decide. |
@@ -1197,9 +1406,12 @@ Each one names a workaround, or says there is none.
   when no grant covers it *(unverified that it can act before a keystroke
   lands)*. macOS 14 added cooperative activation, which already stops many
   apps taking focus unasked *(unverified how many apps it covers)*.
-- **Pulled back to another workspace** (tide §14.2): an app launched on 2
-  whose window appears after you've moved to 3 opens on 2, marked for
-  attention, not on 3 (§6.1).
+- **Pulled back to another workspace** (tide §14.2): an app launched on
+  "work" whose window appears after you've moved to "home" opens on "work",
+  marked for attention, not on "home" (§6.1).
+- **A window opening on "in"** that isn't one of its apps waits for the name
+  prompt (§6.2). The prompt has the keyboard; once you answer, the window
+  is focused on its workspace, which counts as asked for.
 
 ### 14.2 Attention
 
@@ -1211,10 +1423,16 @@ Each one names a workaround, or says there is none.
   - a window that activated itself without a grant (§14.1);
   - a Dock icon bouncing *(unverified that it can be seen)*.
 - **A badge marks the app; a title or activation marks the window.**
-  `Super+Tab` goes to the window, or to the app's last-used window.
+  `Super+A`'s list (§9) shows the window, or the app's last-used window.
 - **A mark clears** when you focus the window or app, as on tide
   (tide §14.4).
-- **`Super+Tab` with nothing waiting** goes to the window you were last in.
+- **The list covers every workspace,** most recent first. With nothing
+  waiting, it says so.
+- **What changed:** `Super+Tab` used to step through the waiting windows,
+  and `Super+Home` with it. `Super+Tab` now opens the workspace list, and
+  `Super+Home` goes to "in" (§7.2). `Super+A`'s list takes over from both,
+  so the step-while-held round, and its event tap for Super let go, go
+  with them.
 
 ## 15. Settings and `tilemo doctor`
 
@@ -1222,8 +1440,14 @@ Each one names a workaround, or says there is none.
   `~/.config/tide/` (tide §16.1): the clocks list, the layouts, and the dim
   strength. One file serves every desktop. A `.local` file beside each
   overrides it for one machine.
+  - **The workspace-name patterns** (§6.2) are tide's setting, in the same
+    file tide reads them from *(its name to match tide's)*, so one list
+    names workspaces on both desktops.
+- **"in"'s apps are tilemo's own setting,** `in_apps` in `start()`, a list
+  of app names (§6.2). tide's list names Wayland app IDs, which a Mac
+  doesn't have.
 - **A bad value is an error at load,** naming the setting, not a failure
-  later.
+  later. A pattern that doesn't compile is one (§6.2).
 - **Pages, as tide's** (tide §16): Layouts, Keys (live, §7.2),
   Appearance, Mouse and Keyboard, the checklist (§10), and the permissions
   (§11).
@@ -1242,8 +1466,11 @@ Each one names a workaround, or says there is none.
   - another tiler running: Amethyst, Rectangle, yabai, AeroSpace;
   - a symbolichotkey holding one of tilemo's keys (§7.3), and any key that
     failed to register;
-  - Karabiner's rules loaded;
-  - Stage Manager or Sequoia's tiling on (§6.4);
+  - Karabiner's rules loaded, the Alt+Tab rule included (§7.2);
+  - the `hs` command installed, for scripts that ask the workspace's name,
+    and kitty's remote control on, for `TIDE_WORKSPACE` in new kitty windows
+    (§6.3);
+  - Stage Manager or Sequoia's tiling on (§6.6);
   - a second bar running, such as SketchyBar.
 
 ## 16. Known problems
@@ -1255,18 +1482,23 @@ Each one names a workaround, or says there is none.
 | Screen Recording asks again every so often since macOS 15 *(unverified on macOS 26)* | tilemo doesn't use it (§2.5). |
 | Secure Input stops event taps seeing keys (§13) | Registered hotkeys still work; the tap rules don't. |
 | A hung app stalls Accessibility calls (§2.1) | A short timeout per call, and that app is skipped (§5.2). |
-| tilemo quits or crashes with workspaces hidden | Restores everything on quit, and reconciles at start (§6.3). |
+| tilemo quits or crashes with workspaces hidden | Restores everything on quit, and reconciles at start (§6.5). |
 
 ## 17. Where things live
 
 - **tilemo** (this repo): the spec, then the code.
 - **conf:**
-  - Karabiner's rules (`config/karabiner/`), updated for §7.1 and §7.3;
+  - Karabiner's rules (`config/karabiner/`), updated for §7.1 and §7.3, with
+    physical Alt+Tab going to tilemo (§7.2);
+  - the shell's shpool and tmux startup, which reads `TIDE_WORKSPACE`, and
+    on a Mac asks `hs -c` when it's missing (§6.3);
+  - `kitty.conf`'s remote control socket, for `TIDE_WORKSPACE` in new kitty
+    windows (§6.3);
   - `amethyst.yml` retired;
   - the Hammerspoon config, if tilemo starts as route B (§3).
 - **scripts:** `setup-macos`. It installs tilemo, frees the keys in §7.3,
   removes Amethyst and Rectangle, applies the Mission Control settings
-  (§6.4), and stops making nine Spaces.
+  (§6.6), and stops making nine Spaces.
 - **tide:** the layout geometry and its test fixtures, shared so tilemo
   doesn't keep its own copy.
 
@@ -1293,7 +1525,10 @@ Each one names a workaround, or says there is none.
      passes.
   4. **Workspaces:** minimizing, displays and restarts. Done when a day's
      work needs no Mission Control.
-  5. **Bar, launcher and dashboard,** then attention.
+  5. **Bar, switcher and dashboard,** then attention.
+  6. **Named workspaces:** "in", the name prompt, `TIDE_WORKSPACE` and the
+     switcher's tabs (§6.1–§6.3, §9). Done when a day starts on "in" and
+     every new task gets its name.
 
 ## 19. Open questions
 
@@ -1310,6 +1545,12 @@ Each one names a workaround, or says there is none.
 7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
    only (§7.1)?
 8. **Which key toggles focus follows mouse** (§5.2)?
+9. **`Super+1…9` and `Super+Shift+1…9`:** keep them with named workspaces,
+   or drop them (§7.2)?
+10. **`Super+End`:** what does it do, beside `Super+Home` going to "in"
+    (§7.2)?
+11. **Physical Alt+Tab:** tilemo's swap with the master takes it from
+    macOS's app switcher (§7.2). Is the Windows tab enough in its place?
 
 ## Sources
 

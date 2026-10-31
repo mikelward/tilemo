@@ -15,7 +15,8 @@ It brings tide's desktop to macOS:
 - tide's layouts and window keys (SPEC.md §5, §7.2);
 - the mouse: edge drags, Super+drag and resize mode;
 - focus follows mouse;
-- nine workspaces shared across displays (§6);
+- nine workspaces shared across displays. SPEC.md §6 now specs named
+  workspaces in their place, which TODO.md tracks;
 - the launcher, with Tab moving between apps and commands, open tabs, and
   the windows wanting attention, and app keys (§9);
 - tide's bar along the top: the workspaces, the window's title, the clocks
