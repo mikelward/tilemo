@@ -385,6 +385,35 @@ t.test("keep awake shows whether it's on", function()
     t.eq(bar.icons({}).awake, nil)
 end)
 
+t.test("keep awake says when presenter mode is on, whatever the assertion reads", function()
+    t.eq(bar.icons({ awake = true, presenting = true }).awake, { on = true, presenting = true })
+    t.eq(bar.icons({ awake = false, presenting = true }).awake, { on = true, presenting = true })
+    t.eq(bar.icons({ presenting = true }).awake, { on = true, presenting = true })
+    t.eq(bar.icons({ awake = true, presenting = false }).awake, { on = true })
+end)
+
+t.test("Super+S keeps awake and Super+P turns on presenter mode", function()
+    local keys = require("tilemo.keys")
+    local found = {}
+    for _, b in ipairs(keys.map) do
+        if not b.shift and (b.key == "s" or b.key == "p") then
+            found[b.key] = b.action
+        end
+    end
+    t.eq(found, { s = "keep_awake", p = "presenter" })
+    local _, wm = two_displays()
+    local calls = {}
+    wm.toggle_keep_awake = function()
+        calls[#calls + 1] = "awake"
+    end
+    wm.toggle_presenter = function()
+        calls[#calls + 1] = "presenter"
+    end
+    wm:act("keep_awake")
+    wm:act("presenter")
+    t.eq(calls, { "awake", "presenter" })
+end)
+
 t.test("the network is Wi-Fi, a wire, or none, by the interface carrying traffic", function()
     local wifi = { power = true, rssi = -55, interface = "en0" }
     t.eq(bar.icons({ wifi = wifi, network = { primary = "en0" } }).network, { kind = "wifi" })

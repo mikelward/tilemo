@@ -1035,6 +1035,8 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
 | `Super+Backspace` | close the window | hotkey; Accessibility presses its close button |
 | `Super+Z` | minimize the window, to the tray (§6.7) | hotkey |
 | `Super+L` | lock | hotkey; macOS's lock screen |
+| `Super+S` | keep awake on or off (§10) | hotkey; `hs.caffeinate`, with an on-screen sign |
+| `Super+P` | presenter mode: Do Not Disturb and keep awake together (§10) | hotkey; keep awake as `Super+S`, Do Not Disturb through two shortcuts you make in Shortcuts |
 | `Super+Shift+E` | log out | hotkey; System Events, which asks first |
 | `Super+Home` | show "in" (§6.2) | hotkey |
 | `Super+Left` / `Right`, `Super+PgUp` / `PgDn` | previous / next workspace | hotkey |
@@ -1218,7 +1220,10 @@ tilemo registers each with `RegisterEventHotKey`, which needs no permission
     input method, only with more than one enabled. A click goes to the
     next one.
   - keep awake: `hs.caffeinate`'s `displayIdle`, the same switch as the
-    launcher's Keep awake. A click toggles it.
+    launcher's Keep awake and `Super+S`. A click toggles it.
+    **While presenter mode is on** (§10) it's a filled accent pill reading
+    "Presenting", as tide's Presenting pill is, and a click ends presenter
+    mode.
   - camera: `hs.camera`, shown only while one is in use, as macOS's green
     dot *(unverified that reading it needs no Camera permission)*.
   - microphone: the default input device through `hs.audiodevice`, muted
@@ -1356,7 +1361,8 @@ tab, the search field naming the tab you're in.
   window or a tab still turns up from Launch.
 - **Quick actions, as tide's** (tide §8): screenshot the window, screen or
   a region; lock, log out, sleep, restart, shut down; Do Not Disturb,
-  keep awake, and dark style; tilemo's settings; reload tilemo.
+  keep awake, presenter mode, and dark style; tilemo's settings; reload
+  tilemo.
 - **Launching from "in" asks for a workspace name first** (§6.2), so the
   app starts with the right `TIDE_WORKSPACE` (§6.3). Esc cancels the launch.
 - **Cmd+Return** (physical Ctrl+Enter) runs the app on a new workspace, as
@@ -1385,7 +1391,50 @@ tab, the search field naming the tab you're in.
   - tilemo's keep-awake toggle holds a power assertion, as `caffeinate`
     does. As on tide, it never times out, starts off at each login, and
     turns on by itself while the microphone is in use (Core Audio reports
-    that) *(unverified)*.
+    that) *(unverified)*. That last part isn't built yet.
+  - `Super+S` toggles it, as the bar's item does, with an on-screen sign:
+    "Keeping awake" or "Not keeping awake".
+- **Presenter mode** (tide §10): Do Not Disturb and keep awake together,
+  for a talk, a demo, or a meeting room's screen.
+  - **On:** `Super+P`, or the launcher's Presenter mode. Keep awake goes
+    on, Do Not Disturb goes on, and the bar's keep-awake item reads
+    "Presenting" (§8). A sign says "Presenting".
+  - **Off:** `Super+P` again, the launcher, or a click on the bar's item.
+    Keep awake goes back to what it was before. Do Not Disturb goes off:
+    tilemo can't read a Focus, so it can't know it was on before. That's
+    where tilemo differs from tide, which puts both back.
+  - **Either one alone while presenting** ends presenter mode. `Super+S`
+    or the bar's item turns keep awake off and leaves Do Not Disturb on;
+    the launcher's Do Not Disturb turns it off and leaves keep awake on.
+  - **It lasts until tilemo reloads,** which starts it off, as tide's
+    starts off in a new shell. Keep awake itself is Hammerspoon's
+    assertion and may outlive a reload.
+- **Do Not Disturb has no public API.** It's a Focus, and macOS has no
+  public call to set or read one, and Hammerspoon has no `hs.focus`
+  (§8). The supported route is Shortcuts:
+  - Shortcuts' **Set Focus** action turns a Focus on or off, and
+    `/usr/bin/shortcuts run NAME` runs a shortcut from a script. Both came
+    with Shortcuts on the Mac, in macOS 12 Monterey. `shortcuts` exits 0 on
+    success and 1 on an error, and `shortcuts list` prints one name a line
+    (Apple's Shortcuts User Guide, "Run shortcuts from the command line").
+  - tilemo can't make a shortcut itself, so you make them, once: **"Do Not Disturb On"** (Set Focus: Do Not Disturb, on
+    until turned off) and **"Do Not Disturb Off"** (Set Focus: Do Not
+    Disturb, off). The launcher's Do Not Disturb toggle uses a third,
+    **"Toggle Do Not Disturb"**. *(The action's wording on macOS 26 is
+    unverified.)*
+  - **Missing ones are never silent.** At load tilemo runs `shortcuts
+    list`, and `tilemo doctor` names any that are missing. The first key
+    or launcher action that needs one says in a notification what to make.
+    A shortcut that's there but fails says so too, with what it printed.
+  - **One at a time.** The shortcuts run one after another, in the order
+    asked, and only the latest waiting request runs, so a quick second
+    `Super+P` can't race the first and leave Do Not Disturb wrong. Each
+    task is held until it exits, so Hammerspoon can't collect it part way.
+  - Keep awake works without any of them.
+  - Rejected: reading `~/Library/DoNotDisturb/DB/Assertions.json`, which
+    is undocumented, changes between releases, and needs Full Disk Access;
+    and `defaults write com.apple.ncprefs`, which is reported to have
+    stopped working with Focus in macOS 12 *(unverified)*.
   - Chrome can hold the screen awake on its own. `pmset -g assertions`
     shows who's holding it (tide §17) *(unverified that it happens on a
     Mac)*.
@@ -1505,6 +1554,10 @@ scripting addition (§6).
   - An app that hangs stalls a retile (§2.1).
   - None of this touches the network, so there's nothing to go down and no
     running cost.
+  - Do Not Disturb runs `/usr/bin/shortcuts`, part of macOS, free. Each
+    run is a process start and an Apple Event to Shortcuts, typically well
+    under a second *(unverified)*; it's off the key's path, so the key
+    and keep awake don't wait for it (§10).
 
 ## 13. What tilemo can't have
 

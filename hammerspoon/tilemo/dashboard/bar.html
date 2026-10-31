@@ -96,6 +96,14 @@ nav button .more {
 #icons [data-state="in-use"] {
   color: var(--accent);
 }
+/* Presenter mode: a filled accent pill, so it's hard to miss, as tide's
+   Presenting pill is. */
+#icons .awake[data-state="presenting"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
 #icons .battery[data-state="low"] {
   color: var(--urgent);
 }

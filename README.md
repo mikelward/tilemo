@@ -30,6 +30,11 @@ It brings tide's desktop to macOS:
   and tilemo's own status items (input source, keep awake, camera,
   microphone, speaker, network, battery), with Super+Shift+M to mute the
   microphone (§7.2, §8, §14.2);
+- Super+S to keep the display awake, and Super+P for presenter mode, Do
+  Not Disturb and keep awake together (§10). Do Not Disturb needs two
+  shortcuts you make in the Shortcuts app, "Do Not Disturb On" and "Do Not
+  Disturb Off", each one Set Focus action; tilemo says so if they're
+  missing, and keep awake works without them;
 - tileco's dashboard on Super+Shift+Space;
 - a Clocks settings page, from the launcher or the dashboard, sharing
   tide's `~/.config/tide/clocks*.json` (§15).

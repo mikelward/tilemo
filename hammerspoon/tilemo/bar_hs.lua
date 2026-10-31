@@ -129,6 +129,7 @@ function M.new(tilemo)
         raw.awake = try("keep awake", function()
             return hs.caffeinate.get("displayIdle")
         end)
+        raw.presenting = tilemo.presenter and tilemo.presenter.presenting() or false
         -- The network name needs Location Services on recent macOS; without
         -- it ssid is nil and the icon shows without a name.
         raw.wifi = try("Wi-Fi", function()
@@ -179,9 +180,9 @@ function M.new(tilemo)
                 log("bar: setOutputMuted failed on " .. tostring(dev:name()))
             end
         elseif what == "awake" then
-            local on = not hs.caffeinate.get("displayIdle")
-            hs.caffeinate.set("displayIdle", on, true)
-            hs.alert.show(on and "Keeping awake" or "Not keeping awake")
+            tilemo.presenter.toggle_keep_awake()
+        elseif what == "presenter" then
+            tilemo.presenter.toggle_presenter()
         elseif what == "source" then
             local nxt = bar.next_source(self.sources or {}, self.current_source)
             if nxt then

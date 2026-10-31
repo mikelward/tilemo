@@ -37,6 +37,8 @@ local names = require("tilemo.names")
 local mute = require("tilemo.mute")
 local current = require("tilemo.current")
 local prompt_hs = require("tilemo.prompt_hs")
+local presenter_hs = require("tilemo.presenter_hs")
+local presenter = require("tilemo.presenter")
 
 local M = {}
 
@@ -138,11 +140,15 @@ function M.doctor()
     elseif #(M.rule_gaps or {}) > 0 then
         lines[#lines + 1] = keys.gaps_notice(M.rule_gaps)
     end
+    if M.presenter and #M.presenter.missing > 0 then
+        lines[#lines + 1] = presenter.setup_notice(M.presenter.missing)
+    end
     if #(M.mute_errors or {}) > 0 then
         lines[#lines + 1] = "Muted apps and sites: " .. table.concat(M.mute_errors, "; ")
     end
     if #lines == 0 then
-        lines[1] = "Karabiner is running with tilemo's rule, up to date, and every muted entry reads."
+        lines[1] = "Karabiner is running with tilemo's rule, up to date, every muted entry reads,"
+            .. " and Do Not Disturb's shortcuts are there."
     end
     return table.concat(lines, "\n")
 end
@@ -326,6 +332,16 @@ function M.start(config)
         self.prompt.choose(done)
     end
     self.wm.ready = true
+    -- Keep awake and presenter mode (SPEC.md §10): Super+S and Super+P, the
+    -- launcher and the bar, with the bar on or off.
+    self.presenter = presenter_hs.new(self.adapter.run, self.adapter.log, self.adapter.notify, function()
+        if self.bar then
+            self.bar.refresh()
+        end
+    end)
+    self.presenter.check()
+    self.wm.toggle_keep_awake = self.presenter.toggle_keep_awake
+    self.wm.toggle_presenter = self.presenter.toggle_presenter
     self.launcher = launcher_hs.new(self)
     self.wm.open_launcher = function(tab)
         self.launcher.show(tab)

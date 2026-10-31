@@ -2551,6 +2551,20 @@ function A.mic_mute(self)
     end
 end
 
+-- Super+S: keep awake on or off; Super+P: presenter mode, Do Not Disturb
+-- and keep awake together (SPEC.md §10).
+function A.keep_awake(self)
+    if self.toggle_keep_awake then
+        self.toggle_keep_awake()
+    end
+end
+
+function A.presenter(self)
+    if self.toggle_presenter then
+        self.toggle_presenter()
+    end
+end
+
 -- Super+L and Super+Shift+E, and the launcher's Lock and Log out.
 function A.lock(self)
     self.a.lock()
