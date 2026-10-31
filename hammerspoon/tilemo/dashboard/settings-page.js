@@ -1,9 +1,10 @@
 // tilemo's settings page (SPEC.md §15): the clocks, as tide's Clocks page
 // (tide SPEC.md §16). It changes ~/.config/tide/clocks.local.json only, with
-// tide's own functions, so a change made here shows on tide too. tilemo
-// fills it with tilemo.update({ clockFiles }) and hears back through the
-// "tilemo" message handler: { write: text } for clocks.local.json, or
-// { close: true }.
+// tide's own functions, so a change made here shows on tide too. And the
+// muted apps and sites (SPEC.md §14.2), each with an Unmute button. tilemo
+// fills it with tilemo.update({ clockFiles, muted }) and hears back through
+// the "tilemo" message handler: { write: text } for clocks.local.json,
+// { unmute: entry }, or { close: true }.
 
 import { editableClocks, editedClocks, movedClock, relabeledClock, withClock, withoutClock } from "./tide-clocks.js";
 import { isZone, localText, sharedText } from "./settings.js";
@@ -11,6 +12,7 @@ import { isZone, localText, sharedText } from "./settings.js";
 const send = (msg) => window.webkit?.messageHandlers?.tilemo?.postMessage(msg);
 
 let files = null;
+let muted = [];
 
 const SOURCES = {
   "clocks.local.json": "From clocks.local.json, this Mac's own list.",
@@ -91,6 +93,22 @@ function render() {
   list.append(local);
 }
 
+// Each muted entry: an app's bundle id, or site:<host>, shown as the host.
+function renderMuted() {
+  const list = document.getElementById("muted-list");
+  list.replaceChildren();
+  if (muted.length === 0) {
+    list.append(el("li", "Nothing is muted."));
+    return;
+  }
+  for (const entry of muted) {
+    const name = entry.startsWith("site:") ? entry.slice(5) : entry;
+    const li = el("li");
+    li.append(el("span", name), button("Unmute", `Unmute ${name}`, false, () => send({ unmute: entry })));
+    list.append(li);
+  }
+}
+
 document.getElementById("add-zone").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const input = e.target;
@@ -110,8 +128,10 @@ document.addEventListener("keydown", (e) => {
 window.tilemo = {
   update(state) {
     files = state.clockFiles;
+    muted = Array.isArray(state.muted) ? state.muted : [];
     // New files: what went wrong before is about the old ones.
     showError("");
     render();
+    renderMuted();
   },
 };

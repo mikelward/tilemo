@@ -34,6 +34,11 @@ local function remove(list, pred)
 end
 
 function M:mark(m)
+    -- A muted app or site gets no mark (SPEC.md §14.2); `muted(m)` says
+    -- which, set by the window manager.
+    if self.muted and self.muted(m) then
+        return
+    end
     self.clock = self.clock + 1
     m.at = self.clock
     remove(self.marks, function(x)
@@ -92,6 +97,13 @@ function M:gone(id)
     self.counts[id] = nil
     remove(self.marks, function(m)
         return m.id == id
+    end)
+end
+
+-- Drop the marks `muted` now covers, after a mute.
+function M:prune()
+    remove(self.marks, function(m)
+        return self.muted and self.muted(m) or false
     end)
 end
 

@@ -8,6 +8,7 @@
 -- move between its tabs. Not runnable outside Hammerspoon.
 
 local launcher = require("tilemo.launcher")
+local mute = require("tilemo.mute")
 local saved = require("tilemo.saved")
 
 local M = {}
@@ -62,8 +63,11 @@ local TAB_SCRIPTS = {
             repeat with w from 1 to count windows
                 set n to name of window w
                 set i to id of window w
+                set a to active tab index of window w
                 repeat with t from 1 to count tabs of window w
-                    set out to out & w & tab & t & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
+                    set f to 0
+                    if t is a then set f to 1
+                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (title of tab t of window w) & linefeed
                 end repeat
             end repeat
         end tell
@@ -74,8 +78,11 @@ local TAB_SCRIPTS = {
             repeat with w from 1 to count windows
                 set n to name of window w
                 set i to id of window w
+                set a to index of current tab of window w
                 repeat with t from 1 to count tabs of window w
-                    set out to out & w & tab & t & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
+                    set f to 0
+                    if t is a then set f to 1
+                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (name of tab t of window w) & linefeed
                 end repeat
             end repeat
         end tell
@@ -151,6 +158,7 @@ local function windows(tilemo)
                 id = id,
                 title = tilemo.adapter.title(id) or w.title,
                 app_name = w.name or (w.app and hs.application.nameForBundleID(w.app)) or w.app,
+                bundle = w.app,
                 ws = w.ws,
                 -- Only one you minimized: tilemo's own hide the other
                 -- workspaces (SPEC.md §6.7).
@@ -219,6 +227,7 @@ local function attention(tilemo)
             window = id,
             title = tilemo.adapter.title(id) or w.title,
             app = w.app and hs.application.nameForBundleID(w.app) or w.app,
+            bundle = w.app,
             ws = w.ws,
         }
     end
@@ -297,6 +306,10 @@ function QUICK.reload()
     hs.reload()
 end
 
+-- Mute or unmute the selected row, while the switcher's open: physical
+-- Ctrl+I under setup-macos's rotation (SPEC.md §14.2).
+M.MUTE_KEY = { mods = { "cmd" }, key = "i" }
+
 -- `tilemo` is the started tilemo module: its wm and adapter.
 function M.new(tilemo)
     local self = { tilemo = tilemo, recency = saved.get(hs.settings, M.RECENCY_KEY, M.OLD_RECENCY_KEY) or {} }
@@ -323,6 +336,8 @@ function M.new(tilemo)
     end
 
     local by_id = {}
+    -- Set once the switcher is open: rebuild its rows, and mute a row.
+    local refill, toggle_mute
 
     local function run(item, fresh)
         self.recency[item.key] = os.time()
@@ -408,6 +423,23 @@ function M.new(tilemo)
         chooser:choices(choices(query))
     end)
 
+    -- Cmd+I or a right-click on a row in the Windows or Attention tab
+    -- mutes or unmutes its app or site (SPEC.md §14.2), and the rows show
+    -- it at once: a muted Attention row goes.
+    toggle_mute = function(item)
+        if not item or not mute.entry_for(item) then
+            hs.alert.show("Only a window, a tab or an Attention row can be muted")
+            return
+        end
+        local name = item.kind == "tab" and (item.extra or item.url) or item.app or item.bundle
+        if tilemo.toggle_mute(mute.entry_for(item), name) ~= nil and refill then
+            refill()
+        end
+    end
+    chooser:rightClickCallback(function(index)
+        toggle_mute(by_id[(chooser:selectedRowContents(index) or {}).id])
+    end)
+
     -- Open on tab `tab` (Launch if none). A switcher key pressed while
     -- it's open closes it if it's on that key's tab, and otherwise moves to
     -- that tab (SPEC.md §9).
@@ -427,12 +459,17 @@ function M.new(tilemo)
         local found_tabs = {}
         local function fill()
             items = launcher.items(apps, found_tabs, launcher.COMMANDS, settings, attention(tilemo), workspaces(tilemo), wins)
+            mute.mark_rows(items, tilemo.wm.muted)
             by_id = {}
             for _, item in ipairs(items) do
                 by_id[item.id] = item
             end
         end
         fill()
+        refill = function()
+            fill()
+            chooser:choices(choices(chooser:query()))
+        end
         -- The windows show at once; each browser's tabs join them when it
         -- answers, while the switcher's still open.
         local opened = {}
@@ -444,6 +481,9 @@ function M.new(tilemo)
             for _, t in ipairs(list) do
                 found_tabs[#found_tabs + 1] = t
             end
+            -- Each browser window's front tab, for muted sites (SPEC.md
+            -- §14.2).
+            tilemo.wm:note_tabs(list)
             fill()
             chooser:choices(choices(chooser:query()))
         end)
@@ -465,6 +505,11 @@ function M.new(tilemo)
             end),
             hs.hotkey.bind({ "shift" }, "tab", function()
                 set_scope(launcher.next_scope(scope, true))
+            end),
+            -- Mute or unmute the row's app or site (SPEC.md §14.2).
+            hs.hotkey.bind(M.MUTE_KEY.mods, M.MUTE_KEY.key, function()
+                local row = chooser:selectedRowContents()
+                toggle_mute(row and by_id[row.id])
             end),
         }
         chooser:query("")

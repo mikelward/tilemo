@@ -16,6 +16,7 @@
 -- goes empty.
 
 local attention = require("tilemo.attention")
+local mute = require("tilemo.mute")
 local bar = require("tilemo.bar")
 local layout = require("tilemo.layout")
 local mouse = require("tilemo.mouse")
@@ -295,7 +296,47 @@ function M.new(adapter, config)
     end
     -- id -> the place sync() paired a new window with.
     self.paired = {}
+    -- The muted apps and sites (SPEC.md §14.2), and each browser window's
+    -- front tab's host, as the switcher last saw it.
+    self.muted = mute.empty()
+    self.tab_hosts = {}
+    self.attention.muted = function(m)
+        return self:is_muted(m.app, m.id)
+    end
     return self
+end
+
+-- Whether a mark for window `id` of `app` is muted: its app is in the
+-- list, or it's a browser window whose front tab is on a muted site.
+function M:is_muted(app, id)
+    return mute.matches(self.muted, app, id and self.tab_hosts[id])
+end
+
+-- The muted list changed: marks it now covers go, and the bar shows it.
+function M:set_muted(set)
+    self.muted = set or mute.empty()
+    self.attention:prune()
+    self:changed()
+end
+
+-- The browser windows' front tabs, from the switcher's tab list: `tabs`
+-- as launcher.parse_tabs gives them, with `win` the tilemo window and
+-- `active` the front tab. Marks they now cover go.
+function M:note_tabs(tabs)
+    local changed = false
+    for _, t in ipairs(tabs) do
+        if t.active and t.win then
+            local h = mute.host(t.url)
+            if self.tab_hosts[t.win] ~= h then
+                self.tab_hosts[t.win] = h
+                changed = true
+            end
+        end
+    end
+    if changed then
+        self.attention:prune()
+        self:changed()
+    end
 end
 
 local function center(box)
@@ -936,6 +977,7 @@ function M:forget(id, pos, at)
     self.placed[id] = nil
     remove_value(self.history, id)
     self.attention:gone(id)
+    self.tab_hosts[id] = nil
 end
 
 -- Match what tilemo knows to the windows that exist now: add new ones, forget

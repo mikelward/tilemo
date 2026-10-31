@@ -77,14 +77,16 @@ Mac:**
 
 ## Mute: apps and sites that never want attention
 
-**Decided** (SPEC.md §14.2, §15): `muted` in tide's `workspaces.json` and
-`workspaces.local.json`, bundle ids and `site:<host>`, empty by default.
-Muting stops the marks; macOS's own banners stay, and the mute's notice
-offers System Settings › Notifications. To do, not built: loading and
-checking the list, suppressing and clearing the marks, `Cmd+I` and the
+**Built** (SPEC.md §14.2, §15): `muted` in tide's `workspaces.json` and
+`workspaces.local.json`, the marks suppressed and cleared, `Cmd+I` and the
 right-click in the switcher's Windows and Attention tabs, the "muted"
-mark, the browser's front tab in the tab list, and the settings window's
-list. **Check on a Mac:** the Notifications pane's URL on macOS 26.
+mark, each browser window's front tab, and the settings window's list.
+**Check on a Mac:**
+
+- the Notifications pane's URL on macOS 26, from the notice after a mute;
+- that clicking the notice opens it (`hs.notify`'s callback);
+- `Cmd+I` and the right-click reach tilemo while the switcher is open;
+- Chrome's `active tab index` and Safari's `current tab` in the tab list.
 
 ## Launcher looks
 
@@ -97,6 +99,9 @@ list. **Check on a Mac:** the Notifications pane's URL on macOS 26.
 
 ## Decisions needing review
 
+- **After a mute, clicking tilemo's notice opens Notifications settings,**
+  rather than a dialog asking first, which would take the keyboard from
+  the switcher. Reversible: `toggle_mute` in `init.lua`.
 - **`muted` lives in `workspaces.json`,** beside `inApps` and
   `namePatterns`, rather than a file of its own, since it's another list
   of apps tide and tilemo share. Reversible: one name in `mute.lua`, and

@@ -5,6 +5,7 @@
 -- Hammerspoon.
 
 local dashboard = require("tilemo.dashboard")
+local mute = require("tilemo.mute")
 
 local M = {}
 
@@ -40,7 +41,11 @@ function M.new(tilemo)
         if not view then
             return
         end
-        local json = hs.json.encode({ clockFiles = tilemo.clock_files })
+        -- An empty list must reach the page as one, not as an object.
+        local json = hs.json.encode({ clockFiles = tilemo.clock_files, muted = "__muted__" })
+        json = json:gsub('"__muted__"', function()
+            return mute.encode_list(tilemo.wm.muted.list)
+        end)
         view:evaluateJavaScript("tilemo.update(" .. json .. ")", function(_, err)
             if err and next(err) then
                 tilemo.adapter.log("settings: " .. hs.inspect(err))
@@ -61,6 +66,11 @@ function M.new(tilemo)
                     push()
                 end
                 -- The folder's watcher reloads the files, and then this page.
+            elseif type(body.unmute) == "string" then
+                -- The same as Cmd+I on a muted row; it refreshes this page.
+                if not mute.has(tilemo.wm.muted, body.unmute) or tilemo.toggle_mute(body.unmute) == nil then
+                    push()
+                end
             elseif body.close and view then
                 view:delete()
                 view = nil
@@ -84,7 +94,7 @@ function M.new(tilemo)
             tilemo.adapter.log("settings: no display to show it on")
             return
         end
-        local w, h = 560, 420
+        local w, h = 560, 560
         local frame = { x = s.area.x + (s.area.w - w) / 2, y = s.area.y + (s.area.h - h) / 2, w = w, h = h }
         view = hs.webview.new(frame, { developerExtrasEnabled = false }, content)
         view:windowStyle({ "titled", "closable" })

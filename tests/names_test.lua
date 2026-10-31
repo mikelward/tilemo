@@ -106,6 +106,12 @@ t.test("tide's .local file's patterns take the place of the shared file's", func
     local list, err = names.read("/c", read, dec)
     t.eq(list, nil)
     t.eq(err, "workspaces.local.json: namePatterns must be a list of patterns")
+    -- A JSON object is a table too, but not a list: an error, not no
+    -- patterns.
+    files["/c/workspaces.local.json"] = { namePatterns = { first = "(x)" } }
+    t.eq(select(2, names.read("/c", read, dec)), "workspaces.local.json: namePatterns must be a list of patterns")
+    files["/c/workspaces.local.json"] = { namePatterns = { "(x)", [5] = "(y)" } }
+    t.eq(select(2, names.read("/c", read, dec)), "workspaces.local.json: namePatterns must be a list of patterns")
     files["/c/workspaces.local.json"] = { namePatterns = { "(x)", 3 } }
     t.eq(select(2, names.read("/c", read, dec)), "workspaces.local.json: namePatterns[2] must be a string")
     files["/c/workspaces.local.json"] = nil

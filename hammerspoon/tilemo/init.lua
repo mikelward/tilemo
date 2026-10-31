@@ -34,6 +34,7 @@ local bar = require("tilemo.bar")
 local bar_hs = require("tilemo.bar_hs")
 local tray_hs = require("tilemo.tray_hs")
 local names = require("tilemo.names")
+local mute = require("tilemo.mute")
 local current = require("tilemo.current")
 local prompt_hs = require("tilemo.prompt_hs")
 
@@ -137,8 +138,11 @@ function M.doctor()
     elseif #(M.rule_gaps or {}) > 0 then
         lines[#lines + 1] = keys.gaps_notice(M.rule_gaps)
     end
+    if #(M.mute_errors or {}) > 0 then
+        lines[#lines + 1] = "Muted apps and sites: " .. table.concat(M.mute_errors, "; ")
+    end
     if #lines == 0 then
-        lines[1] = "Karabiner is running with tilemo's rule, up to date."
+        lines[1] = "Karabiner is running with tilemo's rule, up to date, and every muted entry reads."
     end
     return table.concat(lines, "\n")
 end
@@ -239,8 +243,53 @@ function M.start(config)
         end
     end
     load_patterns()
+    -- The muted apps and sites, from the same folder (SPEC.md §14.2, §15).
+    -- A malformed entry is said once, naming it, and the rest still count;
+    -- a file that can't be read is said once, and the last good list stays.
+    self.mute_errors = {}
+    local reported_mute
+    local function load_muted()
+        local set, errors = mute.load(self.clock_dir, self.adapter.read, self.adapter.decode)
+        self.mute_errors = errors
+        -- A file that can't be read keeps the last good list.
+        if set then
+            self.wm:set_muted(set)
+        end
+        local text = table.concat(errors, "; ")
+        if text ~= "" and text ~= reported_mute then
+            self.adapter.notify((set and "Some muted entries are left out: " or "What's muted stays as it was: ") .. text)
+        end
+        reported_mute = text
+    end
+    self.load_muted = load_muted
+    load_muted()
+    -- Cmd+I in the switcher (launcher_hs.lua): mute `entry`, or unmute it,
+    -- named `name` in the notice. After a mute, a click on the notice opens
+    -- Notifications settings, since macOS's banners are its own. Returns
+    -- whether it's now muted, or nil if it couldn't be saved.
+    self.toggle_mute = function(entry, name)
+        local now, err = mute.toggle(self.clock_dir, entry, self.adapter.read, self.adapter.decode,
+            function(v)
+                return hs.json.encode(v, true)
+            end, self.adapter.write_file)
+        if now == nil then
+            self.adapter.notify("Couldn't change what's muted: " .. tostring(err))
+            return nil
+        end
+        -- At once, rather than when the folder's watcher fires.
+        load_muted()
+        local open_settings = now and function()
+            self.adapter.open_url(mute.NOTIFICATIONS_URL)
+        end or nil
+        hs.notify.new(open_settings, { title = "tilemo", informativeText = mute.notice(name or entry, now), withdrawAfter = 10 }):send()
+        if self.settings then
+            self.settings.refresh()
+        end
+        return now
+    end
     self.clock_watch = adapter_mod.watch_folder(self.clock_dir, function()
         load_patterns()
+        load_muted()
         self.clock_files = dashboard.clock_files(self.clock_dir, self.adapter.read)
         if self.bar then
             self.bar.update()
