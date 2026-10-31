@@ -1788,6 +1788,35 @@ Each one names a workaround, or says there is none.
     replaces the shared one.
   - tilemo already watches the folder, so a hand edit takes effect at
     once.
+- **Start at login** is tide's setting, `commands` in `startup.json` and
+  `startup.local.json` (tide §16), so one list serves both desktops. It's
+  empty by default.
+  - tilemo runs the list once a login as it starts, in order (each
+    command's check and start after the one before it's), each through
+    `runenv`, as a helper key runs one (§7.2), so it gets the login
+    shell's `PATH`. `google-calendar` and `google-chat` are `scripts`'
+    helpers, which open Chrome's app windows on a Mac too.
+  - Once a login: tilemo keeps the login it last ran in, as when this
+    user's `loginwindow` started, in `hs.settings`. A reload in the same
+    login runs nothing. A login that can't be told runs nothing either,
+    and says why in the log, since Hammerspoon reloads often.
+  - A command whose program a process of yours already runs, as `pgrep -x`
+    matches its whole basename, isn't started again. macOS's pgrep matches
+    the basename of a process's `argv[0]`, not the 15-byte name Linux's
+    does (`pkill.c` in adv_cmds). A script runs with its interpreter as
+    `argv[0]`, so one still running isn't caught. A pgrep that can't tell
+    starts it, and says so in the log.
+  - A command is words, with no shell: one with a quote, backslash, `$` or
+    control character, a program ending in `/`, an empty one, or one listed twice is an error at
+    load, in a notification naming the file and the entry, and the rest
+    still run. A file that isn't a JSON object, or a `commands` that isn't
+    a list, is an error too, and nothing runs until it's fixed.
+  - A command that fails is a notification naming it, as a helper key's is.
+  - macOS lets an app activate as it opens, so unlike tide, a command's
+    window may take focus *(unverified on macOS 26)*. Its windows go where
+    the home workspace's rules put them (§6.2).
+  - There's no page for it yet: tide's Settings page edits the list, or a
+    hand edit does.
 - **The home workspace's apps are tilemo's own setting,** `home_apps` in
   `start()`, a list of app names (§6.2). tide's list names Wayland app IDs,
   which a Mac doesn't have.
