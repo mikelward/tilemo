@@ -22,6 +22,39 @@ t.test("a fixed-size standard window floats", function()
     t.eq(rules.decide(std({ size_settable = false })), "float")
 end)
 
+-- Chrome's find bar, tooltips and hover cards are windows of their own,
+-- AXUnknown and a fixed size: floated, each would be moved to the middle of
+-- Chrome's window, and focus follows mouse would focus it.
+t.test("a fixed-size popup that isn't a standard window is left alone", function()
+    t.eq(rules.decide(std({ app = "com.google.Chrome", subrole = "AXUnknown", size_settable = false })), "ignore")
+    local f = std({ size_settable = false })
+    f.subrole = nil
+    t.eq(rules.decide(f), "ignore", "no subrole")
+    t.eq(rules.decide(std({ subrole = "AXDialog", size_settable = false })), "float", "a fixed-size dialog still floats")
+end)
+
+t.test("Notification Center's windows are left alone, whatever they report", function()
+    for _, f in ipairs({
+        std({ app = "com.apple.notificationcenterui", title = "Notification Center", size_settable = false }),
+        std({ app = "com.apple.notificationcenterui", subrole = "AXSystemDialog" }),
+        std({ app = "com.apple.notificationcenterui" }),
+    }) do
+        t.eq(rules.decide(f), "ignore", f.subrole)
+    end
+end)
+
+-- AeroSpace's isWindowHeuristic: Control Center's and a menu bar app's
+-- panels, Spotlight, the input source switcher.
+t.test("a window with no close button from an app outside the Dock is left alone", function()
+    t.eq(rules.decide(std({ app = "com.apple.controlcenter", accessory = true, closable = false })), "ignore")
+    t.eq(rules.decide(std({ subrole = "AXDialog", accessory = true, closable = false })), "ignore", "a panel")
+    t.eq(rules.decide(std({ accessory = true, closable = true })), "tile", "a menu bar app's own window")
+    t.eq(rules.decide(std({ accessory = false, closable = false })), "tile", "an app in the Dock")
+    t.eq(rules.decide(std({ accessory = true })), "tile", "close button unknown")
+    t.eq(rules.decide(std({ accessory = true, closable = false }), { { app = "com.example.app", action = "float" } }),
+        "float", "a user rule still wins")
+end)
+
 t.test("an unknown settable size counts as settable", function()
     t.eq(rules.decide(std({ size_settable = nil })), "tile")
 end)

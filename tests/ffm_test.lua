@@ -382,6 +382,41 @@ t.test("a late confirmation for an earlier window doesn't settle the one in flig
     t.eq(focuses(a), {})
 end)
 
+local function has(list, want)
+    for _, v in ipairs(list) do
+        if v == want then
+            return true
+        end
+    end
+    return false
+end
+
+t.test("Notification Center's window isn't moved or focused, and the pointer over it stays put", function()
+    local a, wm, ffm = setup()
+    a.calls = {}
+    -- Over the right half of window 2, and in front of it.
+    a.add(3, {
+        app = "com.apple.notificationcenterui", pid = 300, title = "Notification Center",
+        size_settable = false, frame = { x = 1500, y = 25, w = 420, h = 1055 },
+    })
+    wm:sync()
+    ffm:move(1700, 500)
+    t.eq(has(a.calls, "frame 3"), false, "not moved")
+    t.eq(focuses(a), {})
+end)
+
+t.test("a Chrome popup isn't moved, and entering its window focuses the window", function()
+    local a, wm, ffm = setup()
+    a.calls = {}
+    -- Chrome's find bar: a window of its own, AXUnknown and a fixed size,
+    -- at the top right of window 2, the same app's.
+    a.add(3, { subrole = "AXUnknown", pid = 100, size_settable = false, frame = { x = 1600, y = 60, w = 300, h = 40 } })
+    wm:sync()
+    ffm:move(1500, 500)
+    t.eq(has(a.calls, "frame 3"), false, "not moved")
+    t.eq(focuses(a), { "focus 2" })
+end)
+
 -- Three tiles of three apps, 1 focused long enough ago that only what
 -- tilemo asks for since counts for the focus guard (SPEC.md §14.1). Returns
 -- a point inside each window too.

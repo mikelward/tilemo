@@ -291,19 +291,30 @@ each new window once, in this order, and the first rule that matches wins:
 2. **A user rule** by app bundle ID and, optionally, title, as tide's float
    rules (tide §6.4). Rules come first so a misbehaving app can always be
    fixed. tilemo's own rules follow the user's: System Settings floats,
-   since its width is fixed though its height isn't, so step 3 misses it
-   and a tile would leave a gap beside it.
-3. **A window whose size can't be changed floats.** Accessibility says
-   whether `AXSize` is settable, which catches fixed-size dialogs whose apps
-   report them as standard windows.
-4. **A modal window floats:** one whose app reports it `AXModal`
+   since its width is fixed though its height isn't, so step 4 misses it
+   and a tile would leave a gap beside it. Notification Center's windows
+   are left alone, whatever they report: they're macOS's own, over every
+   window.
+3. **A window with no close button, from an app that stays out of the
+   Dock, is left alone.** It's part of that app's interface, not a window:
+   Control Center's and menu bar apps' panels, Spotlight, the input source
+   switcher. AeroSpace tells them apart the same way (its
+   `isWindowHeuristic`).
+4. **A standard window whose size can't be changed floats.** Accessibility
+   says whether `AXSize` is settable, which catches fixed-size dialogs whose
+   apps report them as standard windows. Other subroles go on to the steps
+   below. So a fixed-size popup that's a window of its own, such as
+   Chrome's find bar or a tooltip (`AXUnknown`, from AeroSpace's notes), is
+   left alone, not floated: a float is centered on its app's window and
+   can take focus.
+5. **A modal window floats:** one whose app reports it `AXModal`
    *(unverified)*.
-5. **A dialog or panel floats:** subrole `AXDialog`, `AXSystemDialog` or
+6. **A dialog or panel floats:** subrole `AXDialog`, `AXSystemDialog` or
    `AXFloatingWindow` *(unverified per app)*.
-6. **A standard window tiles** (`AXStandardWindow`). That comes late on
+7. **A standard window tiles** (`AXStandardWindow`). That comes late on
    purpose: some dialogs report themselves as standard windows, and the
    checks above catch them first.
-7. **Anything else is left alone,** such as `AXUnknown`. Extension popups
+8. **Anything else is left alone,** such as `AXUnknown`. Extension popups
    and other odd windows mustn't take a tile *(which subrole Chrome's
    extension popups report is unverified)*.
 
@@ -331,14 +342,16 @@ Placing and keeping floats:
 Chrome's windows, from tileco §5.4 and tide §6.4:
 
 - **Popups float:** sign-in popups, extension popups and Chrome's own
-  "Save as". Each reports a dialog or floating subrole, or has a fixed size
-  *(unverified per kind)*.
+  "Save as". Each reports a dialog or floating subrole, or is a standard
+  window of a fixed size *(unverified per kind)*. One that reports
+  `AXUnknown` is left alone, as the find bar, tooltips and hover cards are.
 - **App windows tile:** installed web apps and Secure Shell's terminals
   report as standard windows.
 - **Chrome's own notification popups** appear only when Chrome isn't
-  allowed to use Notification Center. They'd float, like any untitled small
-  window. The fix is to allow Chrome's notifications, which the checklist
-  asks for (§10).
+  allowed to use Notification Center. They'd float if they report a dialog
+  subrole or a fixed-size standard window, and be left alone otherwise
+  *(unverified which)*. The fix is to allow Chrome's notifications, which
+  the checklist asks for (§10).
 - **Chrome Remote Desktop** and tileco's other URL rules can't be read from a
   window. A title rule stands in for each.
 
@@ -352,6 +365,11 @@ its parent, and stay in front:
 - an Electron app's dialog;
 - a JetBrains IDE's dialog;
 - Finder's Get Info window.
+
+And each of these must be left where its app put it, never moved or
+focused by tilemo: Chrome's find bar (Cmd+F), a tooltip, a link's status
+bubble, a tab's hover card, Notification Center's banners and widgets,
+and Control Center's panels.
 
 ### 5.2 Focus follows mouse
 
@@ -508,6 +526,8 @@ Each of these must pass before focus follows mouse is on by default:
   pointer moves over the tile behind it and back.
 - Sweeping the pointer quickly across three apps' windows leaves focus in
   the last, with none of them marked for attention.
+- Pointing into Chrome never names Notification Center in the bar, with a
+  notification banner showing and without.
 - Spotlight, Launchpad and the auto-hidden menu bar stay open while the
   pointer moves.
 - Cmd-Shift-4 keeps its region picker while the pointer crosses windows.

@@ -354,6 +354,16 @@ tests and the bar page's test cover it. **Check on a Mac:**
   Reversible: `keys.karabiner_ready`.
 - **Insert is bound as the Mac's Help key,** which a PC keyboard's Insert
   sends *(unverified)*. Reversible: one line in `keys.map`.
+- **Only a standard window floats for being a fixed size** (SPEC.md §5.1,
+  step 4). A fixed-size window reporting `AXUnknown` or no subrole, such as
+  Chrome's find bar and tooltips, is left alone, where it used to float and
+  be centered on Chrome's window. Reversible: drop the subrole check from
+  step 4 in `rules.decide`, or a user rule per app.
+- **A window with no close button from an app out of the Dock is left
+  alone** (SPEC.md §5.1, step 3), as AeroSpace does: Notification Center,
+  Control Center, Spotlight, menu bar apps' panels. A menu bar app whose
+  real window has no close button would need a user rule to float or tile.
+  Reversible: step 3 in `rules.decide`.
 - **Every new float is centered,** even one that opens where it remembers
   being. SPEC.md §5.1 wants those left in place, but tilemo can't yet tell
   them apart. Reversible: skip `place_float` for a float that opens away
