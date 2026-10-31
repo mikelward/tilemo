@@ -110,6 +110,8 @@ function M.new()
                 role = w:role(),
                 subrole = w:subrole(),
                 app = app and app:bundleID(),
+                -- What "in"'s apps are matched by (SPEC.md §6.2).
+                name = app and app:name(),
                 pid = w:pid(),
                 title = w:title(),
                 -- nil when Accessibility didn't say, which rules.lua reads

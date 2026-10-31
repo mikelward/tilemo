@@ -172,4 +172,15 @@ t.test("a screenshot action asks the adapter for that kind", function()
     t.eq(table.concat(a.shots, " "), "window screen")
 end)
 
+t.test('Super+Home goes to "in", and Super+1…9 are left out while undecided', function()
+    local home
+    for _, b in ipairs(keys.map) do
+        if b.key == "home" then
+            home = b.action
+        end
+        t.eq(b.key:match("^%d$"), nil, "no digit keys: " .. b.key)
+    end
+    t.eq(home, "home")
+end)
+
 t.done("keys")

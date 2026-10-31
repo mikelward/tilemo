@@ -67,10 +67,18 @@ sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m)
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
-const ws = [];
-for (let n = 1; n <= 9; n++) ws.push({ n, current: n === 2, elsewhere: n === 3, occupied: n === 5, urgent: n === 5 });
-ws[4].apps = ["com.a", "com.b", "com.a", "com.c", "com.d"];
-ws[4].more = 2;
+const ws = [
+  { n: "in" },
+  { n: "web", current: true },
+  { n: "docs", elsewhere: true },
+  {
+    n: "ABC-123 fix the login page",
+    occupied: true,
+    urgent: true,
+    apps: ["com.a", "com.b", "com.a", "com.c", "com.d"],
+    more: 2,
+  },
+];
 sandbox.tilemo.update({
   uuid: "B",
   workspaces: ws,
@@ -89,9 +97,14 @@ sandbox.tilemo.update({
 });
 
 const chips = ids.workspaces.children;
-assert.strictEqual(chips.map((b) => b.children[0].textContent).join(" "), "2 3 5", "only showing or occupied workspaces");
-// A chip's number, then one icon per window, then how many more.
-const parts = chips[2].children;
+assert.strictEqual(
+  chips.map((b) => b.children[0].textContent).join("|"),
+  "in|web|docs|ABC-123 fix the …",
+  "every workspace, by name, a long one cut",
+);
+assert.strictEqual(chips[3].title, "ABC-123 fix the login page", "the whole name on hover");
+// A chip's name, then one icon per window, then how many more.
+const parts = chips[3].children;
 assert.deepStrictEqual(
   parts.map((c) => c.tag + "." + c.className),
   ["span.n", "img.app", "img.app", "img.app", "span.app none", "span.app none", "span.more"],
@@ -99,10 +112,10 @@ assert.deepStrictEqual(
 assert.strictEqual(parts[1].src, "data:image/png;base64,QQ==");
 assert.strictEqual(parts[3].src, parts[1].src, "one icon per window, so an app's second window repeats it");
 assert.strictEqual(parts[6].textContent, "+2");
-assert.strictEqual(chips[0].children.length, 1, "an empty chip is its number alone");
-assert.ok(chips[0].classList.contains("current"));
-assert.ok(chips[1].classList.contains("elsewhere"));
-assert.ok(chips[2].classList.contains("urgent"));
+assert.strictEqual(chips[0].children.length, 1, "an empty chip is its name alone");
+assert.ok(chips[1].classList.contains("current"));
+assert.ok(chips[2].classList.contains("elsewhere"));
+assert.ok(chips[3].classList.contains("urgent"));
 assert.strictEqual(ids.title.textContent, "Chat (1)");
 assert.ok(ids.clocks.children.length >= 1, "the clocks row");
 
@@ -156,7 +169,7 @@ spin(30);
 assert.strictEqual(
   JSON.stringify(sent.filter((m) => !m.goodClocks)),
   JSON.stringify([
-    { uuid: "B", show: 5 },
+    { uuid: "B", show: "docs" },
     { uuid: "B", open: "wifi" },
     { uuid: "B", dashboard: true },
     { uuid: "B", maximize: true },

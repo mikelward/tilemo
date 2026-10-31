@@ -15,14 +15,22 @@ let calendar = null;
 let settings = DEFAULT_SETTINGS;
 let goodSent = null;
 
+// A long name is cut at 16 characters with an ellipsis, as on the bar.
+const NAME_MAX = 16;
+function shortName(name) {
+  const chars = Array.from(String(name));
+  return chars.length > NAME_MAX ? chars.slice(0, NAME_MAX).join("") + "…" : chars.join("");
+}
+
 function renderWorkspaces(nav, workspaces) {
   nav.replaceChildren();
+  // Every workspace tilemo sends has a chip: the empty ones go once
+  // they're left, and "in" stays (SPEC.md §6.1).
   for (const w of workspaces) {
-    // As tide's bar: an empty workspace that isn't showing is left out.
-    if (!w.current && !w.elsewhere && !w.occupied) continue;
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = String(w.n);
+    b.title = String(w.n);
+    b.textContent = shortName(w.n);
     // A field tilemo left out is false: toggle(name, undefined) would flip it.
     for (const k of ["current", "elsewhere", "occupied", "urgent"]) b.classList.toggle(k, !!w[k]);
     b.addEventListener("click", () => send({ show: w.n }));
@@ -64,8 +72,8 @@ window.tilemo = {
 document.getElementById("edit-clocks").addEventListener("click", () => send({ settings: true }));
 
 document.addEventListener("keydown", (e) => {
+  // Workspaces have names now, so a digit no longer picks one.
   if (e.key === "Escape") send({ close: true });
-  else if (/^[1-9]$/.test(e.key)) send({ show: Number(e.key) });
 });
 
 // The clocks move on while it's open.

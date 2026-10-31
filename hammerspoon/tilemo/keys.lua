@@ -76,7 +76,8 @@ M.map[#M.map + 1] = { key = "space", shift = true, action = "dashboard" }
 M.map[#M.map + 1] = { key = "tab", action = "attention" }
 -- tide's mic-mute key: the microphone, everywhere (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "m", shift = true, action = "mic_mute" }
-M.map[#M.map + 1] = { key = "home", action = "attention" }
+-- Super+Home: "in" (SPEC.md §6.1).
+M.map[#M.map + 1] = { key = "home", action = "home" }
 -- Super+Print: a region, as Shift+Print is (SPEC.md §7.2).
 M.map[#M.map + 1] = { key = "f13", action = "screenshot", arg = "region" }
 
@@ -99,11 +100,8 @@ M.SCREENSHOT = {
     window = { mods = { "cmd", "shift" }, key = "4", ["then"] = "space" },
 }
 
--- Super+1…9 shows a workspace, and Super+Shift+1…9 sends the window there.
-for n = 1, 9 do
-    M.map[#M.map + 1] = { key = tostring(n), action = "show", arg = n }
-    M.map[#M.map + 1] = { key = tostring(n), shift = true, action = "send", arg = n }
-end
+-- Super+1…9 and Super+Shift+1…9 are left out while SPEC.md §7.2 leaves
+-- them undecided, now that workspaces have names.
 
 -- Resize mode (tide's): each key grows or shrinks the focused float by
 -- 40 px; Esc or Return leaves.

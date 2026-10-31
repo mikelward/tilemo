@@ -60,14 +60,18 @@ sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m)
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
-const ws = [];
-for (let n = 1; n <= 9; n++) ws.push({ n, current: n === 2, elsewhere: false, occupied: n === 5, urgent: n === 5 });
+const ws = [
+  { n: "in", current: false, elsewhere: false, occupied: false, urgent: false },
+  { n: "web", current: true, elsewhere: false, occupied: true, urgent: false },
+  { n: "ABC-123 fix the login page", current: false, elsewhere: false, occupied: true, urgent: true },
+];
 sandbox.tilemo.update({ workspaces: ws, title: "Chat (1)" });
 
 const chips = ids.workspaces.children;
-assert.strictEqual(chips.map((b) => b.textContent).join(" "), "2 5", "only showing or occupied workspaces");
-assert.ok(chips[0].classList.contains("current"));
-assert.ok(chips[1].classList.contains("urgent"));
+assert.strictEqual(chips.map((b) => b.textContent).join("|"), "in|web|ABC-123 fix the …", "every workspace, by name");
+assert.strictEqual(chips[2].title, "ABC-123 fix the login page", "the whole name on hover");
+assert.ok(chips[1].classList.contains("current"));
+assert.ok(chips[2].classList.contains("urgent"));
 assert.strictEqual(ids.title.textContent, "Chat (1)");
 assert.ok(ids.clocks.children.length >= 1, "the clocks row");
 assert.ok(ids["clock-detail"].children.some((c) => c.className === "calendar"), "the calendar");
@@ -98,7 +102,7 @@ assert.match(labels(), /^TYO C[DS]T /);
 sandbox.tilemo.update({ workspaces: ws, title: "", clockFiles: { local: '[{"zone": "Mars/Base", "label": "M"}]' } });
 assert.match(labels(), /^TYO C[DS]T /);
 
-chips[1].listeners.click();
+chips[2].listeners.click();
 docListeners.keydown({ key: "7" });
 docListeners.keydown({ key: "Escape" });
 ids["edit-clocks"].listeners.click();
@@ -108,8 +112,7 @@ assert.strictEqual(
   JSON.stringify([
     { clockErrors: ['clocks.local.json: line 1: expected " before the end'] },
     { clockErrors: ['clocks.local.json: entry 1: unknown time zone "Mars/Base"'] },
-    { show: 5 },
-    { show: 7 },
+    { show: "ABC-123 fix the login page" },
     { close: true },
     { settings: true },
   ]),

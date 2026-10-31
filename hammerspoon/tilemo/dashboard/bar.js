@@ -42,17 +42,26 @@ function el(tag, className, text) {
   return e;
 }
 
-// Each chip is its number, then one icon per window (tilemo sends at most
+// A long name is cut at 16 characters with an ellipsis (SPEC.md §8, a guess
+// to confirm); the chip's tooltip has it whole.
+const NAME_MAX = 16;
+function shortName(name) {
+  const chars = Array.from(String(name));
+  return chars.length > NAME_MAX ? chars.slice(0, NAME_MAX).join("") + "…" : chars.join("");
+}
+
+// Each chip is its name, then one icon per window (tilemo sends at most
 // five, and how many more as `more`), as tide's are. An app with no icon
 // shows as a blank square of the same size, so the count still reads.
 function renderWorkspaces(nav, workspaces, appIcons = {}) {
   nav.replaceChildren();
+  // Every workspace tilemo sends has a chip: the empty ones go once
+  // they're left, and "in" stays (SPEC.md §6.1).
   for (const w of workspaces) {
-    // As tide's bar: an empty workspace that isn't showing is left out.
-    if (!w.current && !w.elsewhere && !w.occupied) continue;
     const b = el("button");
     b.type = "button";
-    b.append(el("span", "n", String(w.n)));
+    b.title = String(w.n);
+    b.append(el("span", "n", shortName(w.n)));
     for (const app of w.apps || []) {
       const url = appIcons[app];
       if (url) {

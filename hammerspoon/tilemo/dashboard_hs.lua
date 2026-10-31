@@ -1,6 +1,6 @@
 -- The dashboard on Hammerspoon: dashboard.lua's page in a borderless
 -- hs.webview over the display you're on (SPEC.md §8). Pressing its key
--- again, Esc, or clicking another window closes it; a workspace number
+-- again, Esc, or clicking another window closes it; a workspace's chip
 -- shows that workspace. Not runnable outside Hammerspoon.
 
 local dashboard = require("tilemo.dashboard")
@@ -63,7 +63,8 @@ function M.new(tilemo)
         local body = msg.body or {}
         -- Out of the page's own callback before deleting the page.
         tilemo.adapter.after(0, function()
-            local n = tonumber(body.show)
+            -- A standing workspace not made yet is made by showing it.
+            local n = body.show ~= nil and tilemo.wm:canonical(tostring(body.show))
             if n and tilemo.wm.screen_ws[uuid] ~= n then
                 -- Showing a workspace focuses its own window, not the one before.
                 -- On the display it opened on, whatever focus does as it

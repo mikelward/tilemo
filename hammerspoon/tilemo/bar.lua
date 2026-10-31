@@ -2,38 +2,51 @@
 -- draws it, one strip per display along the top, with the menu bar set to
 -- hide.
 --
--- With the bar off, the menu bar item draws the same workspaces as text
--- (title()):
+-- With the bar off, the menu bar item draws the same workspaces as text,
+-- by name (title()):
 --
---   [3]  the workspace on the display you're on
---   (5)  showing on another display
---   2    has windows
---   4!   has a window wanting attention
+--   [in]   the workspace on the display you're on
+--   (web)  showing on another display
+--   docs   neither
+--   mail!  has a window wanting attention
 --
--- Empty workspaces that aren't showing are left out.
+-- Every workspace is listed: only "in" is ever empty and not showing, since
+-- the rest go once they're left empty (SPEC.md §6.1).
 
 local M = {}
 
 -- tide's bar height (tide §7.1).
 M.HEIGHT = 36
 
--- `ws` lists, for n = 1…9, { here, elsewhere, occupied, urgent }.
+-- A long name is cut to this many characters, with an ellipsis (SPEC.md
+-- §8, a guess to confirm).
+M.NAME_MAX = 16
+
+-- `name` cut to M.NAME_MAX characters, counting UTF-8 characters, with an
+-- ellipsis if it was cut.
+function M.short(name)
+    local ok, len = pcall(utf8.len, name)
+    if not ok or not len or len <= M.NAME_MAX then
+        return name
+    end
+    return name:sub(1, utf8.offset(name, M.NAME_MAX + 1) - 1) .. "…"
+end
+
+-- `ws` lists the workspaces in bar order, each { name, here, elsewhere,
+-- occupied, urgent }.
 function M.title(ws)
     local parts = {}
-    for n = 1, #ws do
-        local w = ws[n]
-        if w.here or w.elsewhere or w.occupied then
-            local s = tostring(n)
-            if w.here then
-                s = "[" .. s .. "]"
-            elseif w.elsewhere then
-                s = "(" .. s .. ")"
-            end
-            if w.urgent then
-                s = s .. "!"
-            end
-            parts[#parts + 1] = s
+    for _, w in ipairs(ws) do
+        local s = M.short(w.name)
+        if w.here then
+            s = "[" .. s .. "]"
+        elseif w.elsewhere then
+            s = "(" .. s .. ")"
         end
+        if w.urgent then
+            s = s .. "!"
+        end
+        parts[#parts + 1] = s
     end
     return table.concat(parts, " ")
 end
@@ -90,8 +103,8 @@ end
 function M.state(wm, uuid, title, icons, icon_of)
     local ws = {}
     local app_icons = {}
-    for n, s in ipairs(wm:bar_state(uuid)) do
-        local all = apps_of(wm, n)
+    for i, s in ipairs(wm:bar_state(uuid)) do
+        local all = apps_of(wm, s.name)
         local apps = {}
         for i = 1, math.min(#all, M.CHIP_APPS) do
             apps[i] = all[i]
@@ -99,8 +112,8 @@ function M.state(wm, uuid, title, icons, icon_of)
                 app_icons[all[i]] = icon_of(all[i]) or false
             end
         end
-        ws[n] = {
-            n = n,
+        ws[i] = {
+            n = s.name,
             current = s.here or false,
             elsewhere = s.elsewhere or false,
             occupied = s.occupied or false,
@@ -344,7 +357,7 @@ M.PANES = {
 function M.handle(wm, body, act)
     local uuid = body.uuid
     if body.show then
-        wm:show(tonumber(body.show), uuid)
+        wm:show(tostring(body.show), uuid)
     elseif body.step and uuid then
         wm:show(M.step(wm, uuid, tonumber(body.step)), uuid)
     elseif body.open then
@@ -370,11 +383,10 @@ function M.handle(wm, body, act)
     end
 end
 
--- Scrolling over the workspaces steps from display `uuid`'s, stopping at 1
--- and 9, as Super+Left and Right do.
+-- Scrolling over the workspaces steps from display `uuid`'s, in bar order,
+-- stopping at the first and last, as Super+Left and Right do.
 function M.step(wm, uuid, d)
-    local cur = wm.screen_ws[uuid] or 1
-    return math.max(1, math.min(wm.WORKSPACES, cur + d))
+    return wm:step_from(wm.screen_ws[uuid] or wm.home, d)
 end
 
 return M

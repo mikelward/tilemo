@@ -37,7 +37,7 @@ t.test("a new window is found on the next sync and joins the stack", function()
     a.add(2, {})
     wm:schedule()
     a.tick()
-    t.eq(wm.workspaces[1].order, { 1, 2 })
+    t.eq(wm.workspaces["in"].order, { 1, 2 })
     t.eq(frame(a, 2).x, 1056)
 end)
 
@@ -63,7 +63,7 @@ t.test("a closed window leaves the layout, and the last used window gets focus",
     a.drop(3)
     wm:schedule()
     a.tick()
-    t.eq(wm.workspaces[1].order, { 1, 2 })
+    t.eq(wm.workspaces["in"].order, { 1, 2 })
     t.eq(a.focus_, 2)
 end)
 
@@ -82,7 +82,7 @@ t.test("a dialog floats, centered on its app's focused window, and never tiles",
     wm:sync()
     wm:retile()
     t.eq(wm.windows[3].floating, true)
-    t.eq(wm.workspaces[1].order, { 1, 2 })
+    t.eq(wm.workspaces["in"].order, { 1, 2 })
     -- Window 1's tile is x 0..1056, y 25..1080.
     t.eq(frame(a, 3), { x = 328, y = 453, w = 400, h = 200 })
 end)
@@ -118,7 +118,7 @@ t.test("Super+Shift+J moves the window and retiles", function()
     local a, wm = setup(3)
     a.focus_ = 1
     wm:act("move", 1)
-    t.eq(wm.workspaces[1].order, { 2, 1, 3 })
+    t.eq(wm.workspaces["in"].order, { 2, 1, 3 })
     t.eq(frame(a, 2).x, 0)
 end)
 
@@ -126,14 +126,14 @@ t.test("Super+Return swaps with the master", function()
     local a, wm = setup(3)
     a.focus_ = 3
     wm:act("swap_master")
-    t.eq(wm.workspaces[1].order, { 3, 2, 1 })
+    t.eq(wm.workspaces["in"].order, { 3, 2, 1 })
 end)
 
 t.test("Super+\\ grows the master by 0.025", function()
     local a, wm = setup(2)
     a.focus_ = 1
     wm:act("mfact", 1)
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.575)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.575)
     t.eq(frame(a, 1).w, 1104)
 end)
 
@@ -173,8 +173,8 @@ t.test("a new window focused before the next sync is added and remembered", func
     a.add(2, {})
     wm:focused(2)
     t.eq(wm.windows[2] ~= nil, true)
-    t.eq(wm.mru[1][1], 2)
-    t.eq(wm.workspaces[1].order, { 1, 2 })
+    t.eq(wm.mru["in"][1], 2)
+    t.eq(wm.workspaces["in"].order, { 1, 2 })
 end)
 
 t.test("focusing a new window ends another's maximize", function()
@@ -211,10 +211,10 @@ t.test("Super+Shift+F floats a tile and tiles it again", function()
     a.focus_ = 2
     wm:act("toggle_float")
     t.eq(wm.windows[2].floating, true)
-    t.eq(wm.workspaces[1].order, { 1 })
+    t.eq(wm.workspaces["in"].order, { 1 })
     t.eq(frame(a, 1).w, 1920)
     wm:act("toggle_float")
-    t.eq(wm.workspaces[1].order, { 1, 2 })
+    t.eq(wm.workspaces["in"].order, { 1, 2 })
 end)
 
 t.test("each display gets its own workspace, and windows tile on theirs", function()
@@ -225,7 +225,7 @@ t.test("each display gets its own workspace, and windows tile on theirs", functi
     local wm = wm_mod.new(a, {})
     wm:sync()
     wm:retile()
-    t.eq(wm.windows[2].ws, 2)
+    t.eq(wm.windows[2].ws, "2")
     t.eq(frame(a, 2), { x = 1920, y = 25, w = 1920, h = 1055 })
 end)
 
@@ -251,7 +251,7 @@ t.test("layout keys work while an ignored window has focus", function()
     wm:sync()
     a.focus_ = 3
     wm:act("monocle")
-    t.eq(wm.workspaces[1].mode, "monocle")
+    t.eq(wm.workspaces["in"].mode, "monocle")
 end)
 
 t.test("maximizing a tile puts its floats back over it", function()
@@ -312,7 +312,7 @@ end)
 t.test("after a close, a tile missing from the focus history still gets focus", function()
     local a, wm = setup(3)
     a.focus_ = 3
-    wm.mru[1] = { 3 } -- 1 and 2 arrived without a focus event
+    wm.mru["in"] = { 3 } -- 1 and 2 arrived without a focus event
     a.drop(3)
     a.focus_ = nil
     wm:schedule()
@@ -327,7 +327,7 @@ t.test("a float you focus stays in front when a tile's floats are raised again",
     wm:sync()
     wm:focused(2) -- the older float, brought forward
     a.calls = {}
-    wm:raise_floats(1, nil)
+    wm:raise_floats("in", nil)
     t.eq(a.calls[#a.calls], "raise 2")
 end)
 
@@ -343,7 +343,7 @@ t.test("resizing the master by its edge sets the split", function()
     local a, wm = setup(2)
     a.wins[1].frame = { x = 0, y = 25, w = 1152, h = 1055 }
     wm:moved(1)
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.6)
     t.eq(frame(a, 2), { x = 1152, y = 25, w = 768, h = 1055 })
 end)
 
@@ -352,10 +352,10 @@ t.test("a drag waits for the button to come up", function()
     a.buttons = true
     a.wins[1].frame = { x = 0, y = 25, w = 1152, h = 1055 }
     wm:moved(1)
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.55)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.55)
     a.buttons = false
     a.tick()
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.6)
 end)
 
 t.test("dropping a tile on another swaps them", function()
@@ -363,7 +363,7 @@ t.test("dropping a tile on another swaps them", function()
     -- Window 1 moved, same size, its center now in window 3's tile.
     a.wins[1].frame = { x = 1000, y = 500, w = 1056, h = 1055 }
     wm:moved(1)
-    t.eq(wm.workspaces[1].order, { 3, 2, 1 })
+    t.eq(wm.workspaces["in"].order, { 3, 2, 1 })
     t.eq(frame(a, 3).x, 0)
 end)
 
@@ -377,7 +377,7 @@ t.test("dropping a tile on another display moves it to that display's workspace"
     wm:retile()
     a.wins[2].frame = { x = 2400, y = 200, w = 864, h = 1055 }
     wm:moved(2)
-    t.eq(wm.windows[2].ws, 2)
+    t.eq(wm.windows[2].ws, "2")
     t.eq(frame(a, 2), { x = 1920, y = 25, w = 1920, h = 1055 })
     t.eq(frame(a, 1).w, 1920)
 end)
@@ -399,7 +399,7 @@ t.test("Super+right-drag on the master sets the split", function()
     local d = wm:grab("resize", 1000, 500)
     t.eq(d.id, 1)
     wm:drop(d, 1096, 500)
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.6)
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.6)
 end)
 
 t.test("Super+middle-click maximizes the window under the pointer, and again restores it", function()
@@ -444,8 +444,8 @@ t.test("a tile dropped on another display moves there even if macOS resized it",
     wm:retile()
     a.wins[2].frame = { x = 2000, y = 25, w = 864, h = 775 } -- shorter
     wm:moved(2)
-    t.eq(wm.windows[2].ws, 2)
-    t.eq(wm.workspaces[1].opts.tile.mfact, 0.55)
+    t.eq(wm.windows[2].ws, "2")
+    t.eq(wm.workspaces["in"].opts.tile.mfact, 0.55)
     t.eq(a.wins[2].frame, { x = 1920, y = 25, w = 1280, h = 775 })
 end)
 
@@ -501,25 +501,25 @@ t.test("an app key goes to the app's last used window, whichever workspace it's 
         wm.windows[id].app = "net.kovidgoyal.kitty"
     end
     a.focus_ = 1
-    wm:act("send", 4)
-    wm:act("show", 4)
+    wm:act("send", "4")
+    wm:show("4", nil, true)
     a.tick()
     a.focus_ = 1
     wm:focused(1)
-    wm:act("show", 1)
+    wm:act("show", "in")
     a.tick()
     a.focus_ = 2
     wm:focused(2)
     wm:act("app", { bundle = "net.kovidgoyal.kitty" })
     t.eq(wm.history[1], 2)
     wm:focused(1)
-    wm:act("show", 1)
+    wm:act("show", "in")
     a.tick()
     wm:act("app", { bundle = "net.kovidgoyal.kitty" })
-    t.eq(wm:current_ws(), 4)
+    t.eq(wm:current_ws(), "4")
 end)
 
-t.test("Cmd+Return asks for a new window on an empty workspace, even when the app is running", function()
+t.test("Cmd+Return asks for a new window, even when the app is running", function()
     local a, wm = setup(1)
     a.wins[1].app = "net.kovidgoyal.kitty"
     wm.windows[1].app = "net.kovidgoyal.kitty"
@@ -527,7 +527,6 @@ t.test("Cmd+Return asks for a new window on an empty workspace, even when the ap
     t.eq(#a.launched, 0)
     wm.actions.app(wm, { bundle = "net.kovidgoyal.kitty" }, true)
     t.eq(a.fresh[1], true)
-    t.eq(wm:shown(2) ~= nil, true)
 end)
 
 t.test("Super+T opens a new terminal window every time, on this workspace, as tide's does", function()
@@ -545,7 +544,7 @@ t.test("Super+T opens a new terminal window every time, on this workspace, as ti
     t.eq(#a.launched, 2)
     t.eq(a.launched[1].bundle, "net.kovidgoyal.kitty")
     t.eq(a.fresh, { true, true })
-    t.eq(wm:current_ws(), 1)
+    t.eq(wm:current_ws(), "in")
 end)
 
 t.test("Super+L locks the screen and Super+Shift+E logs out, as on tide", function()
@@ -587,7 +586,7 @@ t.test("a layout command switches the workspace's layout", function()
     local a, wm = setup(2)
     a.focus_ = 1
     wm:act("layout", "twocol")
-    t.eq(wm.workspaces[1].mode, "twocol")
+    t.eq(wm.workspaces["in"].mode, "twocol")
 end)
 
 
