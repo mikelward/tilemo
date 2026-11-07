@@ -53,10 +53,10 @@ so on macOS 26; ticks survive a reload. What's left:
   float over the focused tile is dimmed all over, once; the hole keeps up
   with a drag well enough; the Appearance page's − and + change it at
   once.
-- **The sidebar's icons,** as tide for Linux's sidebar has one per page (its
-  `settings.mjs` names a symbolic icon for each). **Check on a Mac:** every
-  page and heading fits the window without scrolling the sidebar, and Up
-  and Down change the page.
+- **Done: the sidebar's icons,** one per page in tide's Material Symbols,
+  as tide for Linux's sidebar has. **Check on a Mac:** every page and
+  heading fits the window without scrolling the sidebar, and Up and Down
+  change the page.
 
 ## Keep the Mac as you set it
 
