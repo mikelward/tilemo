@@ -1,7 +1,7 @@
 -- Light or dark on tide's schedule (theme_hs.lua), against a stand-in
 -- macOS: System Events sets it when tide's files choose a mode, and
 -- nothing does without one; a switch by hand, or the settings window's,
--- holds; and tilemo's own change isn't taken for one by hand.
+-- holds; and tide's own change isn't taken for one by hand.
 
 local t = require("t")
 local json = require("json")
@@ -45,7 +45,7 @@ local function stub(files)
             },
         },
     }
-    local tilemo = {
+    local tide = {
         appearance_files = files,
         adapter = {
             read = function(path)
@@ -71,18 +71,18 @@ local function stub(files)
             end,
         },
     }
-    -- macOS telling of a change, which tilemo looks at once it's free.
+    -- macOS telling of a change, which tide looks at once it's free.
     function s.changed()
         s.notify()
         s.timers[#s.timers].fn()
     end
-    package.loaded["tilemo.theme_hs"] = nil
-    s.theme = require("tilemo.theme_hs").new(tilemo)
-    s.tilemo = tilemo
+    package.loaded["tide.theme_hs"] = nil
+    s.theme = require("tide.theme_hs").new(tide)
+    s.tide = tide
     return s
 end
 
-t.test("with no mode in tide's files, tilemo leaves macOS's appearance alone", function()
+t.test("with no mode in tide's files, tide leaves macOS's appearance alone", function()
     local s = stub({ shared = '{"darkWallpaper": "~/n.png"}' })
     t.eq(s.scripts, {})
     t.eq(s.theme.state().chosen, false)
@@ -105,7 +105,7 @@ t.test("a switch by hand holds until the settings change", function()
     s.changed()
     s.theme.apply()
     t.eq(s.scripts, {}, "not switched back")
-    s.tilemo.appearance_files = { shared = '{"mode": "light"}', ["local"] = '{"light": "08:00"}' }
+    s.tide.appearance_files = { shared = '{"mode": "light"}', ["local"] = '{"light": "08:00"}' }
     s.theme.apply()
     t.eq(s.scripts, { 'tell application "System Events" to tell appearance preferences to set dark mode to false' },
         "new settings drop it")

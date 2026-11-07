@@ -2,7 +2,7 @@
 -- folder are yours, and the folder lets nobody else write.
 
 local t = require("t")
-local kitty = require("tilemo.kitty")
+local kitty = require("tide.kitty")
 
 local ME, OTHER = 501, 502
 local TMP = "/var/folders/xy/abc/T/"

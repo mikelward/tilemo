@@ -1,6 +1,6 @@
 // Runs the dashboard's bundled script (tests/dashboard_test.lua writes it
 // to the file named on the command line) against a small fake DOM, and
-// checks tilemo.update() draws the bar and the clock panel.
+// checks tide.update() draws the bar and the clock panel.
 
 const fs = require("fs");
 const vm = require("vm");
@@ -56,7 +56,7 @@ const sandbox = {
   Set,
 };
 sandbox.window = sandbox;
-sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } };
+sandbox.webkit = { messageHandlers: { tide: { postMessage: (m) => sent.push(m) } } };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
@@ -65,7 +65,7 @@ const ws = [
   { n: "web", current: true, occupied: true, urgent: false },
   { n: "ABC-123 fix the login page", current: false, occupied: true, urgent: true },
 ];
-sandbox.tilemo.update({ workspaces: ws, title: "Chat (1)" });
+sandbox.tide.update({ workspaces: ws, title: "Chat (1)" });
 
 const chips = ids.workspaces.children;
 assert.strictEqual(chips.map((b) => b.textContent).join("|"), "in|web|ABC-123 fix the …", "every workspace, by name");
@@ -84,7 +84,7 @@ assert.match(labels(), /^SYD LAX NYC LON /);
 // tide's clocks.local.json replaces the list, and "abbr" is the zone's
 // abbreviation.
 const local = JSON.stringify({ clocks: [{ zone: "Asia/Tokyo", label: "TYO" }, { zone: "America/Chicago", label: "abbr" }] });
-sandbox.tilemo.update({ workspaces: ws, title: "", clockFiles: { local } });
+sandbox.tide.update({ workspaces: ws, title: "", clockFiles: { local } });
 assert.match(labels(), /^TYO C[DS]T /);
 
 // An update while it's open keeps the month the calendar was moved to.
@@ -93,13 +93,13 @@ const thisMonth = month().children[1].textContent;
 month().children[2].listeners.click();
 const nextMonth = month().children[1].textContent;
 assert.notStrictEqual(nextMonth, thisMonth);
-sandbox.tilemo.update({ workspaces: ws, title: "", clockFiles: { local } });
+sandbox.tide.update({ workspaces: ws, title: "", clockFiles: { local } });
 assert.strictEqual(month().children[1].textContent, nextMonth);
 
 // A file that's wrong keeps the clocks, and says so.
-sandbox.tilemo.update({ workspaces: ws, title: "", clockFiles: { local: "[{" } });
+sandbox.tide.update({ workspaces: ws, title: "", clockFiles: { local: "[{" } });
 assert.match(labels(), /^TYO C[DS]T /);
-sandbox.tilemo.update({ workspaces: ws, title: "", clockFiles: { local: '[{"zone": "Mars/Base", "label": "M"}]' } });
+sandbox.tide.update({ workspaces: ws, title: "", clockFiles: { local: '[{"zone": "Mars/Base", "label": "M"}]' } });
 assert.match(labels(), /^TYO C[DS]T /);
 
 chips[2].listeners.click();
@@ -117,7 +117,7 @@ assert.strictEqual(
     { settings: true },
   ]),
 );
-// tilemo hears the clocks to keep each time they change, and only then:
+// tide hears the clocks to keep each time they change, and only then:
 // SPEC.md §8's, then the file's, kept through the two that are wrong.
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(sent.filter((m) => m.goodClocks))).map((m) => m.goodClocks.map((c) => c.zone)),
@@ -127,7 +127,7 @@ assert.deepStrictEqual(
   ],
 );
 
-// A dashboard opened while a file is wrong shows the clocks tilemo kept from
+// A dashboard opened while a file is wrong shows the clocks tide kept from
 // the pages before it, as the bar still does, not SPEC.md §8's.
 const reopened = {};
 const fresh = {
@@ -141,7 +141,7 @@ const fresh = {
 fresh.window = fresh;
 vm.createContext(fresh);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), fresh);
-fresh.tilemo.update({
+fresh.tide.update({
   workspaces: ws,
   title: "",
   clockFiles: { local: "[{" },

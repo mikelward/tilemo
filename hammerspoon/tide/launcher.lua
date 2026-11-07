@@ -1,0 +1,1001 @@
+-- The switcher's matching and ranking (SPEC.md §9), a port of tileco's
+-- src/launcher.js: apps, System Settings' panes, tide's commands, the
+-- workspaces, every window and open tab, and the windows wanting attention,
+-- in tabs Tab moves between,
+-- filtered by a fuzzy match and ordered by how well they match, then by how
+-- recently you used them. Also where the apps and panes are found. Pure
+-- Lua; launcher_hs.lua draws it with hs.chooser.
+
+local M = {}
+
+local SEPARATORS = "[%s%-_%./:%(%)]"
+
+-- How well `query` matches `text`, or nil if it doesn't. Every query
+-- character must appear in order; matches at the start of a word, and runs
+-- of consecutive matches, score higher, so "gc" finds "Google Calendar"
+-- first. Each place the first character appears is tried as the start, and
+-- the best kept, so "settings" finds the run in "System Settings" rather
+-- than stopping at the S of System.
+local function score_from(q, t, start)
+    local score, from, last = 0, start, -1
+    for ch in q:gmatch(".") do
+        if ch ~= " " then
+            local i = t:find(ch, from, true)
+            if not i then
+                return nil
+            end
+            score = score + 1
+            if i == 1 or t:sub(i - 1, i - 1):match(SEPARATORS) then
+                score = score + 3
+            end
+            if i == last + 1 then
+                score = score + 2
+            end
+            last, from = i, i + 1
+        end
+    end
+    return score
+end
+
+function M.score(query, text)
+    local q, t = query:lower(), (text or ""):lower()
+    if q == "" then
+        return 0
+    end
+    local first = q:match("[^ ]")
+    if not first then
+        return 0
+    end
+    local best
+    local at = t:find(first, 1, true)
+    while at do
+        local s = score_from(q, t, at)
+        if not s then
+            break
+        end
+        if not best or s > best then
+            best = s
+        end
+        at = t:find(first, at + 1, true)
+    end
+    if not best then
+        return nil
+    end
+    if t:sub(1, #q) == q then
+        best = best + 5
+    end
+    return best
+end
+
+-- The best score over an item's title and its other searchable text, such
+-- as a tab's host, which counts for less.
+local function item_score(query, item)
+    local title = M.score(query, item.title)
+    local extra = item.extra and M.score(query, item.extra)
+    if not title and not extra then
+        return nil
+    end
+    return math.max(title or -math.huge, extra and extra - 2 or -math.huge)
+end
+
+-- The switcher's tabs (SPEC.md §9), each listing these kinds.
+M.SCOPES = {
+    launch = { app = true, setting = true, command = true },
+    workspaces = { workspace = true },
+    windows = { window = true, tab = true },
+    attention = { attention = true },
+    actions = { action = true },
+}
+
+-- The order Tab moves through them, and what each lists. Each key opens
+-- the switcher on its own (SPEC.md §9).
+M.SCOPE_ORDER = { "launch", "workspaces", "windows", "attention", "actions" }
+M.SCOPE_NAMES = {
+    launch = "Launch",
+    workspaces = "Workspaces",
+    windows = "Windows",
+    attention = "Attention",
+    actions = "Actions",
+}
+M.SCOPE_LISTS = {
+    launch = "apps, settings and commands",
+    workspaces = "every workspace",
+    windows = "every window, and Chrome and Safari tabs",
+    attention = "windows wanting attention",
+    actions = "session, power, toggles and screenshots",
+}
+-- What an empty tab shows instead, in a row that can't be chosen.
+M.SCOPE_EMPTY = {
+    launch = "Nothing to launch",
+    workspaces = "No workspaces",
+    windows = "No windows",
+    attention = "Nothing wants attention",
+    actions = "No actions",
+}
+
+-- The scope after `scope`, or before it when `back`, round in a circle.
+function M.next_scope(scope, back)
+    local n = #M.SCOPE_ORDER
+    for i, s in ipairs(M.SCOPE_ORDER) do
+        if s == scope then
+            return M.SCOPE_ORDER[(i - 1 + (back and -1 or 1)) % n + 1]
+        end
+    end
+    return M.SCOPE_ORDER[1]
+end
+
+-- The keys that work on each tab besides Return, Tab and Esc, as
+-- { key, what it does }, as tide's footer shows them (tide §8.1): Cmd+Return's
+-- new workspace is Launch's alone, since elsewhere it does what Return does,
+-- and Cmd+M mutes only a window, a tab or an Attention row.
+M.SCOPE_KEYS = {
+    launch = { { "Cmd+Return", "new workspace" } },
+    windows = { { "Cmd+M", "mute" } },
+    attention = { { "Cmd+M", "mute" } },
+}
+
+-- The search field's hint: the scope, what it lists, where Tab goes, and
+-- the tab's own keys.
+function M.placeholder(scope)
+    local keys = { "Tab: " .. M.SCOPE_NAMES[M.next_scope(scope)] }
+    for _, k in ipairs(M.SCOPE_KEYS[scope] or {}) do
+        keys[#keys + 1] = k[1] .. ": " .. k[2]
+    end
+    return string.format("%s: %s (%s)", M.SCOPE_NAMES[scope], M.SCOPE_LISTS[scope], table.concat(keys, ", "))
+end
+
+local KIND_ORDER = { attention = 0, workspace = 1, window = 2, tab = 3, app = 4, setting = 5, command = 6, action = 7 }
+
+local function rank_all(query, items, limit, recency)
+    local q = query:match("^%s*(.-)%s*$")
+    local scored = {}
+    for _, item in ipairs(items) do
+        local s
+        -- A row for a query alone, as a settings section, stays out of an
+        -- empty query's list (tide §8.2).
+        if q == "" then
+            s = not item.query_only and 0 or nil
+        else
+            s = item_score(q, item)
+        end
+        if s then
+            -- Items that come in an order of their own keep it, as the
+            -- windows wanting attention do, newest first: as if used before
+            -- anything else, so one key orders every kind alike.
+            local seen = item.order and -item.order or recency[item.key] or 0
+            scored[#scored + 1] = { item = item, score = s, seen = seen, tier = item.kind == "setting" and 1 or 0 }
+        end
+    end
+    table.sort(scored, function(a, b)
+        if a.score ~= b.score then
+            return a.score > b.score
+        end
+        if q == "" and a.item.kind ~= b.item.kind then
+            return KIND_ORDER[a.item.kind] < KIND_ORDER[b.item.kind]
+        end
+        -- A System Settings pane after anything else that matches as well,
+        -- so "settings" finds System Settings ahead of its panes. A key of
+        -- its own, so the order stays one table.sort can rely on.
+        if q ~= "" and a.tier ~= b.tier then
+            return a.tier < b.tier
+        end
+        if a.seen ~= b.seen then
+            return a.seen > b.seen
+        end
+        -- A tighter match before one inside a longer title, as "clocks"
+        -- finds the Clocks section before the Dashboard's description.
+        if q ~= "" and #a.item.title ~= #b.item.title then
+            return #a.item.title < #b.item.title
+        end
+        return a.item.title < b.item.title
+    end)
+    local out = {}
+    for i = 1, math.min(limit, #scored) do
+        out[i] = scored[i].item
+    end
+    return out
+end
+
+-- How many rows a tab shows at most, unless `opts.limit` says. Only Launch,
+-- with every app and pane on the Mac, is capped: the other tabs list
+-- tide's own state, and every window, tab and workspace there must stay
+-- reachable however many there are.
+M.LIMITS = { launch = 20 }
+M.LIMIT = 20
+
+-- Items in `scope` matching `query`, best first; ties go to the most
+-- recently used (`recency` maps an item's key to when). A query that matches
+-- nothing in its scope looks in every scope instead.
+function M.rank(query, items, opts)
+    opts = opts or {}
+    local limit = opts.limit or (opts.scope and (M.LIMITS[opts.scope] or math.huge)) or M.LIMIT
+    local recency = opts.recency or {}
+    local in_scope = items
+    if opts.scope then
+        in_scope = {}
+        for _, i in ipairs(items) do
+            if M.SCOPES[opts.scope][i.kind] then
+                in_scope[#in_scope + 1] = i
+            end
+        end
+    end
+    local found = rank_all(query, in_scope, limit, recency)
+    if #found > 0 or not opts.scope or query:match("^%s*$") then
+        return found
+    end
+    return rank_all(query, items, limit, recency)
+end
+
+-- `parts` joined with " · ", leaving out any that's nil or empty, in any
+-- place: table.concat can't skip a nil.
+local function join(...)
+    local out = {}
+    for i = 1, select("#", ...) do
+        local p = select(i, ...)
+        if p ~= nil and p ~= "" then
+            out[#out + 1] = tostring(p)
+        end
+    end
+    return table.concat(out, " · ")
+end
+
+-- The line under an item's title in the switcher.
+function M.subtitle(item)
+    if item.sub then
+        return item.sub
+    elseif item.kind == "tab" then
+        return join(item.browser, item.extra, item.ws, item.muted and "muted" or nil)
+    elseif item.kind == "window" then
+        return join(item.app, item.ws, item.minimized and "minimized" or nil, item.muted and "muted" or nil)
+    elseif item.kind == "setting" then
+        return "System Settings"
+    elseif item.kind == "attention" then
+        return join(item.app, item.ws, item.muted and "muted" or nil)
+    elseif item.kind == "workspace" then
+        return join(item.where, item.extra)
+    end
+    return item.kind
+end
+
+-- A tab's host, for matching by site.
+local function host(url)
+    return (url or ""):match("^%a[%w+.-]*://([^/?#]+)")
+end
+
+-- The browsers whose tabs the Windows tab lists (SPEC.md §9), by the name
+-- AppleScript knows them by. Brave carries Chromium's AppleScript
+-- dictionary, so it's asked as Chrome is.
+M.BROWSERS = {
+    { name = "Google Chrome", bundle = "com.google.Chrome", chromium = true },
+    { name = "Brave Browser", bundle = "com.brave.Browser", chromium = true },
+    { name = "Safari", bundle = "com.apple.Safari" },
+}
+
+-- The browser named `name` in M.BROWSERS, or nil.
+function M.browser(name)
+    for _, b in ipairs(M.BROWSERS) do
+        if b.name == name then
+            return b
+        end
+    end
+    return nil
+end
+
+-- The AppleScript that lists browser `b`'s tabs, one per line, as
+-- M.parse_tabs reads them.
+function M.tab_script(b)
+    local front = b.chromium and "active tab index of window w" or "index of current tab of window w"
+    local title = b.chromium and "title" or "name"
+    return ([[
+        set out to ""
+        tell application "%s"
+            repeat with w from 1 to count windows
+                set n to name of window w
+                set i to id of window w
+                set a to %s
+                repeat with t from 1 to count tabs of window w
+                    set f to 0
+                    if t is a then set f to 1
+                    set out to out & w & tab & t & tab & f & tab & i & tab & n & tab & (URL of tab t of window w) & tab & (%s of tab t of window w) & linefeed
+                end repeat
+            end repeat
+        end tell
+        return out]]):format(b.name, front, title)
+end
+
+-- The AppleScript that brings tab `item` (M.parse_tabs') of browser `b` to
+-- the front, restoring its window if it's minimized. The window is named by
+-- its id, which stays put, not its number, its place front to back, which
+-- changes as soon as anything raises a window, such as tide going to it.
+function M.open_tab_script(b, item)
+    local win = item.window_id and ("window id %d"):format(item.window_id) or ("window %d"):format(item.window)
+    local set, restore
+    if b.chromium then
+        set = ("set active tab index of %s to %d"):format(win, item.tab)
+        restore = ("set minimized of %s to false"):format(win)
+    else
+        set = ("set current tab of %s to tab %d of %s"):format(win, item.tab, win)
+        restore = ("set miniaturized of %s to false"):format(win)
+    end
+    return ([[
+        tell application "%s"
+            %s
+            %s
+            set index of %s to 1
+            activate
+        end tell]]):format(b.name, set, restore, win)
+end
+
+-- A browser's tabs from M.tab_script's output, one per line: window index,
+-- tab index, 1 if it's the window's front tab or else 0, the window's id,
+-- its name, the tab's address and its title, separated by tabs. Returns
+-- { browser, window, tab, active, window_id, window_name, url, title }.
+function M.parse_tabs(browser, text)
+    local out = {}
+    for line in (text or ""):gmatch("[^\n]+") do
+        local w, t, active, id, wname, url, title = line:match("^(%d+)\t(%d+)\t([01])\t(%d+)\t([^\t]*)\t([^\t]*)\t(.*)$")
+        if w then
+            out[#out + 1] = {
+                browser = browser,
+                window = tonumber(w),
+                tab = tonumber(t),
+                active = active == "1",
+                window_id = tonumber(id),
+                window_name = wname,
+                url = url,
+                title = title,
+            }
+        end
+    end
+    return out
+end
+
+-- The tide window a browser tab is in: of `windows`, { id, app, title,
+-- ws }, the one of the browser's app (`bundle`) whose title is the tab's
+-- window's name. AppleScript's window numbers aren't Accessibility's, so
+-- the name is what's shared *(unverified that they always agree)*. Nil if
+-- none or several match.
+function M.tab_window(tab, bundle, windows)
+    local found
+    for _, w in ipairs(windows) do
+        if w.app == bundle and w.title == tab.window_name and tab.window_name ~= "" then
+            if found then
+                return nil
+            end
+            found = w
+        end
+    end
+    return found
+end
+
+-- Items from what the adapter found: apps { name, path }, tabs { title, url,
+-- browser, window, tab, win, ws }, commands { title, action, arg, quick, logo, key }, System
+-- Settings' panes { name, id }, the windows wanting attention { window,
+-- title, app, bundle, ws }, newest first, the workspaces { name, apps, where }, in
+-- bar order, and every window { id, title, app_name, bundle, ws, minimized }, most
+-- recently used first, `minimized` for one you minimized (SPEC.md §6.7). Each gets a stable key, for remembering
+-- when it was used, and an id that's unique among the items, for choosing
+-- it: two tabs on the same page share a key but not an id.
+function M.items(apps, tabs, commands, settings, attention, workspaces, windows)
+    local out = {}
+    -- Most recently used first, as listed, which they keep.
+    for i, w in ipairs(windows or {}) do
+        out[#out + 1] = {
+            kind = "window",
+            title = (w.title or "") ~= "" and w.title or (w.app_name or ""),
+            extra = w.app_name,
+            app = w.app_name,
+            window = w.id,
+            bundle = w.bundle,
+            ws = w.ws,
+            minimized = w.minimized or false,
+            order = i,
+            key = "window:" .. tostring(w.id),
+        }
+    end
+    -- In bar order, which they keep, as the attention list keeps its own.
+    for i, w in ipairs(workspaces or {}) do
+        out[#out + 1] = {
+            kind = "workspace",
+            title = w.name,
+            extra = w.apps,
+            where = w.where,
+            order = i,
+            key = "workspace:" .. w.name,
+        }
+    end
+    for _, a in ipairs(apps or {}) do
+        out[#out + 1] = { kind = "app", title = a.name, path = a.path, key = "app:" .. a.path }
+    end
+    -- "Mouse settings", so "mouse settings" finds it as well as "mouse".
+    for _, p in ipairs(settings or {}) do
+        local title = p.name:lower():match(" settings$") and p.name or p.name .. " settings"
+        out[#out + 1] = {
+            kind = "setting",
+            title = title,
+            url = "x-apple.systempreferences:" .. p.id,
+            key = "setting:" .. p.id,
+        }
+    end
+    for _, t in ipairs(tabs or {}) do
+        out[#out + 1] = {
+            kind = "tab",
+            title = t.title ~= "" and t.title or (t.url or ""),
+            extra = host(t.url),
+            url = t.url,
+            browser = t.browser,
+            window = t.window,
+            window_id = t.window_id,
+            tab = t.tab,
+            win = t.win,
+            ws = t.ws,
+            key = "tab:" .. (t.url or t.title or ""),
+            id = string.format("tab:%s:%s:%s", t.browser, t.window, t.tab),
+        }
+    end
+    for i, w in ipairs(attention or {}) do
+        out[#out + 1] = {
+            kind = "attention",
+            title = (w.title or "") ~= "" and w.title or (w.app or ""),
+            extra = w.app,
+            app = w.app,
+            bundle = w.bundle,
+            window = w.window,
+            ws = w.ws,
+            order = i,
+            key = "attention:" .. tostring(w.window),
+        }
+    end
+    -- A command is an action on the Actions tab when `tab` says so, or an
+    -- app on Launch when `as` does, as Tide Settings is.
+    local actions = 0
+    for _, c in ipairs(commands or {}) do
+        local kind = c.as or (c.tab == "actions" and "action") or "command"
+        -- The Actions tab keeps the order they're listed in.
+        if kind == "action" then
+            actions = actions + 1
+        end
+        out[#out + 1] = {
+            kind = kind,
+            order = kind == "action" and actions or nil,
+            query_only = c.query_only,
+            title = c.title,
+            extra = c.extra,
+            sub = c.sub,
+            action = c.action,
+            arg = c.arg,
+            quick = c.quick,
+            logo = c.logo,
+            bundle = c.bundle,
+            group = c.group,
+            key = "command:" .. (c.key or c.title),
+        }
+    end
+    for _, item in ipairs(out) do
+        item.id = item.id or item.key
+    end
+    return out
+end
+
+-- Where apps are: each folder, and the folders in it to `depth` levels
+-- down, for vendor folders, Utilities and Chrome's web apps. An app is a
+-- folder too, so the search stops at one. `~` is the home folder.
+M.APP_DIRS = {
+    { path = "/Applications", depth = 2 },
+    { path = "/System/Applications", depth = 1 },
+    { path = "/System/Library/CoreServices/Applications", depth = 0 },
+    { path = "~/Applications", depth = 2 },
+}
+
+-- Apps that sit among things that aren't, listed one by one.
+M.LONE_APPS = { "/System/Library/CoreServices/Finder.app" }
+
+-- The apps, as { name, path }, in M.APP_DIRS and M.LONE_APPS. `list(dir)`
+-- gives a folder's entries as { name, dir }, or nil if it can't be read.
+function M.scan_apps(list, home)
+    local apps = {}
+    local function walk(dir, depth)
+        for _, e in ipairs(list(dir) or {}) do
+            local path = dir .. "/" .. e.name
+            local name = e.name:match("^(.*)%.app$")
+            if name then
+                apps[#apps + 1] = { name = name, path = path }
+            elseif e.dir and depth > 0 and e.name:sub(1, 1) ~= "." then
+                walk(path, depth - 1)
+            end
+        end
+    end
+    for _, d in ipairs(M.APP_DIRS) do
+        walk((d.path:gsub("^~", home)), d.depth)
+    end
+    for _, path in ipairs(M.LONE_APPS) do
+        local dir, file = path:match("^(.*)/([^/]+)$")
+        for _, e in ipairs(list(dir) or {}) do
+            if e.name == file then
+                apps[#apps + 1] = { name = file:match("^(.*)%.app$"), path = path }
+            end
+        end
+    end
+    return apps
+end
+
+-- System Settings' panes are app extensions that plug into it.
+M.SETTINGS_DIR = "/System/Library/ExtensionKit/Extensions"
+M.SETTINGS_POINT = "com.apple.Settings.extension.ui"
+
+-- Where a pane keeps its English name, as System Settings shows it: a
+-- table of every language, or the English strings alone.
+local LOCALIZED = {
+    { path = "Resources/InfoPlist.loctable", lang = "en" },
+    { path = "Resources/en.lproj/InfoPlist.strings" },
+    { path = "Resources/English.lproj/InfoPlist.strings" },
+    { path = "Resources/Base.lproj/InfoPlist.strings" },
+}
+
+-- An internal name ("TrackpadExtension", "CDs & DVDs Settings Extension",
+-- "PowerPreferences") without the words that only say what it is.
+local function tidy(name)
+    local before
+    repeat
+        before = name
+        name = name:gsub("%s*Extension$", ""):gsub("%s*Settings$", ""):gsub("%s*Preferences$", "")
+            :gsub("%s*SettingPane_macOS$", "")
+    until name == before
+    return name
+end
+
+local function pane_name(read, contents, info, base)
+    for _, l in ipairs(LOCALIZED) do
+        local t = read(contents .. "/" .. l.path)
+        if t and l.lang then
+            t = t[l.lang]
+        end
+        local name = type(t) == "table" and (t.CFBundleDisplayName or t.CFBundleName)
+        if type(name) == "string" and name ~= "" then
+            return name
+        end
+    end
+    return tidy(info.CFBundleDisplayName or info.CFBundleName or base)
+end
+
+-- The panes, as { name, id }. `read(path)` gives a plist as a table, or nil.
+function M.scan_settings(list, read)
+    local panes = {}
+    for _, e in ipairs(list(M.SETTINGS_DIR) or {}) do
+        local base = e.name:match("^(.*)%.appex$")
+        local contents = M.SETTINGS_DIR .. "/" .. e.name .. "/Contents"
+        local info = base and read(contents .. "/Info.plist")
+        local attrs = info and info.EXAppExtensionAttributes
+        if attrs and attrs.EXExtensionPointIdentifier == M.SETTINGS_POINT and info.CFBundleIdentifier then
+            panes[#panes + 1] = { name = pane_name(read, contents, info, base), id = info.CFBundleIdentifier }
+        end
+    end
+    return panes
+end
+
+-- The settings window's sidebar groups, in its order, as tide's settings
+-- panel has them (tide SPEC.md §16): Hardware is the machine and what's
+-- plugged into it, Windows is how windows are placed, and General is the
+-- rest.
+M.SETTINGS_GROUPS = {
+    { id = "hardware", label = "Hardware" },
+    { id = "windows", label = "Windows" },
+    { id = "general", label = "General" },
+}
+
+-- The settings window's sections (dashboard/settings.html), in its order:
+-- the id it shows, the name its heading shows, and what it covers, so a
+-- query finds a section by either. Each page is in its `group`, a group's
+-- pages together; a part of a page names its `page`. `key` is the row's
+-- title before "Tide Settings", which the switcher remembers its use by.
+M.SETTINGS_SECTIONS = {
+    { id = "displays", group = "hardware", name = "Displays", covers = "screens monitors resolution arrangement" },
+    { id = "sound", group = "hardware", name = "Sound", covers = "volume speakers microphone audio output input" },
+    -- Network and Bluetooth are a page each, as on tide's panel.
+    { id = "network", group = "hardware", name = "Network", covers = "wifi wi-fi internet vpn ethernet",
+      key = "Tide Settings: Network and Bluetooth" },
+    { id = "bluetooth", group = "hardware", name = "Bluetooth", covers = "devices pair pairing wireless" },
+    { id = "mouse", group = "hardware", name = "Mouse", covers = "pointer speed scrolling left-handed linearmouse" },
+    { id = "trackpad", group = "hardware", name = "Trackpad", covers = "touchpad tap to click scrolling gestures" },
+    { id = "keyboard", group = "hardware", name = "Keyboard",
+      covers = "keys shortcuts bindings repeat layouts karabiner rules ctrl+tab" },
+    -- Keyboard's Shortcuts, as tide's launcher has its own row for them.
+    { id = "shortcuts", page = "keyboard", name = "Keyboard shortcuts", covers = "keys bindings hotkeys" },
+    { id = "power", group = "hardware", name = "Power", covers = "battery energy sleep lid" },
+    { id = "layouts", group = "windows", name = "Layouts", covers = "tile columns master ultrawide new windows",
+      key = "Settings: layouts" },
+    { id = "workspaces", group = "windows", name = "Workspaces", covers = "standing workspaces home apps name patterns pinned apps ask for a name" },
+    { id = "floating", group = "windows", name = "Floating", covers = "floating windows rules",
+      key = "Settings: floating windows" },
+    { id = "appearance", group = "general", name = "Appearance", covers = "dark style light theme accent" },
+    { id = "muted", group = "general", name = "Notifications", covers = "muted apps and sites mute unmute",
+      key = "Settings: muted apps and sites" },
+    { id = "clipboard", group = "general", name = "Clipboard", covers = "clipboard history copies paste",
+      key = "Settings: clipboard history" },
+    { id = "clocks", group = "general", name = "Clocks", covers = "time zones world clocks", key = "Settings: clocks" },
+    { id = "idle", group = "general", name = "Idle", covers = "screensaver lock display off" },
+    { id = "startup", group = "general", name = "Start at login", covers = "login items autostart apps at login",
+      key = "Settings: start at login" },
+    -- tide's own, after tide's pages: tide has no checklist page.
+    { id = "setup", group = "general", name = "Setup checklist",
+      covers = "permissions privacy accessibility input monitoring automation mission control spaces minimize" },
+}
+
+-- The sidebar as the settings page takes it: `rows`, top to bottom, each
+-- group's heading ({ heading }) then its pages ({ page, label }); and
+-- `parts`, each part of a page by the page it's on.
+function M.settings_sidebar()
+    local rows, parts = {}, {}
+    for _, g in ipairs(M.SETTINGS_GROUPS) do
+        rows[#rows + 1] = { heading = g.label }
+        for _, s in ipairs(M.SETTINGS_SECTIONS) do
+            if s.group == g.id then
+                rows[#rows + 1] = { page = s.id, label = s.name }
+            end
+        end
+    end
+    for _, s in ipairs(M.SETTINGS_SECTIONS) do
+        if s.page then
+            parts[s.id] = s.page
+        end
+    end
+    return { rows = rows, parts = parts }
+end
+
+-- tide's commands, as the launcher lists them. `action` names a window
+-- manager action; `quick` names one of the adapter's quick actions
+-- (tide SPEC.md §8). `logo` shows tide's logo on the row. `key`, when
+-- set, is the name the switcher remembers the row's use by, kept from
+-- before its title changed, so it doesn't lose its place. `tab =
+-- "actions"` puts it on the Actions tab; `as = "app"` lists it among the
+-- apps; `sub` is the line under it.
+M.COMMANDS = {
+    { title = "Tide Settings", as = "app", action = "settings", logo = true, sub = "tide's settings window" },
+}
+for _, sec in ipairs(M.SETTINGS_SECTIONS) do
+    M.COMMANDS[#M.COMMANDS + 1] = {
+        title = "Tide Settings: " .. sec.name,
+        extra = sec.covers,
+        sub = "Tide Settings",
+        action = "settings",
+        arg = sec.id,
+        key = sec.key,
+        query_only = true,
+    }
+end
+for _, c in ipairs({
+    { title = "Layout: tile", action = "layout", arg = "tile" },
+    { title = "Layout: three columns", action = "layout", arg = "threecol" },
+    { title = "Layout: two columns", action = "layout", arg = "twocol" },
+    { title = "Dashboard: workspaces, clocks and calendar", action = "dashboard" },
+    { title = "Monocle", action = "monocle" },
+    { title = "Float or tile the window", action = "toggle_float" },
+    { title = "Maximize the window", action = "maximize" },
+    { title = "Full screen", action = "fullscreen" },
+    -- The Actions tab: the session, power, toggles and screenshots.
+    { title = "Lock", action = "lock", tab = "actions", group = "Session" },
+    { title = "Log out", action = "logout", tab = "actions", group = "Session" },
+    { title = "Sleep", quick = "sleep", tab = "actions", group = "Session" },
+    { title = "Restart", quick = "restart", tab = "actions", group = "Session" },
+    { title = "Shut down", quick = "shutdown", tab = "actions", group = "Session" },
+    { title = "Reload tide", key = "Reload tilemo", quick = "reload", logo = true, tab = "actions", group = "tide" },
+    { title = "Check tide (doctor)", key = "Check tilemo (doctor)", quick = "doctor", logo = true, tab = "actions", group = "tide" },
+    { title = "Keep awake", quick = "keep_awake", tab = "actions", group = "Toggles" },
+    { title = "Presenter mode: Do Not Disturb and keep awake", quick = "presenter", tab = "actions", group = "Toggles" },
+    { title = "Do Not Disturb", quick = "dnd", tab = "actions", group = "Toggles" },
+    { title = "Dark style", quick = "dark", tab = "actions", group = "Toggles" },
+    { title = "Focus follows mouse on or off", quick = "toggle_ffm", tab = "actions", group = "Toggles" },
+    { title = "Screenshot: window", quick = "screenshot_window", tab = "actions", group = "Screenshots" },
+    { title = "Screenshot: screen", quick = "screenshot_screen", tab = "actions", group = "Screenshots" },
+    { title = "Screenshot: region", quick = "screenshot_region", tab = "actions", group = "Screenshots" },
+}) do
+    M.COMMANDS[#M.COMMANDS + 1] = c
+end
+
+-- The scripts in ~/scripts that open an app (SPEC.md §9), from scripts'
+-- launcher-scripts, which tide's launcher lists them from too: one per
+-- line, SCRIPT|NAME|ICON|MAC, where ICON is tide's and MAC is the bundle ID
+-- of the app whose icon tide shows (Chrome's for a web app), - for none,
+-- or linux for a script that only runs on Linux. Each as { run, name,
+-- bundle }, skipping comments, blank lines, Linux-only scripts and lines
+-- that aren't four fields.
+M.SCRIPTS_FILE = "launcher-scripts"
+
+function M.parse_scripts(text)
+    local out = {}
+    for line in (text or ""):gmatch("[^\n]+") do
+        local run, name, _, mac = line:match("^([^|#][^|]*)|([^|]+)|([^|]*)|([^|]+)$")
+        mac = mac and mac:match("^%s*(.-)%s*$")
+        if run and mac ~= "linux" then
+            out[#out + 1] = { run = run, name = name, bundle = mac ~= "-" and mac or nil }
+        end
+    end
+    return out
+end
+
+-- `commands` with each of `scripts` (M.parse_scripts') that `exists(run)`
+-- says is there added as an app. One with an app key runs as that key
+-- does, so it comes forward with its workspace (keys.APPS).
+function M.with_scripts(commands, scripts, exists)
+    local keyed = {}
+    for _, a in ipairs(require("tide.keys").APPS) do
+        if a.spec.run and not keyed[a.spec.run] then
+            keyed[a.spec.run] = a.spec
+        end
+    end
+    local out = {}
+    for _, c in ipairs(commands) do
+        out[#out + 1] = c
+    end
+    for _, sc in ipairs(scripts or {}) do
+        if exists(sc.run) then
+            out[#out + 1] = {
+                title = sc.name,
+                as = "app",
+                action = "app",
+                arg = keyed[sc.run] or { run = sc.run },
+                sub = "~/scripts/" .. sc.run,
+                extra = sc.run,
+                bundle = sc.bundle,
+                key = "script:" .. sc.run,
+            }
+        end
+    end
+    return out
+end
+
+-- Workspaces are in the Workspaces tab, by name, not commands by number.
+
+
+-- How the switcher draws its rows (SPEC.md §9): which characters a query
+-- matched, the key that does the same, the icon, the section headers, and
+-- tide's colors. Pure; launcher_hs.lua turns them into hs.chooser's rows.
+
+-- `text` cut into runs, each { text, matched }, the matched ones holding
+-- the characters M.score found for `query`, in the same greedy order. Only
+-- ASCII bytes are marked, so a run never splits a multibyte character; a
+-- text that doesn't match, or an empty query, is one unmatched run.
+function M.marks(query, text)
+    text = text or ""
+    local q, t = (query or ""):lower(), text:lower()
+    local hit, from = {}, 1
+    if q:match("^%s*$") or not M.score(q, text) then
+        return { { text = text, matched = false } }
+    end
+    for ch in q:gmatch(".") do
+        if ch ~= " " then
+            local i = t:find(ch, from, true)
+            if not i then
+                break
+            end
+            if text:byte(i) < 0x80 then
+                hit[i] = true
+            end
+            from = i + 1
+        end
+    end
+    local runs = {}
+    for i = 1, #text do
+        local m = hit[i] == true
+        local last = runs[#runs]
+        if last and last.matched == m then
+            last.text = last.text .. text:sub(i, i)
+        else
+            runs[#runs + 1] = { text = text:sub(i, i), matched = m }
+        end
+    end
+    if #runs == 0 then
+        runs[1] = { text = "", matched = false }
+    end
+    return runs
+end
+
+-- The quick actions done by a Super key's action of another name.
+local QUICK_KEYS = { keep_awake = "keep_awake", presenter = "presenter" }
+local SHOT_QUICK = { screenshot_window = "window", screenshot_screen = "screen", screenshot_region = "region" }
+
+-- The key that does what `item` does, as tide shows it ("Super+L"), or
+-- nil: a command's action, a quick action's key, a screenshot's Print key.
+function M.key_hint(item)
+    local keys = require("tide.keys")
+    local shot = item.quick and SHOT_QUICK[item.quick]
+    if shot then
+        for _, b in ipairs(keys.plain) do
+            if b.action == "screenshot" and b.arg == shot then
+                return keys.keys_label(b, b.mods, false)
+            end
+        end
+        return nil
+    end
+    local action = item.quick and QUICK_KEYS[item.quick] or (not item.quick and item.action)
+    if not action or item.kind == "window" or item.kind == "attention" then
+        return nil
+    end
+    for _, b in ipairs(keys.map) do
+        if b.action == action and b.arg == nil and item.arg == nil then
+            return keys.keys_label(b, nil, true)
+        end
+    end
+    return nil
+end
+
+local SETTINGS_APP = "com.apple.systempreferences"
+local SCREENSHOT_APP = "com.apple.screenshot.launcher"
+-- macOS's own images for the session's rows (NSImage names).
+local ACTION_IMAGES = {
+    lock = "NSLockLockedTemplate",
+    logout = "NSUser",
+    sleep = "NSComputer",
+    restart = "NSComputer",
+    shutdown = "NSComputer",
+}
+
+-- Where `item`'s icon comes from, as { bundle = id }, { path = app },
+-- { name = NSImage name } or { logo = true }; nil for none. An app's comes
+-- from its bundle, a window's from its app's, a tab's from its browser's,
+-- a System Settings pane's from System Settings, a screenshot's from
+-- Screenshot; the session's from macOS's images; tide's own rows show its
+-- logo.
+function M.icon(item)
+    local k = item.kind
+    if k == "app" and item.logo then
+        return { logo = true }
+    elseif k == "app" then
+        if item.path then
+            return { path = item.path }
+        end
+        return item.bundle and { bundle = item.bundle } or nil
+    elseif k == "window" or k == "attention" then
+        return item.bundle and { bundle = item.bundle } or nil
+    elseif k == "tab" then
+        local b = M.browser(item.browser)
+        return b and { bundle = b.bundle } or nil
+    elseif k == "setting" then
+        return { bundle = SETTINGS_APP }
+    elseif k == "workspace" then
+        return { name = "NSMultipleDocuments" }
+    end
+    if item.quick and SHOT_QUICK[item.quick] then
+        return { bundle = SCREENSHOT_APP }
+    end
+    local name = ACTION_IMAGES[item.quick or item.action or ""]
+    if name then
+        return { name = name }
+    end
+    -- tide's own commands and toggles.
+    return { logo = true }
+end
+
+-- A string key for caching icon `spec`.
+function M.icon_key(spec)
+    if not spec then
+        return nil
+    end
+    return (spec.logo and "logo") or (spec.bundle and "bundle:" .. spec.bundle)
+        or (spec.path and "path:" .. spec.path) or (spec.name and "name:" .. spec.name)
+end
+
+-- How many recently used rows an empty Launch tab shows under Recent.
+M.RECENT = 5
+local KIND_HEADERS = { app = "Apps", setting = "System Settings", command = "Commands" }
+
+-- `found` (M.rank's rows) as the switcher lists them: { header = text }
+-- rows between { item = item } rows. Only an empty query gets headers: on
+-- Launch, Recent (up to M.RECENT used before, latest first) then each
+-- kind's own; on Actions, each action's group. A typed query, and the
+-- other tabs, are one ranked list.
+function M.sections(scope, query, found, recency)
+    local out = {}
+    if not (query or ""):match("^%s*$") or (scope ~= "launch" and scope ~= "actions") then
+        for _, item in ipairs(found) do
+            out[#out + 1] = { item = item }
+        end
+        return out
+    end
+    local rest = found
+    if scope == "launch" then
+        recency = recency or {}
+        local used = {}
+        for _, item in ipairs(found) do
+            if recency[item.key] then
+                used[#used + 1] = item
+            end
+        end
+        table.sort(used, function(a, b)
+            return recency[a.key] > recency[b.key]
+        end)
+        local recent = {}
+        if #used > 0 then
+            out[#out + 1] = { header = "Recent" }
+            for i = 1, math.min(M.RECENT, #used) do
+                out[#out + 1] = { item = used[i] }
+                recent[used[i]] = true
+            end
+        end
+        rest = {}
+        for _, item in ipairs(found) do
+            if not recent[item] then
+                rest[#rest + 1] = item
+            end
+        end
+    end
+    local last
+    for _, item in ipairs(rest) do
+        local h = scope == "actions" and item.group or KIND_HEADERS[item.kind]
+        if h and h ~= last then
+            out[#out + 1] = { header = h }
+        end
+        last = h
+        out[#out + 1] = { item = item }
+    end
+    return out
+end
+
+-- The switcher's rows for `query` on tab `scope`: M.rank's, laid out by
+-- M.sections. With nothing typed on Launch, Recent is drawn from every
+-- Launch row, so a recent command or settings pane isn't lost behind the
+-- first M.LIMITS.launch apps; the rows under it are capped as before.
+function M.rows(scope, query, items, recency)
+    local empty = (query or ""):match("^%s*$")
+    if not (empty and scope == "launch") then
+        return M.sections(scope, query, M.rank(query or "", items, { recency = recency, scope = scope }), recency)
+    end
+    local all = M.rank("", items, { recency = recency, scope = scope, limit = math.huge })
+    local rows = M.sections(scope, query, all, recency)
+    local limit = M.LIMITS[scope] or M.LIMIT
+    local out, shown, in_recent = {}, 0, false
+    for _, r in ipairs(rows) do
+        if r.header then
+            in_recent = r.header == "Recent"
+            out[#out + 1] = r
+        elseif in_recent then
+            out[#out + 1] = r
+        elseif shown < limit then
+            shown = shown + 1
+            out[#out + 1] = r
+        end
+    end
+    -- Drop a header left with no rows under it.
+    local tidy = {}
+    for i, r in ipairs(out) do
+        if not (r.header and (not out[i + 1] or out[i + 1].header)) then
+            tidy[#tidy + 1] = r
+        end
+    end
+    return tidy
+end
+
+-- The first row of `rows` (M.sections) that isn't a header, or 1.
+function M.first_row(rows)
+    for i, r in ipairs(rows) do
+        if r.item then
+            return i
+        end
+    end
+    return 1
+end
+
+-- tide's colors for the switcher, dark or light (tide SPEC.md §15): the
+-- text, the line under it, a key hint dimmer still, a header, and the
+-- accent blue a match is drawn in. hs.drawing color tables.
+function M.look(dark)
+    if dark then
+        return {
+            fg = { white = 0.9 }, sub = { white = 0.62 }, hint = { white = 0.45 }, header = { white = 0.5 },
+            accent = { hex = "#78aeed" },
+        }
+    end
+    return {
+        fg = { white = 0.1 }, sub = { white = 0.38 }, hint = { white = 0.55 }, header = { white = 0.5 },
+        accent = { hex = "#1c71d8" },
+    }
+end
+
+-- How the switcher is sized: the share of the display's width, and the
+-- rows it shows before it scrolls.
+M.WIDTH = 40
+M.ROWS = 10
+-- The point sizes of a row's title, the line under it, and a header.
+M.FONT = { title = 16, sub = 12, header = 11 }
+
+return M

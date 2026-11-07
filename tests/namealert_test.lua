@@ -3,7 +3,7 @@
 -- still showing.
 
 local t = require("t")
-local namealert = require("tilemo.namealert")
+local namealert = require("tide.namealert")
 
 -- A stand-in hs that records the alerts shown and closed.
 local function stub(screens)

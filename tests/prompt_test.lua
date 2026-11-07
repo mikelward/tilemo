@@ -4,10 +4,10 @@
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local keys = require("tilemo.keys")
+local wm_mod = require("tide.wm")
+local keys = require("tide.keys")
 
--- tilemo started with `n` windows, ready to ask, with every question
+-- tide started with `n` windows, ready to ask, with every question
 -- recorded: `asked` holds window ids, `launches` the launch prompts'
 -- { default, done }.
 local function setup(n)

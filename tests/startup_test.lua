@@ -1,5 +1,5 @@
 local t = require("t")
-local startup = require("tilemo.startup")
+local startup = require("tide.startup")
 
 local DIR = "/home/user/.config/tide"
 
@@ -193,7 +193,7 @@ t.test("each starts only after the one before it, in the list's order", function
     t.eq(events[#events], "launch third")
 end)
 
-t.test("home starts only the apps you set, not tilemo's default list of alternatives", function()
+t.test("home starts only the apps you set, not tide's default list of alternatives", function()
     t.eq(startup.home_starts(nil), {})
     t.eq(startup.home_starts({ "Gmail", "Google Calendar" }), { "Gmail", "Google Calendar" })
 end)
@@ -247,7 +247,7 @@ t.test("home's apps start once a login, not at every reload", function()
     t.eq(opened, { "Gmail", "Gmail" })
 end)
 
-t.test("with tilemo's default home_apps, nothing starts and the login isn't spent", function()
+t.test("with tide's default home_apps, nothing starts and the login isn't spent", function()
     local s = settings()
     t.eq(startup.home_at_login(nil, s, "login 1", function()
         error("not asked")

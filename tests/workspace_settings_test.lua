@@ -1,16 +1,16 @@
 -- Each workspace's own settings (SPEC.md §6.2, §15): tide's
 -- workspaceSettings, whose askForName says which workspaces' new windows
--- and launches ask for a name, and whose pinnedApps tilemo's close actions
+-- and launches ask for a name, and whose pinnedApps tide's close actions
 -- and an app's own close and quit keys leave open.
 
 local t = require("t")
 local json = require("json")
 local fake = require("fake")
-local standing = require("tilemo.standing")
-local wm_mod = require("tilemo.wm")
-local keys = require("tilemo.keys")
-local pinned_hs = require("tilemo.pinned_hs")
-local mute = require("tilemo.mute")
+local standing = require("tide.standing")
+local wm_mod = require("tide.wm")
+local keys = require("tide.keys")
+local pinned_hs = require("tide.pinned_hs")
+local mute = require("tide.mute")
 
 local DIR = "/home/user/.config/tide"
 
@@ -20,7 +20,7 @@ local function load(files)
     end, json.decode)
 end
 
--- tilemo started with `config`, one window open on home, ready to ask, with
+-- tide started with `config`, one window open on home, ready to ask, with
 -- every question recorded.
 local function setup(config)
     local a = fake.new()
@@ -274,7 +274,7 @@ local function fake_hs()
         for _, k in ipairs(s.made) do
             if k.on and k.mods .. "+" .. k.key == chord then
                 k.fn()
-                return "tilemo"
+                return "tide"
             end
         end
         return "app"
@@ -293,7 +293,7 @@ t.test("Cmd+W, Cmd+Shift+W and Cmd+Q are kept from a pinned window, and only fro
     wm:focused(2)
     t.eq(hs.held(), { "cmd+w", "cmd+shift+w", "cmd+q" })
     for _, chord in ipairs({ "cmd+w", "cmd+shift+w", "cmd+q" }) do
-        t.eq(hs.press(chord), "tilemo", chord)
+        t.eq(hs.press(chord), "tide", chord)
     end
     t.eq(hs.strokes, {}, "the app never sees them")
     t.eq(#a.notes, 3)
@@ -311,7 +311,7 @@ t.test("Cmd+W, Cmd+Shift+W and Cmd+Q are kept from a pinned window, and only fro
     t.eq(hs.held(), {})
 end)
 
-t.test("a held key that finds focus moved on before tilemo heard goes on to the app", function()
+t.test("a held key that finds focus moved on before tide heard goes on to the app", function()
     local a, wm = setup({ workspace_settings = PINNED })
     local hs = fake_hs()
     pinned_hs.new(hs, wm, function() end)
@@ -321,7 +321,7 @@ t.test("a held key that finds focus moved on before tilemo heard goes on to the 
     wm:focused(2)
     -- Focus moves to window 3, unheard, and Cmd+W comes first.
     a.focus_ = 3
-    t.eq(hs.press("cmd+w"), "tilemo")
+    t.eq(hs.press("cmd+w"), "tide")
     t.eq(hs.strokes, { "cmd+w" }, "posted on to the app, with the hotkeys off")
     t.eq(a.notes, {})
     t.eq(hs.held(), {})

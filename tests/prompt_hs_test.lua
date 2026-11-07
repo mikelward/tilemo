@@ -6,7 +6,7 @@
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 -- A stand-in for Hammerspoon: one chooser, timers run by hand, hotkeys
 -- pressed by hand, and keystrokes delivered to the chooser.
@@ -123,20 +123,20 @@ end
 local function setup(title)
     local s = stub()
     _G.hs = s.hs
-    package.loaded["tilemo.prompt_hs"] = nil
-    local prompt_hs = require("tilemo.prompt_hs")
+    package.loaded["tide.prompt_hs"] = nil
+    local prompt_hs = require("tide.prompt_hs")
     local a = fake.new()
     a.add(1, { title = title })
     local wm = wm_mod.new(a, {})
     wm:sync()
     wm:reconcile()
     wm:retile()
-    local tilemo = {
+    local tide = {
         wm = wm,
         adapter = a,
         name_patterns = {},
     }
-    local prompt = prompt_hs.new(tilemo)
+    local prompt = prompt_hs.new(tide)
     return s, prompt, a, wm
 end
 

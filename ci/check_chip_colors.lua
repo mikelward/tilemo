@@ -2,7 +2,7 @@
 -- tide's palette (its theme/palette.json), light and dark, so the chips look
 -- as tide's do. Run by `make check-tide`:
 --
---   lua ci/check_chip_colors.lua TIDE/theme/palette.json hammerspoon/tilemo/dashboard/bar.html
+--   lua ci/check_chip_colors.lua TIDE/theme/palette.json hammerspoon/tide/dashboard/bar.html
 
 local json = require("json")
 

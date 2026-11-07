@@ -3,7 +3,7 @@
 -- the bar reads them; and the Wi-Fi switch.
 
 local t = require("t")
-local netpower = require("tilemo.netpower")
+local netpower = require("tide.netpower")
 
 t.test("Wi-Fi joined to a network, online over it", function()
     local s = netpower.state({

@@ -1,9 +1,9 @@
--- tilemo reloads itself once a new copy has been installed over it
+-- tide reloads itself once a new copy has been installed over it
 -- (selfreload.lua): a copy is many files, so it waits for them to stop
 -- coming, and leaves alone what isn't one of its files.
 
 local t = require("t")
-local selfreload = require("tilemo.selfreload")
+local selfreload = require("tide.selfreload")
 
 -- Timers run by hand, a reload counted, and the log kept.
 local function stub()
@@ -31,10 +31,10 @@ local function stub()
     return s
 end
 
-t.test("a new copy of tilemo's files reloads it once, after the last file", function()
+t.test("a new copy of tide's files reloads it once, after the last file", function()
     local s = stub()
-    s.changed({ "/u/.hammerspoon/tilemo/init.lua" })
-    s.changed({ "/u/.hammerspoon/tilemo/wm.lua", "/u/.hammerspoon/tilemo/dashboard/settings.html" })
+    s.changed({ "/u/.hammerspoon/tide/init.lua" })
+    s.changed({ "/u/.hammerspoon/tide/wm.lua", "/u/.hammerspoon/tide/dashboard/settings.html" })
     t.eq(s.reloads, 0, "not while files are still coming")
     t.eq(s.timers[#s.timers].seconds, selfreload.QUIET)
     s.fire()
@@ -44,8 +44,8 @@ end)
 
 t.test("Finder's .DS_Store and other hidden files don't reload it", function()
     local s = stub()
-    s.changed({ "/u/.hammerspoon/tilemo/.DS_Store" })
-    s.changed({ "/u/.hammerspoon/tilemo/dashboard/.settings.html.swp" })
+    s.changed({ "/u/.hammerspoon/tide/.DS_Store" })
+    s.changed({ "/u/.hammerspoon/tide/dashboard/.settings.html.swp" })
     s.fire()
     t.eq(s.reloads, 0)
 end)

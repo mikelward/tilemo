@@ -1,6 +1,6 @@
 local t = require("t")
 local json = require("json")
-local standing = require("tilemo.standing")
+local standing = require("tide.standing")
 
 local DIR = "/home/user/.config/tide"
 

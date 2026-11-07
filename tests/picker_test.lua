@@ -1,5 +1,5 @@
 local t = require("t")
-local picker = require("tilemo.picker")
+local picker = require("tide.picker")
 
 local function read(path)
     local f = assert(io.open(path, "rb"))
@@ -149,7 +149,7 @@ t.test("an empty tab says why", function()
 end)
 
 t.test("the shipped list, tide's, parses whole and finds the spec's examples", function()
-    local all, errors = picker.parse_chars(read("hammerspoon/tilemo/chars.tsv"))
+    local all, errors = picker.parse_chars(read("hammerspoon/tide/chars.tsv"))
     t.eq(errors, {})
     t.eq(#all > 3000, true)
     t.eq(chars(picker.character_rows(all, "e acute")), { "é", "É" })

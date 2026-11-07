@@ -34,11 +34,11 @@ jobs:
       # The runner's Node runs the dashboard page test, which mustn't skip.
       - run: make lint test
         env:
-          TILEMO_NEED_NODE: "1"
+          TIDE_NEED_NODE: "1"
       - run: make check-tide TIDE=tide
       - run: make check-tideco TIDECO=tideco
-  # A smoke test in a real Hammerspoon: every hs.* name tilemo uses exists,
-  # tilemo starts and opens its dashboard, and it tiles three windows. The
+  # A smoke test in a real Hammerspoon: every hs.* name tide uses exists,
+  # tide starts and opens its dashboard, and it tiles three windows. The
   # runner comes with Accessibility granted; tests/ covers the rest.
   hammerspoon:
     runs-on: macos-15

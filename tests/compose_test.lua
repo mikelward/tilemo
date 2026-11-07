@@ -1,5 +1,5 @@
 local t = require("t")
-local compose = require("tilemo.compose")
+local compose = require("tide.compose")
 
 local TABLE = compose.parse(table.concat({
     "# A comment: no tab.",
@@ -56,7 +56,7 @@ t.test("cancel ends a sequence part way", function()
 end)
 
 t.test("Linux's table, as shipped, types the usual ones", function()
-    local f = assert(io.open("hammerspoon/tilemo/compose.tsv", "rb"))
+    local f = assert(io.open("hammerspoon/tide/compose.tsv", "rb"))
     local shipped = compose.parse(f:read("a"))
     f:close()
     t.eq(shipped.full["'e"], "é")
@@ -64,7 +64,7 @@ t.test("Linux's table, as shipped, types the usual ones", function()
     t.eq(shipped.full["=e"], "€")
     t.eq(shipped.full["//"], "\\")
     t.eq(shipped.full["#b"], "♭")
-    t.eq(shipped.full["# Linux's Compose sequences (tilemo SPEC.md §10): the keys after Compose,"], nil)
+    t.eq(shipped.full["# Linux's Compose sequences (tide SPEC.md §10): the keys after Compose,"], nil)
 end)
 
 t.test("the compose setting is true or false", function()

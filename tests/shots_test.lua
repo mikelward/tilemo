@@ -1,5 +1,5 @@
 local t = require("t")
-local shots = require("tilemo.shots")
+local shots = require("tide.shots")
 
 t.test("the folder is Screenshot's location, with ~ expanded, else the Desktop", function()
     t.eq(shots.folder("~/Pictures/Screenshots\n", "/Users/me"), "/Users/me/Pictures/Screenshots")

@@ -1,5 +1,5 @@
 local t = require("t")
-local keys = require("tilemo.keys")
+local keys = require("tide.keys")
 
 local HOME = "/home/user"
 local CONFIG = HOME .. "/.config/karabiner/karabiner.json"
@@ -26,8 +26,8 @@ local function profile(selected, ...)
     return { selected = selected, complex_modifications = { rules = { ... } } }
 end
 
-t.test("with Karabiner running and tilemo's rule loaded, Super is Ctrl+Option+Command", function()
-    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tilemo: Win to Super" })) },
+t.test("with Karabiner running and tide's rule loaded, Super is Ctrl+Option+Command", function()
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tide: Win to Super" })) },
         { ["Karabiner-Core-Service"] = true })
     local super, ok = keys.super(read, running, HOME, decode)
     t.eq(ok, true)
@@ -40,8 +40,8 @@ t.test("a rule still described as timo's, from before the rename, counts too", f
     t.eq(select(2, keys.super(read, running, HOME, decode)), true)
 end)
 
-t.test("a rule whose description only mentions tilemo later doesn't count", function()
-    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "not tilemo: x" })) },
+t.test("a rule whose description only mentions tide later doesn't count", function()
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "not tide: x" })) },
         { ["Karabiner-Core-Service"] = true })
     t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
@@ -54,13 +54,13 @@ t.test("without Karabiner's rule, Super falls back to Option", function()
 end)
 
 t.test("with the rule but Karabiner not running, Super falls back to Option", function()
-    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tilemo: x" })) }, {})
+    local read, running = env({ [CONFIG] = profiles(profile(true, { description = "tide: x" })) }, {})
     t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
 
 t.test("the rule only counts in the selected profile", function()
     local read, running = env({
-        [CONFIG] = profiles(profile(false, { description = "tilemo: x" }), profile(true, { description = "other" })),
+        [CONFIG] = profiles(profile(false, { description = "tide: x" }), profile(true, { description = "other" })),
     }, { ["Karabiner-Core-Service"] = true })
     t.eq(select(2, keys.super(read, running, HOME, decode)), false)
 end)
@@ -87,7 +87,7 @@ t.test("no two bindings share keys", function()
 end)
 
 t.test("every binding names an action the window manager has", function()
-    local wm = require("tilemo.wm")
+    local wm = require("tide.wm")
     for _, b in ipairs(keys.map) do
         t.eq(type(wm.actions[b.action]), "function", b.action)
     end
@@ -135,7 +135,7 @@ t.test("the Print keys take macOS's own screenshots, saved to Screenshot's folde
     end
     t.eq(super_print, "region")
     for kind, k in pairs(keys.SCREENSHOT) do
-        -- Without Ctrl, macOS saves the shot to a file; tilemo copies it
+        -- Without Ctrl, macOS saves the shot to a file; tide copies it
         -- to the clipboard from there (shots.lua).
         t.eq(table.concat(k.mods, "+"), "cmd+shift", kind)
     end
@@ -272,7 +272,7 @@ t.test("Ctrl+Up and Ctrl+Down open the overview, in place of Mission Control and
             t.eq(s.keys:match("^Ctrl%+") == nil, true, s.keys)
         end
     end
-    t.eq(type(require("tilemo.wm").actions.overview), "function")
+    t.eq(type(require("tide.wm").actions.overview), "function")
 end)
 
 t.test("Super+W opens a terminal on the workstation; the VM's has no key", function()
@@ -290,7 +290,7 @@ end)
 
 t.test("a screenshot action asks the adapter for that kind", function()
     local a = require("fake").new()
-    local wm = require("tilemo.wm").new(a, {})
+    local wm = require("tide.wm").new(a, {})
     wm:act("screenshot", "window")
     wm:act("screenshot", "screen")
     t.eq(table.concat(a.shots, " "), "window screen")
@@ -360,7 +360,7 @@ t.test("Super+V opens the picker on Clipboard; Super+C is Chat and Super+Shift+C
 end)
 
 t.test("the picker key asks the window manager to open the picker", function()
-    local wm = require("tilemo.wm")
+    local wm = require("tide.wm")
     local asked
     wm.actions.picker({ open_picker = function(tab) asked = tab end }, "clipboard")
     t.eq(asked, "clipboard")
@@ -380,7 +380,7 @@ t.test("Alt+Tab swaps with the master only with Karabiner, which makes it from p
     t.eq(find((keys.bindings(keys.OPTION))), nil, "not Ctrl+Tab, every app's next tab")
 end)
 
--- An installed tilemo rule, as karabiner.json holds it: the Win key's
+-- An installed tide rule, as karabiner.json holds it: the Win key's
 -- manipulator, with what its lone tap sends, Alt+Tab's if `alt_tab`, the
 -- letters a and z, unless `no_z`, and Backspace sent as F19, unless
 -- `old_backspace` keeps it Backspace.
@@ -401,10 +401,10 @@ local function rule(tap, alt_tab, no_z, old_backspace)
     end
     m[#m + 1] = { from = { key_code = "delete_or_backspace", modifiers = { mandatory = { "left_command" }, optional = { "shift" } } },
         to = { { key_code = old_backspace and "delete_or_backspace" or "f19", modifiers = { "left_option", "left_command", "left_control" } } } }
-    return { description = "tilemo: Win+key", manipulators = m }
+    return { description = "tide: Win+key", manipulators = m }
 end
 
-t.test("an up-to-date tilemo rule has nothing missing", function()
+t.test("an up-to-date tide rule has nothing missing", function()
     local read = env({ [CONFIG] = profiles(profile(true, rule("f20", true))) }, {})
     t.eq(keys.rule_gaps(read, HOME, decode), {})
 end)
@@ -416,7 +416,7 @@ t.test("a rule enabled before conf's update is missing Alt+Tab and the Super tap
     local notice = keys.gaps_notice(gaps)
     t.eq(notice:find("Alt+Tab (swap with the master) and the lone Super tap (the launcher) don't work", 1, true) ~= nil, true, notice)
     t.eq(notice:find("git pull in your conf checkout and run confinst", 1, true) ~= nil, true, notice)
-    t.eq(notice:find('brings Karabiner\'s copy of the "tilemo:" rule up to date', 1, true) ~= nil, true, notice)
+    t.eq(notice:find('brings Karabiner\'s copy of the "tide:" rule up to date', 1, true) ~= nil, true, notice)
     read = env({ [CONFIG] = profiles(profile(true, rule("f20", false))) }, {})
     gaps = keys.rule_gaps(read, HOME, decode)
     t.eq(gaps, { "Alt+Tab (swap with the master)" })
@@ -431,7 +431,7 @@ t.test("no rule, or no config, has no gaps to report: the fallback notice covers
     t.eq(#keys.rule_gaps(read, HOME, decode), 2)
 end)
 
-t.test("Alt+Tab's manipulator must send what tilemo binds", function()
+t.test("Alt+Tab's manipulator must send what tide binds", function()
     local r = rule("f20", true)
     r.manipulators[4].to[1].modifiers = { "left_control" } -- the old Cmd+Tab
     local read = env({ [CONFIG] = profiles(profile(true, r)) }, {})

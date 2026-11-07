@@ -1,5 +1,5 @@
 local t = require("t")
-local direction = require("tilemo.direction")
+local direction = require("tide.direction")
 
 local function box(x, y, w, h)
     return { x = x, y = y, w = w, h = h }

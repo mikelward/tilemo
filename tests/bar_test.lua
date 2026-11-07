@@ -1,9 +1,9 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local ffm_mod = require("tilemo.ffm")
-local dashboard = require("tilemo.dashboard")
-local bar = require("tilemo.bar")
+local wm_mod = require("tide.wm")
+local ffm_mod = require("tide.ffm")
+local dashboard = require("tide.dashboard")
+local bar = require("tide.bar")
 
 t.test("the menu bar names each workspace, the one showing marked", function()
     t.eq(bar.title({
@@ -443,7 +443,7 @@ t.test("clicking an attention icon on the workspace showing only focuses it", fu
     t.eq(a.focus_, 2)
 end)
 
-t.test("the bar hides on a display while a window there is in tilemo's full screen", function()
+t.test("the bar hides on a display while a window there is in tide's full screen", function()
     local a, wm = two_displays()
     a.focus_ = 1
     t.eq(bar.hidden(wm, "A"), false)
@@ -579,7 +579,7 @@ t.test("keep awake says when presenter mode is on, whatever the assertion reads"
 end)
 
 t.test("Super+S keeps awake and Super+P turns on presenter mode", function()
-    local keys = require("tilemo.keys")
+    local keys = require("tide.keys")
     local found = {}
     for _, b in ipairs(keys.map) do
         if not b.shift and (b.key == "s" or b.key == "p") then
@@ -765,7 +765,7 @@ t.test("scrolling on the speaker steps the volume 5%, and up unmutes", function(
     t.eq({ bar.volume_step(50, true, -1) }, { 45, false })
 end)
 
-t.test("the volume keys are tilemo's only for a monitor it reads over DDC", function()
+t.test("the volume keys are tide's only for a monitor it reads over DDC", function()
     t.eq(bar.volume_key("SOUND_UP", true), 1)
     t.eq(bar.volume_key("SOUND_DOWN", true), -1)
     t.eq(bar.volume_key("MUTE", true), 0)
@@ -781,7 +781,7 @@ t.test("the volume keys' sign says the level or muted", function()
 end)
 
 t.test("Super+Shift+M mutes the microphone", function()
-    local keys = require("tilemo.keys")
+    local keys = require("tide.keys")
     local found
     for _, b in ipairs(keys.map) do
         if b.key == "m" and b.shift then
@@ -846,7 +846,7 @@ t.test("every icon opens a settings pane", function()
     end
 end)
 
-local DIR = "hammerspoon/tilemo/dashboard/"
+local DIR = "hammerspoon/tide/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -882,7 +882,7 @@ t.test("the bar's page carries tileco's stylesheet and its own script", function
         sources[name] = read(name)
     end
     local html = dashboard.page(read("bar.html"), read("launcher.css"), sources, dashboard.BAR_MODULES)
-    t.eq(html:find("TILEMO_", 1, true), nil)
+    t.eq(html:find("TIDE_", 1, true), nil)
     t.eq(html:find('modules["./bar.js"]', 1, true) ~= nil, true)
     t.eq(html:find('modules["./dashboard.js"]', 1, true), nil)
     -- The page reports its own errors, from a script that runs first.
@@ -893,7 +893,7 @@ end)
 t.test("the bar's page draws the chips, title, clocks and icons", function()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to check the bar's page")
         end
         print("SKIP the bar's page draws the chips, title, clocks and icons: no node")

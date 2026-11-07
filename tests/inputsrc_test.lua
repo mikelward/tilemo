@@ -2,7 +2,7 @@
 -- input methods, the one in use lit, and a click using another.
 
 local t = require("t")
-local inputsrc = require("tilemo.inputsrc")
+local inputsrc = require("tide.inputsrc")
 
 t.test("layouts, then input methods, the one in use lit", function()
     t.eq(inputsrc.state({ "U.S.", "Irish" }, { "Pinyin - Simplified" }, "Irish").sources, {

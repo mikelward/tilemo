@@ -2,7 +2,7 @@
 -- the fake's displays (direction_test.lua has the rule's geometry).
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 -- A second display to the right of A, bigger and 200 px higher.
 local function add_b(a)

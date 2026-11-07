@@ -1,5 +1,5 @@
 local t = require("t")
-local attention = require("tilemo.attention")
+local attention = require("tide.attention")
 
 t.test("a notification marks its app until you focus one of its windows", function()
     local a = attention.new()

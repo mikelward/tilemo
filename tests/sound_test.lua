@@ -2,7 +2,7 @@
 -- output and input in use and the devices, and what its messages do.
 
 local t = require("t")
-local sound = require("tilemo.sound")
+local sound = require("tide.sound")
 
 t.test("each side shows its device in use, its level and the devices, sorted", function()
     local s = sound.state({

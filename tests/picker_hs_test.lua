@@ -80,13 +80,13 @@ end
 local function setup()
     local s = stub()
     _G.hs = s.hs
-    package.loaded["tilemo.picker_hs"] = nil
-    local picker_hs = require("tilemo.picker_hs")
-    local tilemo = {
+    package.loaded["tide.picker_hs"] = nil
+    local picker_hs = require("tide.picker_hs")
+    local tide = {
         wm = { hold = function() end },
         adapter = { log = function(m) s.logs[#s.logs + 1] = m end },
     }
-    return s, picker_hs.new(tilemo)
+    return s, picker_hs.new(tide)
 end
 
 t.test("Return copies the row and pastes it with Cmd+V into the app that was in front", function()

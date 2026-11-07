@@ -1,10 +1,10 @@
--- Restarts (SPEC.md §6.3): windows that come back with new ids, after tilemo
+-- Restarts (SPEC.md §6.3): windows that come back with new ids, after tide
 -- restarts or their app relaunches, go back to their places by app and
 -- title.
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 -- Minimize mode (`hide = "minimize"`), for the tests about hiding a
 -- workspace by minimizing: they read macOS's minimized flag as hidden, or
@@ -182,7 +182,7 @@ t.test("a relaunched app already running again at the next sync gets its places"
     local wm = start(a, {})
     a.focus_ = 1
     wm:act("send", "3")
-    -- It quits and is back, as a new process, before tilemo looks again.
+    -- It quits and is back, as a new process, before tide looks again.
     a.drop(1)
     a.add(5, { app = "docs", pid = 11, title = "Plan" })
     wm:schedule()
@@ -323,7 +323,7 @@ t.test("places not yet taken survive another restart", function()
     a.drop(1)
     wm:schedule()
     a.tick()
-    -- tilemo restarts before the app comes back...
+    -- tide restarts before the app comes back...
     local snap = a.saved
     t.eq(#snap.gone, 1, "saved")
     wm = start(a, snap)

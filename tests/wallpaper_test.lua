@@ -3,7 +3,7 @@
 -- mode macOS is in, and a file chosen set as tide sets one.
 
 local t = require("t")
-local wallpaper = require("tilemo.wallpaper")
+local wallpaper = require("tide.wallpaper")
 local json = require("json")
 
 local HOME = "/Users/u"

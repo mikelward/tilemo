@@ -1,5 +1,5 @@
 local t = require("t")
-local linearmouse = require("tilemo.linearmouse")
+local linearmouse = require("tide.linearmouse")
 
 local function yes()
     return true
@@ -47,7 +47,7 @@ t.test("no problem says nothing", function()
 end)
 
 t.test("the Mouse section says LinearMouse's problem and what stops its scrolling being set", function()
-    local settings_hs = require("tilemo.settings_hs")
+    local settings_hs = require("tide.settings_hs")
     t.eq(settings_hs.mouse_problem({}), "")
     t.eq(settings_hs.mouse_problem({ linearmouse = "stopped" }), linearmouse.say("stopped", "section"))
     local applied = { state = { problem = "Can't set LinearMouse's scrolling: linearmouse.json isn't JSON." } }

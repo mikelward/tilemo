@@ -21,7 +21,7 @@ local function stub(shared)
         json = { decode = json.decode },
         caffeinate = { watcher = { systemDidWake = 1, new = function() return { start = function() end } end } },
     }
-    local tilemo = {
+    local tide = {
         notification_files = { shared = shared },
         presenter = {
             set_dnd = function(on)
@@ -48,9 +48,9 @@ local function stub(shared)
             end,
         },
     }
-    package.loaded["tilemo.dndsched_hs"] = nil
-    s.dnd = require("tilemo.dndsched_hs").new(tilemo)
-    s.tilemo = tilemo
+    package.loaded["tide.dndsched_hs"] = nil
+    s.dnd = require("tide.dndsched_hs").new(tide)
+    s.tide = tide
     return s
 end
 
@@ -58,7 +58,7 @@ t.test("on as a window opens, and off as it closes", function()
     local s = stub(ALWAYS)
     t.eq(s.set, { true })
     t.eq(s.timers[#s.timers].seconds, 60, "looked at every minute")
-    s.tilemo.notification_files = { shared = OFF }
+    s.tide.notification_files = { shared = OFF }
     s.dnd.look()
     t.eq(s.set, { true, false })
 end)
@@ -66,19 +66,19 @@ end)
 t.test("changed by hand meanwhile, it's left as you set it", function()
     local s = stub(ALWAYS)
     s.dnd.own_changed()
-    s.tilemo.notification_files = { shared = OFF }
+    s.tide.notification_files = { shared = OFF }
     s.dnd.look()
     t.eq(s.set, { true })
 end)
 
 t.test("a file gone wrong in a window keeps the last good schedule", function()
     local s = stub(ALWAYS)
-    s.tilemo.notification_files = { shared = '{"dndScheduled": true, "dndFrom": "25:00"}' }
+    s.tide.notification_files = { shared = '{"dndScheduled": true, "dndFrom": "25:00"}' }
     s.dnd.look()
     t.eq(s.set, { true }, "still on")
     t.eq(#s.logged, 1, "and the file's said")
     t.eq(s.logged[1]:match("notifications%.json") ~= nil, true, s.logged[1])
-    s.tilemo.notification_files = { shared = OFF }
+    s.tide.notification_files = { shared = OFF }
     s.dnd.look()
     t.eq(s.set, { true, false }, "put right, it's followed again")
 end)

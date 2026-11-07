@@ -91,7 +91,7 @@ local function stub()
             end,
         },
     }
-    s.tilemo = {
+    s.tide = {
         adapter = {
             focused = function() end,
             log = function(line)
@@ -126,16 +126,16 @@ end
 
 local function launcher_with(s)
     _G.hs = s.hs
-    package.loaded["tilemo.launcherpage_hs"] = nil
-    package.loaded["tilemo.launcher_hs"] = nil
-    local launcher_hs = require("tilemo.launcher_hs")
+    package.loaded["tide.launcherpage_hs"] = nil
+    package.loaded["tide.launcher_hs"] = nil
+    local launcher_hs = require("tide.launcher_hs")
     launcher_hs.collector = function()
         return function()
             return {}
         end
     end
     launcher_hs.fetch_tabs = function() end
-    return require("tilemo.launcherpage_hs").new(s.tilemo)
+    return require("tide.launcherpage_hs").new(s.tide)
 end
 
 t.test("the page is made hidden as the launcher starts, and a key shows it", function()
@@ -157,7 +157,7 @@ end)
 -- float (wm.focus_unburied, SPEC.md §5.1).
 t.test("closing the launcher goes back to the window you were in, keeping floats on top", function()
     local s = stub()
-    s.tilemo.adapter.focused = function()
+    s.tide.adapter.focused = function()
         return 7
     end
     local page = launcher_with(s)
@@ -185,10 +185,10 @@ t.test("a call the page ran isn't logged as a failure", function()
     _G.hs = s.hs
     s.hs.json = { encode = function() return "{}" end }
     s.hs.caffeinate = { get = function() return false end }
-    s.tilemo.wm.listed = function() return {}, {} end
-    s.tilemo.wm.bar_state = function() return {} end
-    s.tilemo.wm.windows = {}
-    s.tilemo.wm.screens = function() return {} end
+    s.tide.wm.listed = function() return {}, {} end
+    s.tide.wm.bar_state = function() return {} end
+    s.tide.wm.windows = {}
+    s.tide.wm.screens = function() return {} end
     local page = launcher_with(s)
     s.views[1].navigate("didFinishNavigation", s.views[1])
     page.show("launch")
@@ -201,10 +201,10 @@ end)
 local function loaded(s)
     s.hs.json = { encode = function() return "{}" end }
     s.hs.caffeinate = { get = function() return false end }
-    s.tilemo.wm.listed = function() return {}, {} end
-    s.tilemo.wm.bar_state = function() return {} end
-    s.tilemo.wm.windows = {}
-    s.tilemo.wm.screens = function() return {} end
+    s.tide.wm.listed = function() return {}, {} end
+    s.tide.wm.bar_state = function() return {} end
+    s.tide.wm.windows = {}
+    s.tide.wm.screens = function() return {} end
     local page = launcher_with(s)
     s.views[1].navigate("didFinishNavigation", s.views[1])
     return page
@@ -215,7 +215,7 @@ t.test("Esc closes the launcher at once, without waiting on the page", function(
     local page = loaded(s)
     page.show("launch")
     local ran = #s.scripts
-    t.eq(s.key("escape") ~= nil, true, "tilemo takes Esc while it's open")
+    t.eq(s.key("escape") ~= nil, true, "tide takes Esc while it's open")
     s.key("escape").fn()
     t.eq(page.is_open(), false)
     t.eq(s.views[1].shown, false)
@@ -230,7 +230,7 @@ t.test("with something typed, Esc clears the search and leaves it open", functio
     s.send({ typed = true })
     s.key("escape").fn()
     t.eq(page.is_open(), true)
-    t.eq(s.scripts[#s.scripts], "tilemo.escape()")
+    t.eq(s.scripts[#s.scripts], "tide.escape()")
     -- Cleared, the next Esc closes it.
     s.send({ typed = false })
     s.key("escape").fn()
@@ -248,7 +248,7 @@ t.test("each open starts with nothing typed", function()
     t.eq(page.is_open(), false)
 end)
 
-t.test("while it's open the launcher is one of tilemo's own windows, and closing says it's gone", function()
+t.test("while it's open the launcher is one of tide's own windows, and closing says it's gone", function()
     local s = stub()
     local page = loaded(s)
     page.show("launch")

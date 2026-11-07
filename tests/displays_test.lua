@@ -3,7 +3,7 @@
 -- messages do.
 
 local t = require("t")
-local displays = require("tilemo.displays")
+local displays = require("tide.displays")
 
 local MAIN = { x = 0, y = 0, w = 1512, h = 982 }
 

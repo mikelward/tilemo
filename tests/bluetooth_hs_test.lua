@@ -9,12 +9,12 @@ local json = require("json")
 local PATH = "/opt/homebrew/bin/blueutil"
 local BUDS = "aa-bb-cc-dd-ee-ff"
 
--- tilemo's world: blueutil there or not, each run waiting for the test to
+-- tide's world: blueutil there or not, each run waiting for the test to
 -- answer it, and timers the test fires.
 local function stub(opts)
     local s = { runs = {}, logged = {}, timers = {}, changes = 0, polled = 0 }
     _G.hs = { json = { encode = json.encode, decode = json.decode } }
-    local tilemo = {
+    local tide = {
         adapter = {
             exists = function(p)
                 return opts.installed ~= false and p == PATH
@@ -43,8 +43,8 @@ local function stub(opts)
             },
         },
     }
-    package.loaded["tilemo.bluetooth_hs"] = nil
-    s.bt = require("tilemo.bluetooth_hs").new(tilemo, function()
+    package.loaded["tide.bluetooth_hs"] = nil
+    s.bt = require("tide.bluetooth_hs").new(tide, function()
         s.changes = s.changes + 1
     end)
     -- Answers the last run still waiting.
@@ -133,7 +133,7 @@ t.test("no blueutil says so once, and runs nothing", function()
     s.bt.watch(true)
     s.bt.refresh()
     t.eq(#s.runs, 0)
-    t.eq(s.bt.state().problem, "blueutil isn't installed (brew install blueutil, or setup-macos --wm tilemo)")
+    t.eq(s.bt.state().problem, "blueutil isn't installed (brew install blueutil, or setup-macos --wm tide)")
     t.eq(#s.logged, 1)
     s.bt.handle({ bluetoothConnect = BUDS })
     t.eq(#s.runs, 0)

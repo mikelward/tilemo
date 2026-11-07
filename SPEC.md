@@ -1,4 +1,4 @@
-# tilemo: tide for Linux and tide for Chrome on macOS
+# tidemo: tide for Linux and tide for Chrome on macOS
 
 **Status: exploration.** This explores what macOS allows. It doesn't
 yet decide what tide is. It takes everything tide for Linux does on Linux
@@ -38,7 +38,7 @@ checked against a source or a Mac is marked *(unverified)*.
   helper), tide says so where you'll see it:
   - a notification, once each time it changes, naming what's missing and
     what stops working, and how to fix it;
-  - a line in `tilemo doctor` saying the same, for as long as it lasts
+  - a line in `tide doctor` saying the same, for as long as it lasts
     (§15).
 
   A key that does nothing, or a feature quietly turned off, is the
@@ -264,7 +264,7 @@ Status: **yes** = tide or macOS meets the tide for Linux or tide for Chrome beha
 | Caps Lock as Compose | Caps Lock sends F18, and tide reads the keys after it from Linux's own Compose table (§10) | **yes** *(unverified on a Mac)*: not during Secure Input |
 | Setup checklist (tide for Chrome §3.4) | a settings page with deep links to System Settings panes (§10) | **yes** |
 | Settings pages, shared `~/.config/tide` files, `.local` overrides (tide for Linux §16) | tide reads the same files (§15); every page of tide for Linux's is a section, with buttons to macOS's panes and the helpers for what tide can't change | **partial**: Clocks, Layouts, Workspaces, Start at login, Clipboard, the muted list, Floating, Keyboard's Shortcuts and the Setup checklist are tide's own; Appearance is only a button |
-| `tide doctor` (tide for Linux §5.4) | `tilemo doctor` (§15) | **yes** |
+| `tide doctor` (tide for Linux §5.4) | `tide doctor` (§15) | **yes** |
 | Workspace swipe, three fingers (conf `hyprland.lua`) | the trackpad's touches through an event tap, with macOS's own swipe between Spaces off (§7.2) | **yes** *(unverified on a Mac)* |
 | kitty, Ubuntu Mono, shell config | native, through `setup` and `conf` | **yes** |
 
@@ -471,7 +471,7 @@ Bitwarden's passkey prompt, signing in to a site with a passkey saved in
 Bitwarden's Chrome extension, must open floating too.
 
 And each of these must be left where its app put it, never moved or
-focused by tilemo: Chrome's find bar (Cmd+F), a tooltip, a link's status
+focused by tide: Chrome's find bar (Cmd+F), a tooltip, a link's status
 bubble, a tab's hover card, Notification Center's banners and widgets,
 and Control Center's panels.
 
@@ -837,7 +837,7 @@ API: the same Accessibility move a retile makes.
   are still really minimized, to the tray (§6.7).
 - **A window tide minimized before,** under minimizing, from a saved
   state or an upgrade, is restored, then parked or placed.
-- **Minimizing stays a setting:** `tilemo.start({ hide = "minimize" })`.
+- **Minimizing stays a setting:** `tide.start({ hide = "minimize" })`.
   Mission Control then shows only the workspace on screen, but every switch
   animates. Two settings soften that, and the setup checklist (§10) asks
   for both:
@@ -1165,9 +1165,9 @@ the home workspace, the first standing one (§6.1), which is "in" unless
 - **A running process can't see later changes.** It keeps the name it
   started with, after a rename or a move to another workspace, as on tide.
 - **Scripts read the current name from a file:**
-  `~/Library/Caches/tilemo/workspace` holds `TIDE_WORKSPACE`'s value, and
+  `~/Library/Caches/tide/workspace` holds `TIDE_WORKSPACE`'s value, and
   `workspace.name` beside it holds the name as it shows, each ending in a
-  newline. `cat ~/Library/Caches/tilemo/workspace` gives it.
+  newline. `cat ~/Library/Caches/tide/workspace` gives it.
   - tide writes both whenever the current workspace changes. Each is
     written whole: a temporary file, mode 600, renamed over the last.
   - The folder is mode 700, so only you can read them.
@@ -1211,8 +1211,8 @@ the home workspace, the first standing one (§6.1), which is "in" unless
   stays parked; one whose workspace shows is placed as usual, a float at
   the frame saved with it (`frame`).
 - **If it crashes,** the next start restores what it can't place and
-  reconciles the rest. `tilemo restore` does it by hand (§16).
-- **What's saved:** `hs.settings`' `tilemo.state` names each window's
+  reconciles the rest. `tide restore` does it by hand (§16).
+- **What's saved:** `hs.settings`' `tide.state` names each window's
   workspace by name, its display by UUID, and the display it goes back
   to, if any (§6.4); the workspace showing; and the list of names in
   order. A state from when each display showed its own shows the first
@@ -1241,7 +1241,7 @@ The checklist (§10) sets these, and undoes `setup-macos`'s nine Spaces:
 - **"Click wallpaper to reveal desktop"** set to "Only in Stage Manager".
 - **Mission Control and App Exposé off,** since parked windows would
   crowd them (§6): `setup-macos` turns off their keys, Ctrl+Up and
-  Ctrl+Down (symbolic hotkeys 32 and 33, `configure_shortcuts_tilemo` in
+  Ctrl+Down (symbolic hotkeys 32 and 33, `configure_shortcuts_tide` in
   scripts), the trackpad's swipes for them, and the hot corners. tide's
   overview takes the two keys (§6.9). The swipe left and right between
   Spaces goes too, for tide's own (§7.2).
@@ -1373,12 +1373,12 @@ together (§6). `setup-macos` turns it off (§6.6), and tide has its own.
 - **Focus follows mouse pauses** while it's open, as for the dashboard
   (§5.2).
 - **The page talks to tide** as the dashboard does: tide calls
-  `tilemo.update(state)`, and the page posts `{ activate: id }`,
-  `{ show: name }` or `{ close: true }` to the `tilemo` message handler.
+  `tide.update(state)`, and the page posts `{ activate: id }`,
+  `{ show: name }` or `{ close: true }` to the `tide` message handler.
 - **The keys need macOS to let go of them.** `RegisterEventHotKey` fails
   silently on a key the system still holds (§2.2). `setup-macos` frees
   Ctrl+Up and Ctrl+Down by turning off symbolic hotkeys 32 and 33
-  (mikelward/scripts, `configure_shortcuts_tilemo`, §7.3). On a Mac that
+  (mikelward/scripts, `configure_shortcuts_tide`, §7.3). On a Mac that
   hasn't run it, Mission Control keeps them.
 - **Unchecked:** *(unverified on a Mac)* the page's look, that the keys
   reach tide once setup has run, that a click on another window closes
@@ -1423,7 +1423,7 @@ together (§6). `setup-macos` turns it off (§6.6), and tide has its own.
   - **Super+drag:** on Option, so Finder's Option-drag copy goes to tide
     (§5.3).
   - **It says so once,** in a notification naming what's lost and how to
-    fix it. The checklist (§10) and `tilemo doctor` (§15) report it too.
+    fix it. The checklist (§10) and `tide doctor` (§15) report it too.
   - **When Karabiner comes back,** tide moves its keys back to Karabiner's
     combinations, with no restart.
 - **The rotation covers every keyboard,** the MacBook's own included. If
@@ -1574,7 +1574,7 @@ tide registers each with `RegisterEventHotKey`, which needs no permission
     steps once, however far it goes, and the next needs every finger
     lifted first. Two or four fingers are left alone, and so is a
     three-finger drag, which holds the mouse button down.
-  - `setup-macos --wm tilemo` turns off macOS's swipe left and right
+  - `setup-macos --wm tide` turns off macOS's swipe left and right
     between Spaces, with three fingers or four, so the two don't both act
     (§6.6). `swipe = false` in start() turns tide's off.
   - *Unverified on a Mac:* that gesture events reach the tap on macOS 26
@@ -1704,7 +1704,7 @@ tide registers each with `RegisterEventHotKey`, which needs no permission
   - **Covering needs the setting.** While macOS still hides the menu bar,
     it slides in over everything at the top edge, tide's bar included,
     and no window level stops that. So tide says so at start and in
-    `tilemo doctor` (`checklist.MENU_BAR_NOTICE`), and the setup checklist
+    `tide doctor` (`checklist.MENU_BAR_NOTICE`), and the setup checklist
     asks for Never. It reads the setting at start and again whenever the
     displays change, as they do when the setting does, so covering starts
     without a reload *(unverified on a Mac that the screen watcher fires
@@ -1895,7 +1895,7 @@ tide registers each with `RegisterEventHotKey`, which needs no permission
     text color while on. A click opens Bluetooth settings.
     - Hammerspoon has no module for it (there is no `hs.bluetooth`), so
       tide asks `blueutil -p` (Homebrew's `blueutil`, which scripts'
-      `setup-macos --wm tilemo` installs), found at `/opt/homebrew/bin` or
+      `setup-macos --wm tide` installs), found at `/opt/homebrew/bin` or
       `/usr/local/bin`, since Hammerspoon's PATH has neither.
     - It runs through `hs.task`, never waiting on it, one run at a time:
       as tide starts, on wake, and every 30 s, and again when the
@@ -1942,7 +1942,7 @@ tide registers each with `RegisterEventHotKey`, which needs no permission
       once, then goes to the monitor.
       - The tool is Homebrew's `m1ddc` on Apple silicon or `ddcctl` on
         Intel, found at `/opt/homebrew/bin` or `/usr/local/bin`; scripts'
-        `setup-macos --wm tilemo` installs the one for the Mac. `m1ddc`
+        `setup-macos --wm tide` installs the one for the Mac. `m1ddc`
         comes first: `ddcctl`'s `IOFramebuffer` calls don't reach displays
         on Apple silicon.
       - The output's display is the one with the device's name, as macOS
@@ -2323,7 +2323,7 @@ three tabs. V as in paste. `Super+;` opens it on Characters and
       file, another account, a stray `cat` or upload, or an agent
       reading files. Not from a program running as you, which can ask
       `security` for the key too.
-    - **Where:** `~/Library/Caches/tilemo/clipboard-history`, mode 600
+    - **Where:** `~/Library/Caches/tide/clipboard-history`, mode 600
       in a 700 folder, which Time Machine leaves out. It's written whole
       after each copy kept, each entry forgotten, a clear, and a smaller
       cap, by a rename over the last, so a crash leaves the old file or
@@ -2410,7 +2410,7 @@ that isn't one is left out, and the log says so.
   once, however long WebKit takes to wake the hidden page: on CI's Mac the
   page has answered from 100 ms to 3.8 s after an open, and a key it hears
   waits as long. With something typed, tide hands Esc to the page
-  (`tilemo.escape()`), which clears the search as its own Esc does. The
+  (`tide.escape()`), which clears the search as its own Esc does. The
   page says `{ typed }` as the search goes from empty to not and back, so
   a key typed while the page is still waking may not have said so yet, and
   Esc then closes it.
@@ -2489,7 +2489,7 @@ that isn't one is left out, and the log says so.
     **"Toggle Do Not Disturb"**. *(The action's wording on macOS 26 is
     unverified.)*
   - **Missing ones are never silent.** At load tide runs `shortcuts
-    list`, and `tilemo doctor` names any that are missing. The first key
+    list`, and `tide doctor` names any that are missing. The first key
     or launcher action that needs one says in a notification what to make.
     A shortcut that's there but fails says so too, with what it printed.
   - **One at a time.** The shortcuts run one after another, in the order
@@ -2677,7 +2677,7 @@ that isn't one is left out, and the log says so.
       or whose `schemes` isn't a list is left alone. That, a save that
       fails, and an `input.json` that's wrong (by tide for Linux's checks: the last
       good settings stay) are each a notification once, and the Mouse
-      section and `tilemo doctor` say so.
+      section and `tide doctor` say so.
     - Without LinearMouse installed, nothing is written.
     - **Cost and reliability:** nothing to pay. One `defaults` run every
       30 s and at each event, off the main thread.
@@ -2952,16 +2952,16 @@ Each one names a workaround, or says there is none.
   so the step-while-held round, and its event tap for Super let go, go
   with them.
 
-## 15. Settings and `tilemo doctor`
+## 15. Settings and `tide doctor`
 
 - **A new copy reloads tide.** `make install`, and so `setup`, copies
-  tide into `~/.hammerspoon/tilemo`, which Hammerspoon runs. tide
+  tide into `~/.hammerspoon/tide`, which Hammerspoon runs. tide
   watches the folder it runs from (`hs.pathwatcher`), and a second after
   the last of a copy's files lands, it reloads Hammerspoon
   (`selfreload.lua`), so an update takes effect without a reload by hand.
   A hidden file, such as Finder's `.DS_Store`, changes nothing. Nothing
   else writes there: tide's own files are in `~/.config/tide` and
-  `~/Library/Caches/tilemo`.
+  `~/Library/Caches/tide`.
 
 - **`start()`'s `launcher`** picks the launcher: `"chooser"`, the
   `hs.chooser` switcher, by default, or `"dashboard"`, tide for Chrome's dashboard
@@ -2992,7 +2992,7 @@ Each one names a workaround, or says there is none.
   - A list of strings, each a bundle id or `site:<host>`. Empty by
     default. A `.local` list replaces the shared one whole (tide for Linux §16.1).
   - **A malformed entry is an error at load,** in a notification and in
-    `tilemo doctor`, naming the file and the entry, and the rest of the
+    `tide doctor`, naming the file and the entry, and the rest of the
     list still applies. Malformed: not a string, empty, with a space, or
     `site:` with no host or with more than a host (a scheme, a path, a
     port).
@@ -3072,7 +3072,7 @@ Each one names a workaround, or says there is none.
     twice (ignoring case), one with quotes, backslashes, `@` or control
     characters, space around it or over 32 characters, or an `inApps`
     entry that isn't text, is an error at load. It's a notification and a
-    line in `tilemo doctor`, naming the file and the setting, and the last
+    line in `tide doctor`, naming the file and the setting, and the last
     good lists stay. Each file is checked whole, as tide for Linux checks it, even
     where the other file's list is the one in effect.
   - A change applies at once, as tide for Linux's does. The first standing workspace
@@ -3140,7 +3140,7 @@ Each one names a workaround, or says there is none.
       and the rest) *(unverified that the anchors still select the list on
       macOS 26)*:
       - Accessibility: On or Off, as `hs.accessibilityState(false)` says,
-        which shows no prompt. Off is in red, and `tilemo doctor` names it.
+        which shows no prompt. Off is in red, and `tide doctor` names it.
       - Input Monitoring: Not needed while Super comes from Karabiner (§7.1).
         Without it, Can't tell: Hammerspoon has no call that reads it
         without asking.
@@ -3155,7 +3155,7 @@ Each one names a workaround, or says there is none.
       §5.1).
     - They're ticked off by hand, as tide for Chrome's are: macOS's settings are
       read nowhere. The ticks are this Mac's own, the items' IDs in
-      `hs.settings` (`tilemo.setup_done`); a tick for an item that's gone
+      `hs.settings` (`tide.setup_done`); a tick for an item that's gone
       is dropped. The section says how many are still to do.
     - The permissions are read each time the window draws, and again each
       time it comes forward, so one granted in System Settings shows on
@@ -3450,7 +3450,7 @@ Each one names a workaround, or says there is none.
     - **A key that didn't register** is listed under them, in red, with
       what it does and why: macOS refused it, or another binding has the
       same chord. With Super on Option that's Super+Print, which is
-      Alt+Print, the window screenshot. `tilemo doctor` names them too.
+      Alt+Print, the window screenshot. `tide doctor` names them too.
     - Its launcher row is "Tide Settings: Keyboard shortcuts", which
       scrolls to them, as tide for Linux's Keyboard shortcuts row does.
     - The mouse's Super+drag and the rest (§5.3) aren't listed: they're
@@ -3586,7 +3586,7 @@ Each one names a workaround, or says there is none.
 - **One owner per job** (tide for Linux §5): tide tiles, binds keys and draws the
   bar. Karabiner remaps the keyboard. macOS owns notifications, lock and
   idle. Nothing else tiles.
-- **`tilemo doctor`** checks what usually goes wrong. Each problem it finds
+- **`tide doctor`** checks what usually goes wrong. Each problem it finds
   is also a notification when it starts, as §1's "never degrade silently"
   asks, naming what stops working and the fix:
   - each permission (§11.1), and whether the event tap is still on (§16);
@@ -3603,7 +3603,7 @@ Each one names a workaround, or says there is none.
     rule, once each time that changes, rechecked every 30 s (§7.1, §7.2).
     **Built so far:** this check, Accessibility (the Setup checklist,
     above), Karabiner's and LinearMouse's, as
-    `tilemo.doctor()` in Hammerspoon's console and the switcher's "Check
+    `tide.doctor()` in Hammerspoon's console and the switcher's "Check
     tide for Linux (doctor)";
   - conf's Karabiner rules that are off, and what stops tide switching
     them (the Keyboard section, above);
@@ -3622,7 +3622,7 @@ Each one names a workaround, or says there is none.
 
 | Problem | What tide does |
 |---|---|
-| macOS switches off an event tap whose handler is too slow (`kCGEventTapDisabledByTimeout`), which would stop the Super tap, drags and focus follows mouse *(unverified how quickly)* | Keeps the handler short, re-enables the tap when told it was switched off, and `tilemo doctor` reports it. |
+| macOS switches off an event tap whose handler is too slow (`kCGEventTapDisabledByTimeout`), which would stop the Super tap, drags and focus follows mouse *(unverified how quickly)* | Keeps the handler short, re-enables the tap when told it was switched off, and `tide doctor` reports it. |
 | A macOS update, or a new tide build, resets Accessibility (scripts `docs/MACOS.md`) | The doctor and the checklist say so, and link the pane. |
 | Screen Recording asks again every so often since macOS 15 *(unverified on macOS 26)* | tide doesn't use it (§2.5). |
 | Secure Input stops event taps seeing keys (§13) | Registered hotkeys still work; the tap rules don't. |
@@ -3640,12 +3640,18 @@ Each one names a workaround, or says there is none.
   by `make icons`, with Playwright's Chromium: black on clear for the menu
   bar's template, tide for Linux's accent blue for the rest, at 4x their size in
   points. `brand.lua` holds the name and the logo's files.
-- **The code stays tilemo:** the Lua modules (`require("tilemo")`),
-  `start()`'s options, the `hs.settings` keys (`tilemo.*`), the workspace
-  file's folder, the pages' message handler and conf's `tilemo:`
-  Karabiner rule, so an `init.lua` and its saved state keep working.
-  Nothing shown is built from those names; a renamed command keeps its old
-  name as the key the switcher remembers its use by.
+- **The code is tide too:** the Lua modules (`require("tide")`), the
+  `hs.settings` keys (`tide.*`), the workspace file's folder, the pages'
+  message handler and conf's `tide:` Karabiner rule.
+- **What was tilemo's carries over.** `require("tilemo")` and
+  `require("timo")` load tide, with a note in the console. At start,
+  `hs.settings` keys starting `tilemo.` are copied to the same `tide.` ones
+  where tide has none, and the old ones stay, for a downgrade.
+  `~/Library/Caches/tilemo` moves to `~/Library/Caches/tide`, with a link in
+  its place for shells that still read it there. A Karabiner rule described
+  `tilemo:` or `timo:` still counts as tide's, and conf's `tilemo.json` as
+  conf's. A renamed command keeps its old name as the key the switcher
+  remembers its use by.
 
 - **tide** (this repo): the spec, then the code.
 - **conf:**
@@ -3712,7 +3718,7 @@ Each one names a workaround, or says there is none.
 7. **The built-in keyboard:** rotate its modifiers too, or PC keyboards
    only (§7.1)?
 8. **A key to toggle focus follows mouse:** decided, none;
-   `tilemo.toggle_focus_follows_mouse()` from Hammerspoon's console, or
+   `tide.toggle_focus_follows_mouse()` from Hammerspoon's console, or
    `focus_follows_mouse = false` in `start()` (§5.2).
 9. **`Super+1…9` and `Super+Shift+1…9`:** decided, positions in bar order
    (§7.2).

@@ -1,5 +1,5 @@
 local t = require("t")
-local volume = require("tilemo.volume")
+local volume = require("tide.volume")
 
 t.test("the popover lists the outputs by name, marking the one in use", function()
     local s = volume.state({ name = "Speakers", volume = 40.4, muted = false },
@@ -56,13 +56,13 @@ end)
 
 t.test("the popover's page draws the output and sends what its controls ask", function()
     if not os.execute("command -v node >/dev/null 2>&1") then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to check the volume popover's page")
         end
         print("SKIP the volume popover's page: no node")
         return
     end
-    local p = io.popen("node tests/volume_page.cjs hammerspoon/tilemo/dashboard/volume.js 2>&1")
+    local p = io.popen("node tests/volume_page.cjs hammerspoon/tide/dashboard/volume.js 2>&1")
     local out = p:read("a")
     if not p:close() then
         error(out)
@@ -70,10 +70,10 @@ t.test("the popover's page draws the output and sends what its controls ask", fu
 end)
 
 t.test("the popover's page has the bar's colors and its script in place", function()
-    local html = require("tilemo.volume_hs").page()
-    t.eq(html:find("TILEMO_", 1, true), nil, "no marker left")
+    local html = require("tide.volume_hs").page()
+    t.eq(html:find("TIDE_", 1, true), nil, "no marker left")
     t.eq(html:find("--accent", 1, true) ~= nil, true, "launcher.css's colors")
-    t.eq(html:find("window.tilemo = { update }", 1, true) ~= nil, true, "volume.js")
+    t.eq(html:find("window.tide = { update }", 1, true) ~= nil, true, "volume.js")
 end)
 
 t.done("volume")

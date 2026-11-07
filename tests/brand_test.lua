@@ -1,10 +1,10 @@
 -- What the desktop calls itself on screen: tide, with tide's logo, whatever
 -- the code is called (brand.lua).
 local t = require("t")
-local brand = require("tilemo.brand")
-local launcher = require("tilemo.launcher")
+local brand = require("tide.brand")
+local launcher = require("tide.launcher")
 
-local DIR = "hammerspoon/tilemo/"
+local DIR = "hammerspoon/tide/"
 
 local function read(path)
     local f = assert(io.open(path, "rb"))
@@ -74,11 +74,11 @@ local function adapter()
             return anything()
         end,
     })
-    package.loaded["tilemo.hs_adapter"] = nil
+    package.loaded["tide.hs_adapter"] = nil
     local ok, a = pcall(function()
-        return require("tilemo.hs_adapter").new()
+        return require("tide.hs_adapter").new()
     end)
-    package.loaded["tilemo.hs_adapter"] = nil
+    package.loaded["tide.hs_adapter"] = nil
     if not ok then
         _G.hs = was
         error(a)
@@ -187,7 +187,7 @@ end
 
 t.test("the logo's renders are 4x their size in points, with alpha", function()
     for name, size in pairs({ [brand.TEMPLATE] = brand.TEMPLATE_SIZE, [brand.LOGO] = brand.LOGO_SIZE }) do
-        local w, h, depth, kind = png(brand.icon_path("hammerspoon/tilemo", name))
+        local w, h, depth, kind = png(brand.icon_path("hammerspoon/tide", name))
         t.eq({ w, h }, { size.w * 4, size.h * 4 }, name)
         t.eq(depth, 8, name)
         t.eq(kind, 6, name .. " is RGBA")
@@ -198,17 +198,15 @@ end)
 -- state keep working: hs.settings keys, files and folders, the message
 -- handler pages talk to, conf's Karabiner rule, setup-macos's flag.
 local INTERNAL = {
-    "^tilemo%.[%w_.]+$", -- a module or an hs.settings key
-    "^tilemo%.%a+%(", -- calling the page's window.tilemo
-    "^/%%%*TILEMO_%u+%%%*/$", -- the pages' placeholders, as a pattern
     "^Reload tilemo$", -- what the switcher remembers a command's use by
     "^Check tilemo %(doctor%)$",
-    "^tilemo$", -- require("tilemo") or the pages' message handler
-    "^__tilemo_muted__$",
-    "^__tilemo_floating__$",
+    -- What tide moves over from when it was tilemo: hs.settings keys, the
+    -- Caches folder, conf's Karabiner rule and its file, and the shim's note.
+    "^tilemo%.$",
     "^Library/Caches/tilemo$",
     "^tilemo:$",
-    "%-%-wm tilemo%)$",
+    "^tilemo%.json$",
+    '^tide: require%("tilemo"%) is deprecated; use require%("tide"%)$',
 }
 
 local function internal(s)

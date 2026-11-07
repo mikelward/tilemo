@@ -1,5 +1,5 @@
 local t = require("t")
-local tap = require("tilemo.tap")
+local tap = require("tide.tap")
 
 local function watcher()
     local fired = 0

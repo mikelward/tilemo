@@ -1,7 +1,7 @@
 local t = require("t")
-local swipe = require("tilemo.swipe")
+local swipe = require("tide.swipe")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 local function watcher()
     local steps = {}

@@ -8,7 +8,7 @@ local json = require("json")
 
 local HOME = os.getenv("HOME") or ""
 
--- tilemo's world: `files` by path (tide's settings folder is /c/tide),
+-- tide's world: `files` by path (tide's settings folder is /c/tide),
 -- the pictures that exist, macOS's mode, and the dialog's answer.
 local function stub(opts)
     local s = { logged = {}, set = {}, dark = opts.dark or false, chooser = opts.chooser }
@@ -95,7 +95,7 @@ local function stub(opts)
         },
     }
     s.placed = {}
-    local tilemo = {
+    local tide = {
         clock_dir = "/c/tide",
         adapter = {
             read = function(path)
@@ -129,8 +129,8 @@ local function stub(opts)
             end,
         },
     }
-    package.loaded["tilemo.wallpaper_hs"] = nil
-    s.wall = require("tilemo.wallpaper_hs").new(tilemo)
+    package.loaded["tide.wallpaper_hs"] = nil
+    s.wall = require("tide.wallpaper_hs").new(tide)
     return s
 end
 

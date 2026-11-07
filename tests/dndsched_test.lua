@@ -4,8 +4,8 @@
 
 local t = require("t")
 local json = require("json")
-local dndsched = require("tilemo.dndsched")
-local dashboard = require("tilemo.dashboard")
+local dndsched = require("tide.dndsched")
+local dashboard = require("tide.dashboard")
 
 t.test("a window starting turns it on; ending turns off only what it turned on", function()
     local state, set = dndsched.step(nil, false)
@@ -32,7 +32,7 @@ if not run then
 end
 
 local function read(name)
-    local f = assert(io.open("hammerspoon/tilemo/dashboard/" .. name))
+    local f = assert(io.open("hammerspoon/tide/dashboard/" .. name))
     local s = f:read("a")
     f:close()
     return s

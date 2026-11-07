@@ -55,8 +55,8 @@ local function stub(screens)
         logger = { new = function() return { i = function() end } end },
         task = { new = function() end },
     }
-    package.loaded["tilemo.hs_adapter"] = nil
-    s.adapter = require("tilemo.hs_adapter").new()
+    package.loaded["tide.hs_adapter"] = nil
+    s.adapter = require("tide.hs_adapter").new()
     -- Hammerspoon is idle: what's waiting for it runs.
     function s.settle()
         local fn = s.idle
@@ -103,7 +103,7 @@ t.test("a display coming or going is read at once, as macOS says so", function()
     }
     hs.window.filter.ignoreAlways = {}
     local seen
-    local module = require("tilemo.hs_adapter")
+    local module = require("tide.hs_adapter")
     module.watch(function()
         seen = #s.adapter.screens()
     end, function() end, function() end, function() end, function() end, function() end)
@@ -135,7 +135,7 @@ t.test("the menu bar's setting is read again when the displays change", function
     }
     hs.window.filter.ignoreAlways = {}
     local seen
-    require("tilemo.hs_adapter").watch(function()
+    require("tide.hs_adapter").watch(function()
         seen = s.adapter.screens()[1]
     end, function() end, function() end, function() end, function() end, function() end)
     s.hides = true

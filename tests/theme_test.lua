@@ -5,8 +5,8 @@
 
 local t = require("t")
 local json = require("json")
-local theme = require("tilemo.theme")
-local dashboard = require("tilemo.dashboard")
+local theme = require("tide.theme")
+local dashboard = require("tide.dashboard")
 
 local run = require("jsrun")("tide's appearance module")
 if not run then
@@ -15,7 +15,7 @@ if not run then
 end
 
 local function read(name)
-    local f = assert(io.open("hammerspoon/tilemo/dashboard/" .. name))
+    local f = assert(io.open("hammerspoon/tide/dashboard/" .. name))
     local s = f:read("a")
     f:close()
     return s

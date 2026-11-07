@@ -95,7 +95,7 @@ tide, pulling an existing checkout first so each run keeps it current,
 writes the `init.lua` below if there isn't one, frees the keys tide needs
 (SPEC.md §7.3), and stops the menu bar hiding, so tide's bar covers it. `--wm amethyst` sets up Amethyst
 instead. Grant Hammerspoon Accessibility,
-and add conf's `tilemo:` Karabiner rule for a Super key that leaves Option
+and add conf's `tide:` Karabiner rule for a Super key that leaves Option
 alone (§7.1). By hand:
 
 1. Install [Hammerspoon](https://www.hammerspoon.org) and grant it
@@ -103,8 +103,8 @@ alone (§7.1). By hand:
 2. `make install`, then add to `~/.hammerspoon/init.lua`:
 
    ```lua
-   tilemo = require("tilemo")
-   tilemo.start({})
+   tide = require("tide")
+   tide.start({})
    ```
 
 3. Stop the menu bar hiding: System Settings › Control Center ›
@@ -116,9 +116,9 @@ alone (§7.1). By hand:
 
 To update, `git pull` and `make install` again (or run `setup`): tide
 reloads itself a second after the new copy lands in
-`~/.hammerspoon/tilemo`, so there's no reload to do by hand.
+`~/.hammerspoon/tide`, so there's no reload to do by hand.
 
-`tilemo.start({ bar = false })` leaves the bar out and shows tide's logo and
+`tide.start({ bar = false })` leaves the bar out and shows tide's logo and
 the workspaces in the menu bar instead.
 
 A workspace that isn't showing parks its windows off screen, as AeroSpace
@@ -126,20 +126,19 @@ does, so a switch is instant: all but a 1 pt sliver of each goes past a
 corner of its display. Mission Control would then show every workspace's
 windows, so `setup-macos` turns it off and tide's overview takes its
 keys, and Cmd+Tab to a parked window brings its workspace along.
-`tilemo.start({ hide = "minimize" })` minimizes them instead, as tide
+`tide.start({ hide = "minimize" })` minimizes them instead, as tide
 used to: Mission Control shows only the workspace on screen, but every
 switch animates. The default is `hide = "park"` (SPEC.md §6).
 
 The Switcher row under Keyboard in tide for Linux's settings swaps the `hs.chooser`
 switcher for tide for Chrome's dashboard page, still being tried, at once (SPEC.md
-§9.2). Until it's chosen there, `tilemo.start({ launcher = "dashboard" })`
+§9.2). Until it's chosen there, `tide.start({ launcher = "dashboard" })`
 does; the default is `launcher = "chooser"`.
 
 On screen it's tide: notifications, window titles, the switcher's own
-commands and the settings page say tide and show tide's wave logo. The code
-keeps the name tilemo, so `require("tilemo")`, `start()`'s options and what
-it has saved are unchanged. `make icons` renders the logo's PNGs from tide
-for Linux's SVG with Playwright's Chromium.
+commands and the settings page say tide and show tide's wave logo.
+`make icons` renders the logo's PNGs from tide for Linux's SVG with
+Playwright's Chromium.
 
 `workspaces` names the standing workspaces, which are always on the bar and
 never removed. It defaults to `{ "in", "re", "oc", "me" }`. The first is the
@@ -152,7 +151,7 @@ apps and Google's web apps. A list you set also starts at login, once a
 login, in the background, skipping any app that's running:
 
 ```lua
-tilemo.start({ home_apps = { "Mail", "Messages", "Calendar", "Music" } })
+tide.start({ home_apps = { "Mail", "Messages", "Calendar", "Music" } })
 ```
 
 `workspace_settings` is each workspace's own, as tide for Linux's `workspaceSettings`:
@@ -162,7 +161,7 @@ and nothing is pinned; set, a workspace it doesn't list, or a field it
 leaves out, is off:
 
 ```lua
-tilemo.start({ workspace_settings = { ["in"] = { askForName = true, pinnedApps = { "Gmail", "Google Chat" } } } })
+tide.start({ workspace_settings = { ["in"] = { askForName = true, pinnedApps = { "Gmail", "Google Chat" } } } })
 ```
 
 tide for Linux's `standing`, `inApps` and `workspaceSettings`, in
@@ -186,27 +185,28 @@ the window's title: its first word, or a match of tide for Linux's `namePatterns
 `~/.config/tide/workspaces.json`, which are JavaScript regular expressions.
 Apps tide starts get the workspace's name, letters and digits only (in
 any script, NFC-normalized), as `TIDE_WORKSPACE`. Scripts read the current one with
-`cat ~/Library/Caches/tilemo/workspace`, a file only you can read, which
+`cat ~/Library/Caches/tide/workspace`, a file only you can read, which
 tide rewrites whenever the workspace changes. tide doesn't load
 `hs.ipc`, since its port runs any Lua a local process sends it.
 
 `start()` takes float rules, checked when it starts:
 
 ```lua
-tilemo.start({ rules = { { app = "com.apple.finder", title = "^Info$", action = "float" } } })
+tide.start({ rules = { { app = "com.apple.finder", title = "^Info$", action = "float" } } })
 ```
 
 Each title is a Lua pattern, found anywhere in the title. They come before
 the rules the settings window's Floating section keeps in
 `~/.config/tide/floating-macos.local.json`, which only float (SPEC.md §15).
 
-tide was called timo. An install from then keeps working after
-`make install`: `require("timo")` still loads tide, with a note in the
-console to change it to `require("tilemo")`; a Karabiner rule described
-`timo:` still counts; and the workspaces and launcher history timo saved are
-read the first time tide finds none of its own. The old modules in
-`~/.hammerspoon/timo/` are no longer used, and can go once `init.lua` says
-`require("tilemo")`.
+tide was called tilemo, and timo before that. An install from then keeps
+working after `make install`: `require("tilemo")` and `require("timo")`
+still load tide, with a note in the console to change it to
+`require("tide")`; a Karabiner rule described `tilemo:` or `timo:` still
+counts; what tilemo saved is copied to tide's settings the first time it
+starts; and `~/Library/Caches/tilemo` moves to `~/Library/Caches/tide`, with
+a link left in its place. `~/.hammerspoon/tilemo/` and `~/.hammerspoon/timo/`
+can go once `init.lua` says `require("tide")`.
 
 Super is the PC keyboard's Win key. With conf's Karabiner rule, it arrives
 as Ctrl+Option+Command, so Option keeps its own meanings. Without it, tide

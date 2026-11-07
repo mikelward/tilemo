@@ -1,18 +1,18 @@
 -- A smoke test that runs inside a real Hammerspoon, on CI's macOS runner.
--- The fake in tests/ can't tell whether an hs.* function tilemo calls exists
--- in the Hammerspoon people install, so this checks that, then starts tilemo,
+-- The fake in tests/ can't tell whether an hs.* function tide calls exists
+-- in the Hammerspoon people install, so this checks that, then starts tide,
 -- checks its bar is up, opens and closes the dashboard, and tiles a few
 -- windows below the bar. GitHub's macOS runners come with Accessibility
 -- granted, so the tiling is real.
 --
 -- ci/hs-smoke.sh points ~/.hammerspoon/init.lua at this file, with
--- TILEMO_SMOKE_OUT set to where the results go.
+-- TIDE_SMOKE_OUT set to where the results go.
 
-local bar = require("tilemo.bar")
-local dashboard = require("tilemo.dashboard")
-local layout = require("tilemo.layout")
+local bar = require("tide.bar")
+local dashboard = require("tide.dashboard")
+local layout = require("tide.layout")
 
-local out_path = TILEMO_SMOKE_OUT
+local out_path = TIDE_SMOKE_OUT
 local failed = false
 
 -- Each line goes out as it's made, so a hang still shows how far it got.
@@ -20,7 +20,7 @@ local function say(fmt, ...)
     local line = string.format(fmt, ...)
     local f, err = io.open(out_path, "a")
     if not f then
-        print("tilemo smoke: can't write " .. out_path .. ": " .. tostring(err))
+        print("tide smoke: can't write " .. out_path .. ": " .. tostring(err))
         return
     end
     f:write(line, "\n")
@@ -41,9 +41,9 @@ end
 
 say("Hammerspoon %s, %s", hs.processInfo.version, _VERSION)
 
--- Every hs.x.y tilemo names in its source, resolved here. hs loads its
+-- Every hs.x.y tide names in its source, resolved here. hs loads its
 -- extensions on first touch, so walking the path is the real lookup.
-local dir = hs.configdir .. "/tilemo"
+local dir = hs.configdir .. "/tide"
 local seen = {}
 for file in hs.fs.dir(dir) do
     if file:match("%.lua$") then
@@ -87,7 +87,7 @@ for _, path in ipairs(paths) do
 end
 say("checked %d hs.* names", #paths)
 
--- Open TextEdit windows and check tilemo tiles them where its layout says
+-- Open TextEdit windows and check tide tiles them where its layout says
 -- (SPEC.md §5). TextEdit, because `open` can give it several windows
 -- without asking for Automation, which a runner can't grant.
 local APP = "com.apple.TextEdit"
@@ -105,7 +105,7 @@ local function app_windows(wm)
     return out
 end
 
--- Where each tiled window is against where tilemo's layout puts it, or nil
+-- Where each tiled window is against where tide's layout puts it, or nil
 -- and why not yet.
 local function tiling_misses(wm)
     if #app_windows(wm) < WANT then
@@ -143,18 +143,18 @@ end
 -- The bar: a strip along the top of each display, its page loaded, and the
 -- tiling area starting below it.
 local function check_bar()
-    if not tilemo.bar then
-        fail("bar: tilemo started without its bar")
+    if not tide.bar then
+        fail("bar: tide started without its bar")
         return
     end
-    local frames = tilemo.bar.frames()
+    local frames = tide.bar.frames()
     local n = 0
-    for _, s in ipairs(tilemo.adapter.screens()) do
+    for _, s in ipairs(tide.adapter.screens()) do
         -- Where bar.place puts it: over a menu bar that shows (as on CI's
         -- Mac), from the top of the screen; macOS must let it stay there.
         local want, below = bar.place(s, bar.HEIGHT)
         local got = frames[s.uuid]
-        local v = tilemo.bar.views[s.uuid]
+        local v = tide.bar.views[s.uuid]
         if not got then
             fail("bar: none on display %s", s.uuid)
         else
@@ -172,27 +172,27 @@ local function check_bar()
             end
             n = n + 1
         end
-        local tiling = tilemo.wm:screen_by_uuid(s.uuid).area
+        local tiling = tide.wm:screen_by_uuid(s.uuid).area
         if tiling.y ~= below.y then
             fail("bar: tiling starts at y=%d, want %d", tiling.y, below.y)
         end
     end
     -- Which status items this Mac has; the network one is always drawn.
     local items = {}
-    for k in pairs(tilemo.bar.icons) do
+    for k in pairs(tide.bar.icons) do
         items[#items + 1] = k
     end
     table.sort(items)
-    if not tilemo.bar.icons.network then
+    if not tide.bar.icons.network then
         fail("bar: no network status item")
     end
     -- A chip's app icon, from a bundle every Mac has.
-    local finder = tilemo.bar.icon_of("com.apple.finder")
+    local finder = tide.bar.icon_of("com.apple.finder")
     if type(finder) ~= "string" or not finder:find("^data:image/png;base64,") then
         fail("bar: no icon for Finder (got %s)", tostring(finder))
     end
     -- Anything a page reported: a script error or a failed load.
-    for _, e in ipairs(tilemo.bar.errors) do
+    for _, e in ipairs(tide.bar.errors) do
         fail("bar: %s", e)
     end
     say("bar up on %d display(s), with %s", n, table.concat(items, ", "))
@@ -218,14 +218,14 @@ local TARGETS_JS = [==[
           continue;
         }
         // A status item that only shows something (the camera) isn't hovered.
-        tilemo.pointer(x, y);
+        tide.pointer(x, y);
         const lit = document.querySelectorAll(".hover");
         const shows = !e.closest("button, #clocks, #title");
         if (shows ? lit.length !== 0 : lit.length !== 1 || !e.closest(".hover")) dead.push("hover " + x + "," + y);
       }
     }
   }
-  tilemo.pointer(null);
+  tide.pointer(null);
   // The corner is the Apple logo's, which opens the Apple menu, as on a
   // Mac's own menu bar.
   if (!document.elementFromPoint(0, innerHeight / 2)?.closest("#apple")) dead.push("corner, not the Apple logo");
@@ -234,7 +234,7 @@ local TARGETS_JS = [==[
 ]==]
 
 local function check_bar_targets(after)
-    local _, v = next(tilemo.bar and tilemo.bar.views or {})
+    local _, v = next(tide.bar and tide.bar.views or {})
     if not (v and v.ready) then
         -- check_bar has said why.
         after()
@@ -300,7 +300,7 @@ local CHIPS_JS = [==[
 local CHIPS_WAIT = 5
 
 local function check_bar_chips(after)
-    local _, v = next(tilemo.bar and tilemo.bar.views or {})
+    local _, v = next(tide.bar and tide.bar.views or {})
     if not (v and v.ready) then
         -- check_bar has said why.
         after()
@@ -358,8 +358,8 @@ local function wait_for_bar(next)
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_bar_poll = hs.timer.doEvery(0.5, function()
-        local ready = tilemo.bar ~= nil
-        for _, v in pairs(tilemo.bar and tilemo.bar.views or {}) do
+        local ready = tide.bar ~= nil
+        for _, v in pairs(tide.bar and tide.bar.views or {}) do
             ready = ready and v.ready
         end
         if ready or hs.timer.secondsSinceEpoch() - started > BAR_WAIT then
@@ -383,10 +383,10 @@ local function plain(v)
 end
 
 local function check_launcher_attention()
-    local wm = tilemo.wm
+    local wm = tide.wm
     local id
     for _, w in ipairs(app_windows(wm)) do
-        if w ~= tilemo.adapter.focused() then
+        if w ~= tide.adapter.focused() then
             id = w
         end
     end
@@ -396,15 +396,15 @@ local function check_launcher_attention()
     end
     wm.attention:activated(id, wm.windows[id].app)
     local ok, err = xpcall(function()
-        tilemo.launcher.show()
+        tide.launcher.show()
         local scope = "launch"
         repeat
-            scope = require("tilemo.launcher").next_scope(scope)
-            tilemo.launcher.set_scope(scope)
+            scope = require("tide.launcher").next_scope(scope)
+            tide.launcher.set_scope(scope)
         until scope == "attention"
-        local row = tilemo.launcher.row(1) or {}
-        tilemo.launcher.cancel()
-        local want = tilemo.adapter.title(id)
+        local row = tide.launcher.row(1) or {}
+        tide.launcher.cancel()
+        local want = tide.adapter.title(id)
         if plain(row.text) ~= want or not tostring(plain(row.subText)):find("TextEdit", 1, true) then
             fail("launcher: Attention shows %s (%s), not %s", tostring(plain(row.text)), tostring(plain(row.subText)), want)
         else
@@ -412,16 +412,16 @@ local function check_launcher_attention()
         end
         -- The Windows tab lists every window, with its app and workspace
         -- (SPEC.md §9).
-        tilemo.launcher.show("windows")
+        tide.launcher.show("windows")
         local listed = false
         for n = 1, 50 do
-            local r = tilemo.launcher.row(n)
+            local r = tide.launcher.row(n)
             if not r then
                 break
             end
             listed = listed or (plain(r.text) == want and tostring(plain(r.subText)):find("TextEdit", 1, true) ~= nil)
         end
-        tilemo.launcher.cancel()
+        tide.launcher.cancel()
         if not listed then
             fail("launcher: the Windows tab doesn't list %s", tostring(want))
         else
@@ -429,11 +429,11 @@ local function check_launcher_attention()
         end
         -- Return on a header leaves the switcher open (SPEC.md §9): Actions
         -- with nothing typed starts with its Session header.
-        tilemo.launcher.show("actions")
-        local header = tilemo.launcher.row(1) or {}
-        tilemo.launcher.choose(1)
-        local stayed = tilemo.launcher.is_open()
-        tilemo.launcher.cancel()
+        tide.launcher.show("actions")
+        local header = tide.launcher.row(1) or {}
+        tide.launcher.choose(1)
+        local stayed = tide.launcher.is_open()
+        tide.launcher.cancel()
         if header.valid ~= false then
             fail("launcher: Actions' first row is %s, not a header", tostring(plain(header.text)))
         elseif not stayed then
@@ -443,12 +443,12 @@ local function check_launcher_attention()
         end
         -- The bar's logo closes the switcher on any tab, and opens it on
         -- Launch (SPEC.md §8).
-        tilemo.launcher.show("windows")
-        tilemo.launcher.toggle()
-        local closed = not tilemo.launcher.is_open()
-        tilemo.launcher.toggle()
-        local opened = tilemo.launcher.is_open() and tilemo.launcher.scope() == "launch"
-        tilemo.launcher.cancel()
+        tide.launcher.show("windows")
+        tide.launcher.toggle()
+        local closed = not tide.launcher.is_open()
+        tide.launcher.toggle()
+        local opened = tide.launcher.is_open() and tide.launcher.scope() == "launch"
+        tide.launcher.cancel()
         if not (closed and opened) then
             fail("launcher: the logo's toggle %s", closed and "didn't open it on Launch" or "didn't close it on Windows")
         else
@@ -467,25 +467,25 @@ end
 local PAGE_WAIT = 15
 
 local function check_launcher_page(after)
-    local key = require("tilemo.launcherpage").SETTINGS_KEY
-    local switcher = tilemo.launcher
+    local key = require("tide.launcherpage").SETTINGS_KEY
+    local switcher = tide.launcher
     local function done()
-        local back = tilemo.set_launcher("chooser")
-        if not back or tilemo.launcher == switcher or tilemo.launcher_choice ~= "chooser" then
-            fail("launcher: switching back to the switcher left %s", tostring(tilemo.launcher_choice))
+        local back = tide.set_launcher("chooser")
+        if not back or tide.launcher == switcher or tide.launcher_choice ~= "chooser" then
+            fail("launcher: switching back to the switcher left %s", tostring(tide.launcher_choice))
         end
         hs.settings.clear(key)
         after()
     end
     local made = hs.timer.secondsSinceEpoch()
-    local to, why = tilemo.set_launcher("dashboard")
-    local page = tilemo.launcher
+    local to, why = tide.set_launcher("dashboard")
+    local page = tide.launcher
     if not to then
         fail("launcher: couldn't switch to tileco's: %s", tostring(why))
         done()
         return
-    elseif page == switcher or page.row() ~= nil or tilemo.launcher_choice ~= "dashboard" or hs.settings.get(key) ~= "dashboard" then
-        fail("launcher: switching to tileco's left %s, kept as %s", tostring(tilemo.launcher_choice), tostring(hs.settings.get(key)))
+    elseif page == switcher or page.row() ~= nil or tide.launcher_choice ~= "dashboard" or hs.settings.get(key) ~= "dashboard" then
+        fail("launcher: switching to tileco's left %s, kept as %s", tostring(tide.launcher_choice), tostring(hs.settings.get(key)))
         done()
         return
     end
@@ -505,13 +505,13 @@ local function check_launcher_page(after)
             return
         end
         -- The page's own clock says where the time went: from the key to
-        -- the page hearing tilemo.open, drawing it, and answering this.
-        page.evaluate([[JSON.stringify({ scope: tilemo.scope(), at: Date.now(), opened: tilemo.opened })]],
+        -- the page hearing tide.open, drawing it, and answering this.
+        page.evaluate([[JSON.stringify({ scope: tide.scope(), at: Date.now(), opened: tide.opened })]],
             function(answer, err)
             local back = hs.timer.secondsSinceEpoch()
             local ms = math.floor((back - asked) * 1000)
             local stayed = page.is_open()
-            tilemo.adapter.after(0, function()
+            tide.adapter.after(0, function()
                 page.cancel()
                 -- A string is evaluate()'s own; a table is { code = 0 } on
                 -- success (dashboard.js_failed).
@@ -548,7 +548,7 @@ local function check_launcher_page(after)
         -- The Lua side's parts, each as an open runs it: the apps read
         -- from disk, then that with each window's title and app, then the
         -- rows made from them.
-        local launcher_hs = require("tilemo.launcher_hs")
+        local launcher_hs = require("tide.launcher_hs")
         local function ms(fn)
             local t0 = hs.timer.secondsSinceEpoch()
             local out = fn()
@@ -556,20 +556,20 @@ local function check_launcher_page(after)
         end
         local scan_ms, scanned = ms(launcher_hs.scan)
         local collector_ms, collect = ms(function()
-            return launcher_hs.collector(tilemo)
+            return launcher_hs.collector(tide)
         end)
         local rows_ms, rows = ms(function()
             return collect({})
         end)
         local placed = 0
-        for _, w in pairs(tilemo.wm.windows) do
+        for _, w in pairs(tide.wm.windows) do
             if w.ws then
                 placed = placed + 1
             end
         end
         say("launcher: its Lua side reads %d apps in %d ms, and with %d windows in %d ms, and makes %d rows in %d ms",
             #scanned, scan_ms, placed, collector_ms, #rows, rows_ms)
-        local before = tilemo.adapter.focused()
+        local before = tide.adapter.focused()
         local function shown(stayed)
             return stayed and "open" or "closed"
         end
@@ -584,7 +584,7 @@ local function check_launcher_page(after)
             -- open it again.
             local closed = hs.timer.secondsSinceEpoch()
             smoke_page_poll = hs.timer.doEvery(0.05, function()
-                local back = tilemo.adapter.focused() == before
+                local back = tide.adapter.focused() == before
                 if not back and hs.timer.secondsSinceEpoch() - closed <= 2 then
                     return
                 end
@@ -648,7 +648,7 @@ end
 
 local function check_launcher_keys(after)
     time_displays()
-    local key = require("tilemo.launcherpage").SETTINGS_KEY
+    local key = require("tide.launcherpage").SETTINGS_KEY
     local results = {}
     -- Poll until `cond()`, then done(ms, met): met only within KEY_WAIT,
     -- since a Hammerspoon held past it polls first once it's done.
@@ -663,13 +663,13 @@ local function check_launcher_keys(after)
             end
         end)
     end
-    local before = tilemo.adapter.focused()
+    local before = tide.adapter.focused()
     -- How many times the window manager synced and retiled meanwhile: a
     -- launcher showing or hiding moves no window.
     local counts = { sync = 0, retile = 0 }
     for _, name in ipairs({ "sync", "retile" }) do
-        local real = tilemo.wm[name]
-        tilemo.wm[name] = function(...)
+        local real = tide.wm[name]
+        tide.wm[name] = function(...)
             counts[name] = counts[name] + 1
             return real(...)
         end
@@ -719,32 +719,32 @@ local function check_launcher_keys(after)
         end
         return #out > 0 and table.concat(out, ", ") or "none"
     end
-    for name, fn in pairs(tilemo.adapter) do
+    for name, fn in pairs(tide.adapter) do
         if type(fn) == "function" then
-            tilemo.adapter[name] = timed("adapter." .. name, fn)
+            tide.adapter[name] = timed("adapter." .. name, fn)
         end
     end
     for _, name in ipairs({ "focused", "focused_window", "moved", "retitled", "minimized", "unminimized", "schedule",
         "sync", "retile", "reconcile", "focus_window", "raise_floats", "changed", "ask_next", "hold", "own_window" }) do
-        if tilemo.wm[name] then
-            tilemo.wm[name] = timed("wm." .. name, tilemo.wm[name])
+        if tide.wm[name] then
+            tide.wm[name] = timed("wm." .. name, tide.wm[name])
         end
     end
     -- What a change redraws: the bar, the tray and the workspace's file.
     for owner, names in pairs({ bar = { "update" }, tray = { "update" } }) do
         for _, name in ipairs(names) do
-            local o = tilemo[owner]
+            local o = tide[owner]
             if o and o[name] then
                 o[name] = timed(owner .. "." .. name, o[name])
             end
         end
     end
-    if tilemo.publish_workspace then
-        tilemo.publish_workspace = timed("publish_workspace", tilemo.publish_workspace)
+    if tide.publish_workspace then
+        tide.publish_workspace = timed("publish_workspace", tide.publish_workspace)
     end
     -- What an open reads: the apps on disk, the rows made from them and
     -- the windows, and the browsers asked for their tabs.
-    local launcher_hs = require("tilemo.launcher_hs")
+    local launcher_hs = require("tide.launcher_hs")
     for _, name in ipairs({ "scan", "fetch_tabs" }) do
         launcher_hs[name] = timed("launcher_hs." .. name, launcher_hs[name])
     end
@@ -752,7 +752,7 @@ local function check_launcher_keys(after)
     launcher_hs.collector = timed("launcher_hs.collector", function(...)
         return timed("launcher_hs.collect", collector(...))
     end)
-    local ffm = tilemo.wm.ffm
+    local ffm = tide.wm.ffm
     for _, name in ipairs({ "move", "resync", "remember", "hit", "settled", "under_float", "prefer_dialog", "focus" }) do
         if ffm and ffm[name] then
             ffm[name] = timed("ffm." .. name, ffm[name])
@@ -770,14 +770,14 @@ local function check_launcher_keys(after)
         return #out > 0 and table.concat(out, ", ") or "none"
     end
     local function try(choice, next)
-        local ok, why = tilemo.set_launcher(choice)
+        local ok, why = tide.set_launcher(choice)
         if not ok then
             fail("launcher keys: couldn't switch to %s: %s", choice, tostring(why))
             next()
             return
         end
-        local launcher = tilemo.launcher
-        -- Shown once already, as tilemo's launcher has been by the time a
+        local launcher = tide.launcher
+        -- Shown once already, as tide's launcher has been by the time a
         -- person presses the key: a new hs.chooser's first show makes its
         -- window.
         if not launcher.ready then
@@ -787,7 +787,7 @@ local function check_launcher_keys(after)
         -- Loaded, and the focus back where it was, as a person's key finds
         -- it.
         until_(function()
-            return (not launcher.ready or launcher.ready()) and tilemo.adapter.focused() == before
+            return (not launcher.ready or launcher.ready()) and tide.adapter.focused() == before
         end, function(_, settled)
             if not settled then
                 fail("launcher keys: %s didn't settle before its key", choice)
@@ -796,7 +796,7 @@ local function check_launcher_keys(after)
             busiest()
             local t0 = hs.timer.secondsSinceEpoch()
             local lag
-            hs.eventtap.keyStroke(tilemo.super, "space", 1000)
+            hs.eventtap.keyStroke(tide.super, "space", 1000)
             -- How long Hammerspoon is busy after the key: a timer for now
             -- fires once it's free.
             smoke_key_lag = hs.timer.doAfter(0, function()
@@ -828,7 +828,7 @@ local function check_launcher_keys(after)
                 slowest()
                 busiest()
                 local p0 = hs.timer.absoluteTime()
-                tilemo.wm:poll_attention()
+                tide.wm:poll_attention()
                 local poll_ms = (hs.timer.absoluteTime() - p0) // 1000000
                 local poll_slow = slowest()
                 say("launcher keys: with %s open, the attention poll takes %d ms; its calls of 50 ms or more: %s",
@@ -858,11 +858,11 @@ local function check_launcher_keys(after)
                             choice, open_ms, tostring(open_lag), open_work,
                             painted and (", painted at " .. painted .. " ms") or "", close_ms, tostring(lag),
                             counted(), heard_esc and (", the page heard it at " .. heard_esc .. " ms")
-                                or (launcher.evaluate and ", tilemo's, not the page's" or ""))
+                                or (launcher.evaluate and ", tide's, not the page's" or ""))
                         next()
                     end
                     until_(function()
-                        return tilemo.adapter.focused() == before
+                        return tide.adapter.focused() == before
                     end, function()
                         smoke_key_lag = hs.timer.doAfter(0.3, function()
                             if not launcher.evaluate then
@@ -872,12 +872,12 @@ local function check_launcher_keys(after)
                             -- When the page had painted the open, from
                             -- Super+Space, and heard Esc, from Esc, by its
                             -- clock.
-                            launcher.evaluate("JSON.stringify({ esc: tilemo.esc, opened: tilemo.opened })",
+                            launcher.evaluate("JSON.stringify({ esc: tide.esc, opened: tide.opened })",
                                 function(answer)
-                                tilemo.adapter.after(0, function()
+                                tide.adapter.after(0, function()
                                     local got = type(answer) == "string" and hs.json.decode(answer) or {}
                                     local painted = got.opened and got.opened.painted
-                                    -- Esc is tilemo's while it's open, so the
+                                    -- Esc is tide's while it's open, so the
                                     -- page shouldn't hear it at all.
                                     local heard = got.esc and got.esc >= t1 * 1000
                                     report(painted and tostring(math.floor(painted - t0 * 1000)) or "not",
@@ -909,13 +909,13 @@ local function check_dim(after)
         return math.abs(p - q) <= 1
     end
     local function why_not()
-        local id = tilemo.adapter.focused()
-        local st = id and tilemo.adapter.state(id)
+        local id = tide.adapter.focused()
+        local st = id and tide.adapter.state(id)
         if not st then
             return "no window has focus"
         end
         local why = "no layer is showing"
-        for _, c in pairs(tilemo.dim.canvases) do
+        for _, c in pairs(tide.dim.canvases) do
             local hole, full = c[2], c:frame()
             if c:isShowing() and hole then
                 local f, w = hole.frame, st.frame
@@ -953,7 +953,7 @@ local function check_tiling()
     local dir = os.getenv("TMPDIR") or "/tmp"
     local files = {}
     for i = 1, WANT do
-        local path = string.format("%s/tilemo-smoke-%d.txt", dir, i)
+        local path = string.format("%s/tide-smoke-%d.txt", dir, i)
         local f, err = io.open(path, "w")
         if not f then
             fail("tiling: can't write %s: %s", path, tostring(err))
@@ -969,12 +969,12 @@ local function check_tiling()
         finish()
         return
     end
-    -- TextEdit and tilemo's watchers take a moment; wait for them, up to a
+    -- TextEdit and tide's watchers take a moment; wait for them, up to a
     -- deadline, rather than a fixed time.
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_poll = hs.timer.doEvery(0.5, function()
-        local misses, why = tiling_misses(tilemo.wm)
+        local misses, why = tiling_misses(tide.wm)
         local done = misses and #misses == 0
         if done or hs.timer.secondsSinceEpoch() - started > TILE_WAIT then
             smoke_poll:stop()
@@ -1001,34 +1001,34 @@ end
 
 -- An app key whose helper fails says so. ci/hs-smoke.sh puts a stand-in
 -- runenv in ~/scripts, and a helper that waits on a FIFO, then exits 3;
--- collecting garbage before letting it go checks tilemo still hears it.
+-- collecting garbage before letting it go checks tide still hears it.
 local HELPER_WAIT = 15
 
 local function check_failing_helper(next)
     local notes = {}
-    local notify = tilemo.adapter.notify
-    tilemo.adapter.notify = function(text)
+    local notify = tide.adapter.notify
+    tide.adapter.notify = function(text)
         notes[#notes + 1] = text
         notify(text)
     end
-    tilemo.adapter.launch({ run = "tilemo-smoke-fail" })
+    tide.adapter.launch({ run = "tide-smoke-fail" })
     collectgarbage("collect")
     collectgarbage("collect")
     -- In the background: if the helper's gone, nothing reads the FIFO,
     -- and the write would wait for ever.
-    hs.execute("echo go >\"$HOME/scripts/tilemo-smoke-go\" &")
+    hs.execute("echo go >\"$HOME/scripts/tide-smoke-go\" &")
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_helper_poll = hs.timer.doEvery(0.5, function()
         local heard
         for _, n in ipairs(notes) do
-            if n:find("tilemo-smoke-fail failed: no such app", 1, true) then
+            if n:find("tide-smoke-fail failed: no such app", 1, true) then
                 heard = n
             end
         end
         if heard or hs.timer.secondsSinceEpoch() - started > HELPER_WAIT then
             smoke_helper_poll:stop()
-            tilemo.adapter.notify = notify
+            tide.adapter.notify = notify
             if heard then
                 say("a failing app key says so: %s", heard)
             else
@@ -1042,18 +1042,18 @@ end
 
 -- Print takes a screenshot with macOS's own keys, which saves it to
 -- Screenshot's folder (ci/hs-smoke.sh points it at a temporary one), and
--- tilemo puts it on the clipboard too (SPEC.md §10).
+-- tide puts it on the clipboard too (SPEC.md §10).
 local SHOT_WAIT = 20
 
 local function shots_dir()
     local out = hs.execute("/usr/bin/defaults read com.apple.screencapture location 2>/dev/null")
-    return require("tilemo.shots").folder(out, os.getenv("HOME") or "")
+    return require("tide.shots").folder(out, os.getenv("HOME") or "")
 end
 
 local function check_screenshot(next)
     local dir = shots_dir()
     local before = hs.pasteboard.changeCount()
-    tilemo.wm:act("screenshot", "screen")
+    tide.wm:act("screenshot", "screen")
     local started = hs.timer.secondsSinceEpoch()
     local file
     -- A global, like smoke_timer, so it isn't collected.
@@ -1078,7 +1078,7 @@ local function check_screenshot(next)
     end)
 end
 
--- Moving Screenshot's folder while tilemo runs, as setup-macos does: tilemo
+-- Moving Screenshot's folder while tide runs, as setup-macos does: tide
 -- follows it, and a shot saved there is copied too.
 local function check_moved_screenshot(next)
     local dir = hs.execute("/usr/bin/mktemp -d"):gsub("%s+$", "")
@@ -1086,52 +1086,52 @@ local function check_moved_screenshot(next)
     local started = hs.timer.secondsSinceEpoch()
     -- A global, like smoke_timer, so it isn't collected.
     smoke_move_poll = hs.timer.doEvery(0.5, function()
-        if tilemo.shots.dir == dir then
+        if tide.shots.dir == dir then
             smoke_move_poll:stop()
             say("screenshot folder followed to a new one")
             check_screenshot(next)
         elseif hs.timer.secondsSinceEpoch() - started > SHOT_WAIT then
             smoke_move_poll:stop()
-            fail("screenshot: still watching %s after the folder moved to %s", tostring(tilemo.shots.dir), dir)
+            fail("screenshot: still watching %s after the folder moved to %s", tostring(tide.shots.dir), dir)
             next()
         end
     end)
 end
 
--- Start tilemo as init.lua would, then open and close the dashboard.
+-- Start tide as init.lua would, then open and close the dashboard.
 local ok, err = xpcall(function()
-    tilemo = require("tilemo")
+    tide = require("tide")
     -- TextEdit is one of "in"'s apps here, so its windows tile on "in"
     -- rather than wait on the name prompt, which nothing answers in CI.
-    tilemo.start({ home_apps = { "TextEdit" } })
+    tide.start({ home_apps = { "TextEdit" } })
 end, debug.traceback)
 if not ok then
-    fail("tilemo.start: %s", err)
+    fail("tide.start: %s", err)
     finish()
     return
 end
-say("tilemo started")
--- The runner has no Karabiner and no LinearMouse: tilemo doctor says so,
+say("tide started")
+-- The runner has no Karabiner and no LinearMouse: tide doctor says so,
 -- and what each costs.
 do
-    local report = tostring(tilemo.doctor())
+    local report = tostring(tide.doctor())
     if not report:find("Karabiner isn't running", 1, true) then
-        fail("tilemo.doctor() says %s", report)
+        fail("tide.doctor() says %s", report)
     else
-        say("tilemo doctor: no Karabiner, as expected")
+        say("tide doctor: no Karabiner, as expected")
     end
-    if tilemo.linearmouse ~= "missing" or not report:find("LinearMouse isn't installed", 1, true) then
-        fail("LinearMouse: %s, Launch Services' path %s; tilemo.doctor() says %s", tostring(tilemo.linearmouse),
+    if tide.linearmouse ~= "missing" or not report:find("LinearMouse isn't installed", 1, true) then
+        fail("LinearMouse: %s, Launch Services' path %s; tide.doctor() says %s", tostring(tide.linearmouse),
             hs.inspect(hs.application.pathForBundleID("com.lujjjh.LinearMouse")), report)
     else
-        say("tilemo doctor: no LinearMouse, as expected")
+        say("tide doctor: no LinearMouse, as expected")
     end
 end
 -- The settings window's Shortcuts: the keys registered with Super on
 -- Option, and only Super+Print left out, since Alt+Print has its chord,
 -- and maybe the overview's keys.
 do
-    local s = tilemo.shortcuts
+    local s = tide.shortcuts
     local unexpected = {}
     -- The runner's macOS still holds Ctrl+Up and Ctrl+Down for Mission
     -- Control, which setup-macos frees on a real Mac (SPEC.md §6.9), so the
@@ -1149,11 +1149,11 @@ do
     end
 end
 -- conf's Karabiner rules, switched in JavaScriptCore as on a Mac with
--- them: the runner has no Karabiner, so tilemo says it hasn't written its
+-- them: the runner has no Karabiner, so tide says it hasn't written its
 -- settings, and a karabiner.json in memory gets conf's rules in order.
 do
-    local karabiner = require("tilemo.karabiner")
-    local state = tilemo.karabiner_rules and tilemo.karabiner_rules.state
+    local karabiner = require("tide.karabiner")
+    local state = tide.karabiner_rules and tide.karabiner_rules.state
     if not state then
         fail("Karabiner's rules: not set up")
     elseif state.problem ~= karabiner.NO_CONFIG and state.problem ~= karabiner.NO_RULES then
@@ -1167,20 +1167,20 @@ do
         [home .. karabiner.CONFIG] = '{"profiles": [{"selected": true, "simple_modifications": [], "complex_modifications": {"rules": []}}]}',
         [assets .. "/pc-arrows.json"] = '{"title": "PC keyboard arrows", "rules": [{"description": "Ctrl+Left/Right moves by word", "manipulators": []}]}',
         [assets .. "/pc-alt-tab.json"] = '{"title": "PC keyboard Ctrl+Tab", "rules": [{"description": "Ctrl+Tab goes to the next tab", "manipulators": []}]}',
-        [assets .. "/tilemo.json"] = '{"title": "tilemo", "rules": [{"description": "tilemo: Win is Super", "manipulators": []}]}',
+        [assets .. "/tide.json"] = '{"title": "tide", "rules": [{"description": "tide: Win is Super", "manipulators": []}]}',
     }
     local saved = {}
     local k = karabiner.new({
         home = home,
-        source = tilemo.adapter.read(karabiner.SOURCE_PATH),
+        source = tide.adapter.read(karabiner.SOURCE_PATH),
         read = function(path)
             return files[path]
         end,
         list = function()
-            return { "pc-arrows.json", "pc-alt-tab.json", "tilemo.json" }
+            return { "pc-arrows.json", "pc-alt-tab.json", "tide.json" }
         end,
-        run_js = tilemo.adapter.javascript,
-        decode = tilemo.adapter.decode,
+        run_js = tide.adapter.javascript,
+        decode = tide.adapter.decode,
         write = function(path, text)
             files[path] = text
             saved[#saved + 1] = path
@@ -1202,12 +1202,12 @@ do
         end,
     })
     local s = k.check()
-    local config = tilemo.adapter.decode(files[home .. karabiner.CONFIG] or "")
+    local config = tide.adapter.decode(files[home .. karabiner.CONFIG] or "")
     local got = {}
     for _, r in ipairs(config and config.profiles[1].complex_modifications.rules or {}) do
         got[#got + 1] = r.description
     end
-    local want = "tilemo: Win is Super, Ctrl+Tab goes to the next tab, Ctrl+Left/Right moves by word"
+    local want = "tide: Win is Super, Ctrl+Tab goes to the next tab, Ctrl+Left/Right moves by word"
     if s.problem ~= "" or table.concat(got, ", ") ~= want then
         fail("Karabiner's rules in JavaScriptCore: %s; got %s", s.problem, table.concat(got, ", "))
     elseif not files[home .. karabiner.CONFIG]:find('"simple_modifications": []', 1, true) then
@@ -1219,9 +1219,9 @@ end
 -- tide's logo, as the menu bar, notifications and the switcher show it:
 -- both renders installed and readable, the menu bar's a template.
 do
-    local brand = require("tilemo.brand")
-    local template = tilemo.adapter.logo(brand.TEMPLATE)
-    local logo = tilemo.adapter.logo(brand.LOGO)
+    local brand = require("tide.brand")
+    local template = tide.adapter.logo(brand.TEMPLATE)
+    local logo = tide.adapter.logo(brand.LOGO)
     if not template or not template:template() then
         fail("logo: the menu bar's template image didn't load as a template")
     end
@@ -1233,10 +1233,10 @@ do
     end
 end
 -- What a script reads for the workspace's name (SPEC.md §6.3), in a
--- folder only you can read, and that tilemo leaves Hammerspoon's IPC port
+-- folder only you can read, and that tide leaves Hammerspoon's IPC port
 -- shut.
 do
-    local dir = os.getenv("HOME") .. "/Library/Caches/tilemo"
+    local dir = os.getenv("HOME") .. "/Library/Caches/tide"
     local f = io.open(dir .. "/workspace")
     local text = f and f:read("a")
     if f then
@@ -1260,14 +1260,14 @@ do
 end
 -- The name patterns' JavaScript runs in JavaScriptCore (SPEC.md §6.2).
 do
-    local names = require("tilemo.names")
+    local names = require("tide.names")
     local got = names.default_name("ABC-123: Fix login - Tracker", "Chrome", { "\\b([A-Z]+-[0-9]+)\\b" },
-        tilemo.adapter.javascript, tilemo.adapter.log)
+        tide.adapter.javascript, tide.adapter.log)
     if got ~= "ABC-123" then
         fail("name patterns: got %s, not ABC-123", tostring(got))
     end
     local bad = names.check_script({ "(", "no group" })
-    local okjs, result = tilemo.adapter.javascript(bad)
+    local okjs, result = tide.adapter.javascript(bad)
     if not okjs or not tostring(result):find("namePatterns[1]", 1, true) or not tostring(result):find("namePatterns[2]", 1, true) then
         fail("name patterns: the check said %s", tostring(result))
     end
@@ -1275,26 +1275,26 @@ do
 end
 
 -- tide's appearance module runs in JavaScriptCore too, and works out light
--- or dark by the clock (theme.lua); with no mode in tide's files, tilemo
+-- or dark by the clock (theme.lua); with no mode in tide's files, tide
 -- leaves the runner's appearance alone.
 do
-    local theme = require("tilemo.theme")
-    local dashboard = require("tilemo.dashboard")
-    local dir = debug.getinfo(require("tilemo.theme_hs").new, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
+    local theme = require("tide.theme")
+    local dashboard = require("tide.dashboard")
+    local dir = debug.getinfo(require("tide.theme_hs").new, "S").source:match("^@(.*)/[^/]*$") .. "/dashboard/"
     local sources = {}
     for _, name in ipairs(theme.MODULES) do
-        sources[name] = tilemo.adapter.read(dir .. name)
+        sources[name] = tide.adapter.read(dir .. name)
     end
     local noon = os.time({ year = 2026, month = 11, day = 4, hour = 12 }) * 1000
-    local okjs, result = tilemo.adapter.javascript(theme.script(dashboard.bundle(sources, theme.MODULES),
+    local okjs, result = tide.adapter.javascript(theme.script(dashboard.bundle(sources, theme.MODULES),
         '{"mode": "schedule", "light": "07:00", "dark": "19:00"}', nil, noon, nil, hs.json.encode))
     local plan, why = theme.read(okjs, result, hs.json.decode)
     if not plan then
         fail("appearance: %s", why)
     elseif plan.dark ~= false or plan.next ~= os.time({ year = 2026, month = 11, day = 4, hour = 19 }) * 1000 then
         fail("appearance: at noon by the clock it says %s", tostring(result))
-    elseif tilemo.theme.state().chosen ~= false then
-        fail("appearance: with no mode set, tilemo says one's chosen")
+    elseif tide.theme.state().chosen ~= false then
+        fail("appearance: with no mode set, tide says one's chosen")
     else
         say("appearance: tide's module says light until 19:00 at noon, in JavaScriptCore")
     end
@@ -1305,7 +1305,7 @@ end
 do
     local before = hs.caffeinate.get("displayIdle")
     hs.caffeinate.set("displayIdle", true)
-    local on = tilemo.idle.held()
+    local on = tide.idle.held()
     hs.caffeinate.set("displayIdle", before == true)
     if not on.display then
         fail("idle: keep awake's assertion isn't seen as holding the display: %s",
@@ -1319,11 +1319,11 @@ end
 -- bridge, as Hammerspoon's own call can't place one: the picture shown
 -- now, set again stretched, reads back stretched from macOS, then filled.
 do
-    local wallpaper = require("tilemo.wallpaper")
+    local wallpaper = require("tide.wallpaper")
     local main = hs.screen.mainScreen()
     local url = main and main:desktopImageURL()
     local function placed()
-        local ok, out = tilemo.adapter.javascript([[ObjC.import('AppKit');
+        local ok, out = tide.adapter.javascript([[ObjC.import('AppKit');
 (function () {
   const o = $.NSWorkspace.sharedWorkspace.desktopImageOptionsForScreen($.NSScreen.mainScreen);
   const s = o && o.objectForKey($.NSWorkspaceDesktopImageScalingKey);
@@ -1335,9 +1335,9 @@ do
     if type(url) ~= "string" or not url:match("^file://.*[^/]$") then
         say("wallpaper: the desktop picture is %s, not a file to place; skipped", tostring(url))
     else
-        local ok, out = tilemo.adapter.javascript(wallpaper.desktop_script(url, wallpaper.placement("stretch")))
+        local ok, out = tide.adapter.javascript(wallpaper.desktop_script(url, wallpaper.placement("stretch")))
         local stretched = placed()
-        local back_ok, back = tilemo.adapter.javascript(wallpaper.desktop_script(url, wallpaper.placement("fill")))
+        local back_ok, back = tide.adapter.javascript(wallpaper.desktop_script(url, wallpaper.placement("fill")))
         local filled = placed()
         if not ok or out ~= "[]" then
             fail("wallpaper: the desktop picture's JavaScript said %s", tostring(out))
@@ -1351,21 +1351,21 @@ do
     end
 end
 
--- An init.lua from before the rename still gets tilemo, through the shim
+-- An init.lua from before the rename still gets tide, through the shim
 -- make install puts in ~/.hammerspoon/timo.
 ok, err = pcall(require, "timo")
 if not ok then
     fail('require("timo"): %s', err)
-elseif err ~= tilemo then
-    fail('require("timo") returned something other than tilemo')
+elseif err ~= tide then
+    fail('require("timo") returned something other than tide')
 else
-    say('require("timo") is tilemo')
+    say('require("timo") is tide')
 end
 
 -- What the launcher lists from this Mac's disk: apps every Mac has, and
 -- System Settings' panes, named as the launcher shows them.
 ok, err = xpcall(function()
-    local apps, panes = require("tilemo.launcher_hs").scan()
+    local apps, panes = require("tide.launcher_hs").scan()
     local have = {}
     for _, a in ipairs(apps) do
         have[a.name] = true
@@ -1400,7 +1400,7 @@ ok, err = xpcall(function()
         ids[p.id] = true
     end
     local hardware = { battery = true, wifi = true, bluetooth = true }
-    local opened = require("tilemo.links").PANE_IDS
+    local opened = require("tide.links").PANE_IDS
     local keys = {}
     for key in pairs(opened) do
         keys[#keys + 1] = key
@@ -1425,12 +1425,12 @@ end
 -- the bundled script draws them in WebKit.
 local function check_settings_page(next)
     local want = 0
-    for _, sec in ipairs(require("tilemo.launcher").SETTINGS_SECTIONS) do
+    for _, sec in ipairs(require("tide.launcher").SETTINGS_SECTIONS) do
         if not sec.page then
             want = want + 1
         end
     end
-    tilemo.settings.evaluate([[JSON.stringify({
+    tide.settings.evaluate([[JSON.stringify({
         shown: Array.from(document.querySelectorAll(".page")).filter((p) => !p.hidden).map((p) => p.id),
         headings: Array.from(document.querySelectorAll("#sidebar h3")).map((h) => h.textContent),
         pages: document.querySelectorAll("#sidebar button").length,
@@ -1442,7 +1442,7 @@ local function check_settings_page(next)
         sources: document.querySelectorAll("#input-sources li").length,
     })]], function(result, err)
         -- Out of the page's own callback.
-        tilemo.adapter.after(0, function()
+        tide.adapter.after(0, function()
             local got = type(result) == "string" and not dashboard.js_failed(err) and hs.json.decode(result) or nil
             if not got then
                 fail("settings: the page didn't say what it shows: %s", hs.inspect(err))
@@ -1485,8 +1485,8 @@ local function check_settings_page(next)
             end
             -- The Bluetooth page says blueutil's missing when it is; with
             -- it, a read may still be under way, so it's only reported.
-            local bluetooth = require("tilemo.bluetooth")
-            local have = bluetooth.find(tilemo.adapter.exists) ~= nil
+            local bluetooth = require("tide.bluetooth")
+            local have = bluetooth.find(tide.adapter.exists) ~= nil
             if got and not have and got.bluetooth ~= bluetooth.MISSING then
                 fail("settings: with no blueutil, the Bluetooth page says %q", tostring(got.bluetooth))
             elseif got then
@@ -1500,23 +1500,23 @@ local function check_settings_page(next)
 end
 
 -- The settings window builds its page and opens, on Start at login as its
--- launcher row asks; the clocks come from tide's folder, which tilemo makes
+-- launcher row asks; the clocks come from tide's folder, which tide makes
 -- if it's missing, to watch it.
 ok, err = xpcall(function()
-    tilemo.settings.show("startup")
+    tide.settings.show("startup")
 end, debug.traceback)
 if not ok then
     fail("settings: %s", err)
-elseif type(tilemo.clock_files) ~= "table" or type(tilemo.startup_files) ~= "table" or not hs.fs.attributes(tilemo.clock_dir) then
-    fail("settings: no clocks folder at %s", tostring(tilemo.clock_dir))
-elseif type(tilemo.layout_files) ~= "table" or type(tilemo.wm.layout.modes) ~= "table" then
+elseif type(tide.clock_files) ~= "table" or type(tide.startup_files) ~= "table" or not hs.fs.attributes(tide.clock_dir) then
+    fail("settings: no clocks folder at %s", tostring(tide.clock_dir))
+elseif type(tide.layout_files) ~= "table" or type(tide.wm.layout.modes) ~= "table" then
     fail("settings: tide's layouts weren't read")
 else
-    say("settings shown, clocks from %s", tilemo.clock_dir)
+    say("settings shown, clocks from %s", tide.clock_dir)
 end
 
 ok, err = xpcall(function()
-    tilemo.dashboard.show()
+    tide.dashboard.show()
 end, debug.traceback)
 if not ok then
     fail("dashboard: %s", err)
@@ -1528,7 +1528,7 @@ say("dashboard shown")
 -- Hammerspoon stops a timer that's garbage collected.
 smoke_timer = hs.timer.doAfter(3, function()
     local closed, close_err = xpcall(function()
-        tilemo.dashboard.show()
+        tide.dashboard.show()
     end, debug.traceback)
     if not closed then
         fail("closing the dashboard: %s", close_err)
@@ -1539,8 +1539,8 @@ smoke_timer = hs.timer.doAfter(3, function()
     -- The overview (SPEC.md §6.9), as Ctrl+Up opens it, then Ctrl+Down's
     -- scope in the same page, then closed as a second Ctrl+Down closes it.
     local shown, show_err = xpcall(function()
-        tilemo.overview.show("all")
-        tilemo.overview.show("current")
+        tide.overview.show("all")
+        tide.overview.show("current")
     end, debug.traceback)
     if not shown then
         fail("overview: %s", show_err)
@@ -1549,7 +1549,7 @@ smoke_timer = hs.timer.doAfter(3, function()
     end
     smoke_timer = hs.timer.doAfter(2, function()
         local done, done_err = xpcall(function()
-            tilemo.overview.show("current")
+            tide.overview.show("current")
         end, debug.traceback)
         if not done then
             fail("closing the overview: %s", done_err)

@@ -1,5 +1,5 @@
 local t = require("t")
-local runner = require("tilemo.runner")
+local runner = require("tide.runner")
 
 -- Fake tasks, as hs.task.new makes them: each one keeps its callback for
 -- the test to call, as the process exiting would.

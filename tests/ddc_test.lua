@@ -1,6 +1,6 @@
 local t = require("t")
-local ddc = require("tilemo.ddc")
-local bar = require("tilemo.bar")
+local ddc = require("tide.ddc")
+local bar = require("tide.bar")
 
 local LG = "1E6D5B77-0000-0000-0B1E-0104B53C2278"
 local DELL = "10ACB8A0-0000-0000-1419-0104A2435078"

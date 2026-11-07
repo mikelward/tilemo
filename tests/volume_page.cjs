@@ -1,5 +1,5 @@
-// Runs the volume popover's script (hammerspoon/tilemo/dashboard/volume.js)
-// against a small fake DOM, and checks what tilemo.update() draws and what
+// Runs the volume popover's script (hammerspoon/tide/dashboard/volume.js)
+// against a small fake DOM, and checks what tide.update() draws and what
 // the slider, mute, outputs, settings and Esc send back.
 
 const fs = require("fs");
@@ -44,11 +44,11 @@ const sandbox = {
     createElement: (tag) => new Element(tag),
     addEventListener: (type, f) => (docListeners[type] = f),
   },
-  window: { webkit: { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } } },
+  window: { webkit: { messageHandlers: { tide: { postMessage: (m) => sent.push(m) } } } },
 };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
-const update = sandbox.window.tilemo.update;
+const update = sandbox.window.tide.update;
 const last = () => JSON.stringify(sent.at(-1));
 
 // macOS's own volume: the slider sets it as it moves, and on release.

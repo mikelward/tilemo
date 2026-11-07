@@ -1,8 +1,8 @@
 -- The clipboard history on disk (SPEC.md §9.1).
 
 local t = require("t")
-local clipstore = require("tilemo.clipstore")
-local picker = require("tilemo.picker")
+local clipstore = require("tide.clipstore")
+local picker = require("tide.picker")
 local json = require("json")
 
 -- A stand-in for the file system: files and their modes. `fail` names a
@@ -110,7 +110,7 @@ local function crypt(opts, d)
     return c
 end
 
-local PATH = "/c/tilemo/clipboard-history"
+local PATH = "/c/tide/clipboard-history"
 local DAY = 24 * 3600
 
 local function clock(start)
@@ -124,10 +124,10 @@ local function store(d, c, now)
     local _, n = clock()
     c = c or crypt()
     c.disk = c.disk or d
-    return clipstore.new("/c/tilemo", d, json.encode, json.decode, c, now or n)
+    return clipstore.new("/c/tide", d, json.encode, json.decode, c, now or n)
 end
 
--- Starts `st` on `h` with cap `max`, as tilemo does: the saved history
+-- Starts `st` on `h` with cap `max`, as tide does: the saved history
 -- read back. Returns why it couldn't be, or nil.
 local function start(st, h, max)
     local load_err
@@ -164,7 +164,7 @@ t.test("the file is encrypted, and yours alone", function()
     t.eq(d.files[PATH]:find("my address", 1, true), nil)
     t.eq(d.files[PATH]:sub(1, 7), "SEALED:")
     t.eq(d.modes[PATH], "600")
-    t.eq(d.modes["/c/tilemo"], "700")
+    t.eq(d.modes["/c/tide"], "700")
 end)
 
 t.test("a password a password manager marks is never written", function()

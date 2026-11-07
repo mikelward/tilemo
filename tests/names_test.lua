@@ -1,12 +1,12 @@
 local t = require("t")
-local names = require("tilemo.names")
+local names = require("tide.names")
 
 -- JavaScript run in node, standing in for JavaScriptCore, or nil without
 -- node.
 local function node_runner()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to run the name patterns")
         end
         return nil
@@ -186,7 +186,7 @@ else
     t.test("the first pattern that matches gives its first capture", function()
         local ps = { "\\b([A-Z]+-[0-9]+)\\b", "github\\.com/[^/]+/([^/ ]+)" }
         t.eq(names.default_name("ABC-123: Fix login - Tracker - Google Chrome", "Google Chrome", ps, run), "ABC-123")
-        t.eq(names.default_name("Pull requests · github.com/mikelward/tilemo", "Safari", ps, run), "tilemo")
+        t.eq(names.default_name("Pull requests · github.com/mikelward/tide", "Safari", ps, run), "tide")
         t.eq(names.default_name("Inbox - Google Chrome", "Google Chrome", ps, run), "Inbox", "no match: the fallback")
         t.eq(names.default_name("", "Notes", ps, run), "Notes")
         -- JavaScript's syntax, which Lua patterns don't have.

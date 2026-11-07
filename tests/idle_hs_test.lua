@@ -50,7 +50,7 @@ local function stub(files)
             end,
         },
     }
-    local tilemo = {
+    local tide = {
         idle_files = files,
         adapter = {
             log = function(line)
@@ -70,9 +70,9 @@ local function stub(files)
             end,
         },
     }
-    package.loaded["tilemo.idle_hs"] = nil
-    s.idler = require("tilemo.idle_hs").new(tilemo)
-    s.tilemo = tilemo
+    package.loaded["tide.idle_hs"] = nil
+    s.idler = require("tide.idle_hs").new(tide)
+    s.tide = tide
     -- The clock's next look, `seconds` with no input by then.
     function s.look(seconds)
         s.idle = seconds
@@ -137,9 +137,9 @@ t.test("switched off and on again, the timeline starts afresh", function()
     local s = stub(SET)
     s.look(70)
     t.eq(s.did, { "lock" })
-    s.tilemo.idle_files = {}
+    s.tide.idle_files = {}
     s.idler.reload()
-    s.tilemo.idle_files = SET
+    s.tide.idle_files = SET
     s.idler.reload()
     s.look(75)
     t.eq(s.did, { "lock", "lock" }, "the lock again, not skipped")
@@ -148,7 +148,7 @@ end)
 t.test("taking the settings out stops it, and lifts a dim", function()
     local s = stub(SET)
     s.look(40)
-    s.tilemo.idle_files = {}
+    s.tide.idle_files = {}
     s.idler.reload()
     t.eq(s.veils, 0)
     t.eq(s.timers[#s.timers].stopped, true)

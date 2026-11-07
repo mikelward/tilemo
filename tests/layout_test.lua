@@ -1,5 +1,5 @@
 local t = require("t")
-local layout = require("tilemo.layout")
+local layout = require("tide.layout")
 
 local HD = { x = 0, y = 25, w = 1920, h = 1055 }
 local UW = { x = 0, y = 25, w = 3440, h = 1415 }
@@ -147,7 +147,7 @@ t.test("with no layouts files, the settings are tide's defaults", function()
     t.eq(errors, {})
 end)
 
-t.test("tide's layouts files set tilemo's layout, the local file's over the shared one's", function()
+t.test("tide's layouts files set tide's layout, the local file's over the shared one's", function()
     local c = layout.load_settings("/c/tide",
         files('{"modes": {"tile": {"mfact": 0.6}}}', '{"modes": {"tile": {"nmaster": 2}}, "defaultMode": {"ultrawide": "tile"}}'),
         decode)
@@ -162,7 +162,7 @@ t.test("tide's layouts files set tilemo's layout, the local file's over the shar
     t.eq(c.single, { { min_aspect = 2.5, width = 0.7 } }, "a list is set whole")
 end)
 
-t.test("the files lay over start()'s layout, which stays tilemo's own base", function()
+t.test("the files lay over start()'s layout, which stays tide's own base", function()
     local base = layout.copy(layout.defaults)
     base.mfact_step = 0.05
     local c = layout.load_settings("/c/tide", files('{"modes": {"tile": {"mfact": 0.6}}}', nil), decode, base)

@@ -1,12 +1,12 @@
 local t = require("t")
 local fake = require("fake")
 local json = require("json")
-local wm_mod = require("tilemo.wm")
-local dashboard = require("tilemo.dashboard")
-local launcher = require("tilemo.launcher")
-local launcherpage = require("tilemo.launcherpage")
+local wm_mod = require("tide.wm")
+local dashboard = require("tide.dashboard")
+local launcher = require("tide.launcher")
+local launcherpage = require("tide.launcherpage")
 
-local DIR = "hammerspoon/tilemo/dashboard/"
+local DIR = "hammerspoon/tide/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -25,9 +25,9 @@ end
 
 t.test("start() keeps the chooser switcher unless it asks for the dashboard launcher", function()
     t.eq(launcherpage.front(nil), "chooser")
-    t.eq(launcherpage.module_for(nil), "tilemo.launcher_hs")
-    t.eq(launcherpage.module_for("chooser"), "tilemo.launcher_hs")
-    t.eq(launcherpage.module_for("dashboard"), "tilemo.launcherpage_hs")
+    t.eq(launcherpage.module_for(nil), "tide.launcher_hs")
+    t.eq(launcherpage.module_for("chooser"), "tide.launcher_hs")
+    t.eq(launcherpage.module_for("dashboard"), "tide.launcherpage_hs")
 end)
 
 t.test("any other launcher is an error at load, naming the setting", function()
@@ -170,14 +170,14 @@ t.test("the page bundles tileco's launcher with tide's stand-ins in place of its
     t.eq(js:find('modules["./settings.js"] = modules["./launcher-settings.js"];', 1, true) ~= nil, true)
     t.eq(js:find('modules["./launcher.js"] = modules["./launcher-lists.js"];', 1, true) ~= nil, true)
     local html = dashboard.page(read("launcherpage.html"), read("launcher.css"), sources(), launcherpage.MODULES)
-    t.eq(html:find("TILEMO_", 1, true), nil)
+    t.eq(html:find("/*TIDE_", 1, true), nil)
     t.eq(html:find('data-scope="actions"', 1, true) ~= nil, true)
 end)
 
 t.test("the page lists, searches and chooses tide's rows", function()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to check the dashboard launcher's page")
         end
         print("SKIP the page lists, searches and chooses tide's rows: no node")

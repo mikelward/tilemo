@@ -45,7 +45,7 @@ const STATES = [
       uuid: "A",
       workspaces: ws([
         ["in", { current: true, occupied: true, urgent: true, apps: ["chat"] }],
-        ["tilemo", { occupied: true }],
+        ["tide", { occupied: true }],
         ["ABC-123", { occupied: true }],
         ["review", { occupied: true, urgent: true, apps: ["web"] }],
       ]),
@@ -158,7 +158,7 @@ const STATES = [
   },
 ];
 
-// Hover, as tilemo tells the page where the pointer is: over an item's
+// Hover, as tide tells the page where the pointer is: over an item's
 // edge, so the mock shows its whole target, in light and dark.
 const HOVER = {
   uuid: "A",
@@ -213,12 +213,12 @@ STATES.push(
       await tab.evaluate(() => {
         document.getElementById("apple").textContent = "\u25cf";
       });
-      await tab.evaluate((s) => window.tilemo.update(s), state);
+      await tab.evaluate((s) => window.tide.update(s), state);
       if (pointer) {
         // At the item's middle, 1px from the bar's top: outside its own box.
         await tab.evaluate(([sel]) => {
           const r = document.querySelector(sel).getBoundingClientRect();
-          window.tilemo.pointer(Math.round((r.left + r.right) / 2), 1);
+          window.tide.pointer(Math.round((r.left + r.right) / 2), 1);
         }, pointer);
       }
       const out = path.join(__dirname, `${name}.png`);

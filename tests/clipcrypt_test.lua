@@ -3,7 +3,7 @@
 -- stand-in for macOS's `security` that keeps its keychain in a file.
 
 local t = require("t")
-local clipcrypt = require("tilemo.clipcrypt")
+local clipcrypt = require("tide.clipcrypt")
 
 local function sh(cmd)
     local f = assert(io.popen(cmd))

@@ -43,7 +43,7 @@ local function stub(set_ok)
             end,
         },
     }
-    local tilemo = {
+    local tide = {
         adapter = {
             log = function(line)
                 s.logged[#s.logged + 1] = line
@@ -58,8 +58,8 @@ local function stub(set_ok)
             end,
         },
     }
-    package.loaded["tilemo.netpower_hs"] = nil
-    s.np = require("tilemo.netpower_hs").new(tilemo, function()
+    package.loaded["tide.netpower_hs"] = nil
+    s.np = require("tide.netpower_hs").new(tide, function()
         s.changes = s.changes + 1
     end)
     return s

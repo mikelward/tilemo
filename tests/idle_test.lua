@@ -3,7 +3,7 @@
 
 local t = require("t")
 local json = require("json")
-local idle = require("tilemo.idle")
+local idle = require("tide.idle")
 
 t.test("nothing set leaves macOS's own; anything set runs tide's, over its defaults", function()
     t.eq(idle.load(nil, nil, json.decode).chosen, false)

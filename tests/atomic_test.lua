@@ -1,5 +1,5 @@
 local t = require("t")
-local atomic = require("tilemo.atomic")
+local atomic = require("tide.atomic")
 
 -- A stand-in for io and os over a table of files, whose writes or closes
 -- can fail as a full disk makes them.

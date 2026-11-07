@@ -1,6 +1,6 @@
 local t = require("t")
-local checklist = require("tilemo.checklist")
-local links = require("tilemo.links")
+local checklist = require("tide.checklist")
+local links = require("tide.links")
 
 local function by_id(list)
     local out = {}
@@ -88,14 +88,14 @@ t.test("a tick for an item the checklist doesn't have is refused", function()
     t.eq((checklist.ticked({}, nil, true)), nil)
 end)
 
-t.test("tilemo doctor names Accessibility only when it's off", function()
+t.test("tide doctor names Accessibility only when it's off", function()
     t.eq(#checklist.doctor({ accessibility = false }), 1)
     t.eq(checklist.doctor({ accessibility = false })[1]:find("Accessibility is off", 1, true) ~= nil, true)
     t.eq(checklist.doctor({ accessibility = true }), {})
     t.eq(checklist.doctor({}), {}, "unknown isn't a problem to report")
 end)
 
-t.test("tilemo doctor says when the menu bar is set to hide, with the fix", function()
+t.test("tide doctor says when the menu bar is set to hide, with the fix", function()
     local lines = checklist.doctor({ accessibility = true, menu_bar_hidden = true })
     t.eq(lines, { checklist.MENU_BAR_NOTICE })
     t.eq(lines[1]:find("Never", 1, true) ~= nil, true)

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tide bar</title>
+<script>
+// First, so an error in the bar's own script, even one that stops it
+// parsing, still reaches tide, which logs it.
+window.onerror = (message, source, line, column) => {
+  window.webkit?.messageHandlers?.tide?.postMessage({ error: `${message} (line ${line}:${column})` });
+};
+</script>
+<style>
+/*TIDE_CSS*/
+</style>
+<style>
+/* tide's additions to tileco's bar: the right-hand group, local time alone
+   when crowded, and the status icons. */
+body {
+  background: var(--bar);
+  overflow: hidden;
+}
+/* tide's logo, then the chips: tileco's #logo styles place and color it.
+   A click opens the switcher, as Super+Space does. */
+#left {
+  display: flex;
+  align-items: center;
+}
+#logo svg {
+  display: block;
+}
+/* The Apple menu, first in the corner, as on a Mac's own menu bar: the
+   system font's Apple glyph in the text color. A click opens the real Apple
+   menu (bar_hs.lua), since the menu bar is hidden for this bar. */
+#apple {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 26px;
+  margin: 0 2px 0 -2px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: 15px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+}
+/* The chips look as tide's do (tide's shell/Workspaces.qml and Theme.qml):
+   26px tall with 7px corners, the name semibold, 7px either side of it
+   inside the 1px border, and at least 28px wide. An occupied chip sits on
+   tide's surface, the current one on its accent; an empty one has no fill
+   and a faint name; one shown on another display is ringed in the accent;
+   one wanting attention is tinted and ringed amber, over the current one's
+   fill too. The colors are tide's palette's (theme/palette.json), which
+   `make check-tide` compares. */
+:root {
+  --chip-surface: #ffffff;
+  --chip-current: #3584e4;
+  --chip-on-current: #ffffff;
+  --chip-faint: #a8a8b3;
+  --chip-ring: #1c71d8;
+  --chip-urgent: #8a5d00;
+  --chip-urgent-bg: rgba(229, 165, 10, 0.26);
+  --chip-urgent-ring: #e5a50a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chip-surface: #2a2a2f;
+    --chip-current: #3584e4;
+    --chip-on-current: #ffffff;
+    --chip-faint: #5d5d68;
+    --chip-ring: #78aeed;
+    --chip-urgent: #f8e45c;
+    --chip-urgent-bg: rgba(246, 211, 45, 0.20);
+    --chip-urgent-ring: #f6d32d;
+  }
+}
+/* The system monitor's warning and danger colors, tide's palette's, after the
+   chips', which `make check-tide` reads first. */
+:root {
+  --warn: #c64600;
+  --danger: #c01c28;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --warn: #ffa348;
+    --danger: #ff7b63;
+  }
+}
+/* A chip's window icons follow its number. */
+nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 28px;
+  padding: 0 6px;
+  border-radius: 7px;
+  color: var(--chip-faint);
+  font-weight: 600;
+}
+nav button:not(.occupied):not(.current):not(.urgent) {
+  min-width: 24px;
+  padding: 0 3px;
+}
+nav button.occupied {
+  background: var(--chip-surface);
+  color: var(--fg);
+}
+nav button.elsewhere {
+  border-color: var(--chip-ring);
+}
+nav button.current {
+  background: var(--chip-current);
+  color: var(--chip-on-current);
+}
+nav button.urgent {
+  background: var(--chip-urgent-bg);
+  border-color: var(--chip-urgent-ring);
+  color: var(--chip-urgent);
+}
+/* A window icon's click target is the chip's full height and halfway to
+   its neighbors (the chip's gap is 3px), from padding the margin takes back,
+   so a click just beside the icon still focuses the window. */
+nav button .app {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 4px 1.5px;
+  margin: -4px -1.5px;
+}
+nav button .app.none {
+  background: var(--muted);
+  /* The square is the content box, its corners 4px once the padding's
+     taken off. */
+  background-clip: content-box;
+  border-radius: 5.5px / 8px;
+  opacity: 0.4;
+}
+nav button .more {
+  font-size: 0.85em;
+}
+/* Each item's click target: a box under its content (so a window icon in a
+   chip stays its own target) reaching as far as bar.js's --reach-* say, to
+   the bar's top and bottom and halfway to each neighbor. ::before takes the
+   clicks; ::after, the same box, shows it on hover (tileco's stylesheet). */
+#apple,
+#logo,
+nav > button,
+#clocks,
+#icons > .icon {
+  position: relative;
+  z-index: 0;
+}
+#apple::before,
+#apple::after,
+#logo::before,
+#logo::after,
+nav > button::before,
+nav > button::after,
+nav > button:first-child::before,
+nav > button:first-child::after,
+#logo + nav > button:first-child::before,
+#logo + nav > button:first-child::after,
+#clocks::before,
+#clocks::after,
+#icons > .icon::before,
+#icons > .icon::after,
+#title::before,
+#title::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: calc(-1 * var(--reach-top, 0px));
+  bottom: calc(-1 * var(--reach-bottom, 0px));
+  left: calc(-1 * var(--reach-left, 0px));
+  right: calc(-1 * var(--reach-right, 0px));
+}
+#apple::after,
+#logo::after,
+#icons > .icon::after,
+#title::after {
+  border-radius: 6px;
+  pointer-events: none;
+}
+/* The title's target is the free bar around it, between the two groups,
+   for a double click. Its text is the inner span, which clips. */
+#title {
+  z-index: 0;
+}
+/* From the chip's border edge, not its padding's. */
+nav > button::before,
+nav > button::after {
+  margin: -1px;
+}
+/* Under the pointer the whole target shows, a rounded rect half pressed.
+   bar.js marks it .hover: the bar's window is never key, and WebKit only
+   follows the pointer in the key window, so :hover never fires here. */
+#apple.hover::after,
+#logo.hover::after,
+nav > button.hover::after,
+#clocks.hover::after,
+#icons > button.icon.hover::after,
+#icons > button.icon:hover::after,
+#title.hover::after {
+  background: var(--hover);
+}
+/* Over a window icon, the icon's target shows rather than the chip's: the
+   chip's height and halfway to its neighbors, from its padding. Its corners
+   are always round, so hovering doesn't move where a click goes. */
+nav > button:has(.app.hover)::after,
+nav > button:has(.app.win:hover)::after {
+  background: none;
+}
+nav button img.app.win {
+  border-radius: 4px;
+}
+nav button img.app.win.hover,
+nav button img.app.win:hover {
+  background: var(--hover);
+}
+nav button .app.none.win.hover,
+nav button .app.none.win:hover {
+  background: linear-gradient(var(--muted), var(--muted)) content-box, var(--hover);
+}
+/* Held to the room between the two sides by bar.js, one line. */
+#title-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The clocks pad their sides as a status icon does, and sit the icons' gap
+   from them, so each target shows on hover with the same room around its
+   content: the clocks' inner end reaches no further than their box. */
+#right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+#right #clocks {
+  padding: 0 6px;
+}
+#clocks.compact li:not(:last-child) {
+  display: none;
+}
+#icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* Line icons in the text color (bar.js draws them); state shows as color,
+   not a background. */
+#icons .icon {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+#icons svg {
+  display: block;
+  flex: none;
+}
+#icons .source {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+#icons [data-state="off"],
+#icons [data-state="muted"],
+#icons [data-state="mute"],
+#icons [data-state="none"] {
+  color: var(--muted);
+}
+#icons [data-state="on"].awake,
+#icons [data-state="in-use"] {
+  color: var(--accent);
+}
+/* Presenter mode: a filled accent pill, so it's hard to miss, as tide's
+   Presenting pill is. */
+#icons .awake[data-state="presenting"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+#icons .battery[data-state="low"] {
+  color: var(--urgent);
+}
+#icons .battery .text,
+#icons .volume .text,
+#icons .sysmon .text {
+  font-variant-numeric: tabular-nums;
+}
+/* Held as wide as two digits and a %, as tide's, so the icons beside it
+   don't move as the level changes, except at 100%. */
+#icons .volume .text,
+#icons .sysmon .text {
+  min-width: 2.2em;
+}
+#icons .sysmon[data-state="warn"] {
+  color: var(--warn);
+}
+#icons .sysmon[data-state="danger"] {
+  color: var(--danger);
+}
+</style>
+</head>
+<body>
+<header class="bar" id="bar">
+<div id="left">
+<button type="button" id="apple" aria-label="Apple menu" data-tip="Apple menu"></button><button type="button" id="logo" aria-label="Switcher"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.75 6.25q2.083-2 4.167 0t4.166 0t4.167 0"/><path d="M1.75 10.75q2.083-2 4.167 0t4.166 0t4.167 0"/></svg></button>
+<nav id="workspaces" aria-label="Workspaces"></nav>
+</div>
+<span id="title"><span id="title-text"></span></span>
+<div id="right">
+<ol id="clocks"></ol>
+<div id="icons"></div>
+</div>
+</header>
+<script>
+/*TIDE_SCRIPT*/
+</script>
+</body>
+</html>

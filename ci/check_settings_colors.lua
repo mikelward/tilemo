@@ -3,7 +3,7 @@
 -- looks as tide's settings panel does. Each property is named for the
 -- palette color it is. Run by `make check-tide`:
 --
---   lua ci/check_settings_colors.lua TIDE/theme/palette.json hammerspoon/tilemo/dashboard/settings.html
+--   lua ci/check_settings_colors.lua TIDE/theme/palette.json hammerspoon/tide/dashboard/settings.html
 
 local json = require("json")
 

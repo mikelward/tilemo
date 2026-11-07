@@ -1,6 +1,6 @@
 // Runs the bar's bundled script (tests/bar_test.lua writes it to the file
 // named on the command line) against a small fake DOM, and checks
-// tilemo.update() draws the chips, title, clocks and icons, and what clicks
+// tide.update() draws the chips, title, clocks and icons, and what clicks
 // and scrolls send back.
 
 const fs = require("fs");
@@ -122,7 +122,7 @@ const sandbox = {
   Set,
 };
 sandbox.window = sandbox;
-sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } };
+sandbox.webkit = { messageHandlers: { tide: { postMessage: (m) => sent.push(m) } } };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
@@ -139,7 +139,7 @@ const ws = [
     more: 2,
   },
 ];
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B",
   workspaces: ws,
   title: "Chat (1)",
@@ -163,7 +163,7 @@ assert.strictEqual(
   "every workspace, by name, a long one cut",
 );
 // The bar's window is never key, so WebKit would show no title attribute's
-// tooltip: a tip is data-tip, which tilemo draws on hover (below).
+// tooltip: a tip is data-tip, which tide draws on hover (below).
 assert.strictEqual(chips[3].attrs["data-tip"], "ABC-123 fix the login page", "the whole name on hover");
 assert.strictEqual(chips[1].getAttribute("data-tip"), null, "a whole name has no tip");
 for (const e of [...chips, ...ids.icons.children]) assert.ok(e.attrs.title === undefined && e.title === undefined, `${e.className || "a chip"} has no title attribute`);
@@ -274,7 +274,7 @@ for (const [network, wifi, cls, tip] of [
   [{ kind: "wired", vpn: true }, undefined, "icon wired", "Wired network, VPN on"],
   [{ kind: "wired" }, undefined, "icon wired", "Wired network"],
 ]) {
-  sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network, wifi } });
+  sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { network, wifi } });
   const n = ids.icons.children[0];
   assert.strictEqual(n.className, cls);
   assert.strictEqual(n.attrs["data-tip"], tip);
@@ -285,7 +285,7 @@ for (const [network, wifi, cls, tip] of [
 // The system monitor: CPU % after the battery, its tone as its state, and
 // a click opens Activity Monitor.
 for (const tone of ["normal", "warn", "danger"]) {
-  sandbox.tilemo.update({
+  sandbox.tide.update({
     uuid: "B",
     workspaces: ws,
     title: "",
@@ -303,9 +303,9 @@ for (const tone of ["normal", "warn", "danger"]) {
 }
 sent.length = 0;
 
-// The session icon, always last, sends where it is, so tilemo can hang
+// The session icon, always last, sends where it is, so tide can hang
 // macOS's menu under it.
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: {} });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: {} });
 {
   const s = ids.icons.children.at(-1);
   assert.strictEqual(s.className, "icon session");
@@ -321,14 +321,14 @@ sent.length = 0;
 // The speaker's level as a %, and an output with no volume control (a
 // monitor's speakers): the full speaker with no %, no scrolling, and a
 // click opens the popover under it all the same.
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { volume: { level: "mid", muted: false, text: "40%", tip: "Sound 40%" } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { volume: { level: "mid", muted: false, text: "40%", tip: "Sound 40%" } } });
 {
   const v = ids.icons.children[0];
   assert.strictEqual(v.children[0].textContent, "40%");
   assert.strictEqual(v.attrs["data-tip"], "Sound 40%");
 }
 for (const can_mute of [true, false]) {
-  sandbox.tilemo.update({
+  sandbox.tide.update({
     uuid: "B",
     workspaces: ws,
     title: "",
@@ -349,7 +349,7 @@ sent.length = 0;
 
 // Each connected Bluetooth audio device, beside the speaker, named on
 // hover, and a click opens Bluetooth settings.
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B",
   workspaces: ws,
   title: "",
@@ -369,7 +369,7 @@ sandbox.tilemo.update({
 // Bluetooth on or off: one glyph, faint while off (data-state "off", as
 // keep awake), before the headphones, and a click opens its settings.
 for (const on of [true, false]) {
-  sandbox.tilemo.update({
+  sandbox.tide.update({
     uuid: "B",
     workspaces: ws,
     title: "",
@@ -386,10 +386,10 @@ for (const on of [true, false]) {
 sent.length = 0;
 
 // A wire, or no network at all.
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "wired" } } });
 assert.strictEqual(ids.icons.children[0].className, "icon wired");
 ids.icons.children[0].listeners.click();
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { network: { kind: "none" } } });
 assert.strictEqual(state(ids.icons.children[0]), "none");
 assert.strictEqual(ids.icons.children[0].attrs["data-tip"], "No network");
 assert.strictEqual(JSON.stringify(sent), JSON.stringify([{ uuid: "B", open: "network" }]));
@@ -405,7 +405,7 @@ Object.assign(ids.bar, { clientWidth: 1200 });
 // The logo and the chips together.
 Object.assign(ids.left, { offsetWidth: 300 });
 Object.assign(ids.right, { offsetWidth: 500 });
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "x".repeat(500), icons: {} });
 const room = parseFloat(ids["title-text"].style.maxWidth);
 assert.strictEqual(room, 1200 - 2 * 500 - 2 * 24);
 assert.ok(1200 / 2 - room / 2 >= 300, "clear of the chips");
@@ -429,7 +429,7 @@ assert.ok(NOTCH_ROOM >= 200, "at least the title's 200 px");
   const many = Array.from({ length: 6 }, (_, i) => ({ n: `w${i}`, current: i === 5, occupied: true }));
   Object.assign(ids.bar, { clientWidth: 1000 });
   ids.bar.rect = { left: 0, right: 1000, top: 0, bottom: 36, width: 1000, height: 36 };
-  sandbox.tilemo.update({ uuid: "B", workspaces: many, title: "", icons: {}, notch: true });
+  sandbox.tide.update({ uuid: "B", workspaces: many, title: "", icons: {}, notch: true });
   const chips = ids.workspaces.children;
   // limit = 1000/2 - NOTCH_ROOM/2 = 390: chips at 40, 104, 168, ... 60 wide.
   chips.forEach((c, i) => (c.rect = { left: 40 + 64 * i, right: 100 + 64 * i, top: 5, bottom: 31, width: 60, height: 26 }));
@@ -442,7 +442,7 @@ assert.ok(NOTCH_ROOM >= 200, "at least the title's 200 px");
   more.listeners.click();
   assert.strictEqual(JSON.stringify(sent.at(-1)), JSON.stringify({ uuid: "B", workspaces: true }));
   // Without a notch, every chip shows and there's no "+n".
-  sandbox.tilemo.update({ uuid: "B", workspaces: many, title: "", icons: {}, notch: false });
+  sandbox.tide.update({ uuid: "B", workspaces: many, title: "", icons: {}, notch: false });
   ids.workspaces.children.forEach((c, i) => (c.rect = { left: 40 + 64 * i, right: 100 + 64 * i, top: 5, bottom: 31, width: 60, height: 26 }));
   sandbox.tick();
   assert.ok(ids.workspaces.children.every((c) => c.style.display !== "none" && c.className !== "more-ws"));
@@ -483,7 +483,7 @@ for (const [items, hits, from, to] of [
 assert.strictEqual(hits(barBox, [box(10, 50), box(45, 90)])[0].right, 0, "overlapping items reach no further");
 
 // fit() gives each shown item its reach, as the --reach-* its ::before uses.
-sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "", icons: { mic: { muted: false } } });
+sandbox.tide.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "", icons: { mic: { muted: false } } });
 ids.bar.rect = { ...barBox, width: 400, height: 36 };
 const [inChip, webChip] = ids.workspaces.children;
 inChip.rect = { ...box(10, 40), width: 30 };
@@ -502,7 +502,7 @@ assert.strictEqual(reachOf(micItem), "5px 5px 7px 10px");
 assert.strictEqual(reachOf(ids.title), "0px 0px 0px 0px", "no target with no title");
 const { titleInsets } = vm.runInContext('modules["./bar.js"]', sandbox);
 assert.strictEqual(JSON.stringify(titleInsets(barBox, box(150, 170, 10, 26), 80, 200)), '{"top":10,"bottom":10,"left":70,"right":30}');
-sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "Notes", icons: { mic: { muted: false } } });
+sandbox.tide.update({ uuid: "B", workspaces: [{ n: "in" }, { n: "web" }], title: "Notes", icons: { mic: { muted: false } } });
 const [inChip2, webChip2] = ids.workspaces.children;
 inChip2.rect = { ...box(10, 40), width: 30 };
 webChip2.rect = { ...box(44, 80), width: 36 };
@@ -538,10 +538,10 @@ sent.length = 0;
 ids.apple.rect = { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
 ids.logo.rect = { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
 
-// Hover: tilemo says where the pointer is, and the target under it, its
+// Hover: tide says where the pointer is, and the target under it, its
 // innermost, is marked .hover, one at a time, until the pointer leaves.
 ids["title-text"].parent = ids.title;
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B",
   workspaces: [{ n: "in", apps: ["com.a", "com.b"], wins: [7] }],
   title: "Notes",
@@ -554,7 +554,7 @@ const hoverOf = () =>
   [ids.apple, ids.logo, chip, winIcon, plainIcon, ids.title, ids.clocks, ids.icons.children[0]].filter((e) => e.classList.contains("hover"));
 const point = (e) => {
   under = e;
-  sandbox.tilemo.pointer(1, 1);
+  sandbox.tide.pointer(1, 1);
   return hoverOf();
 };
 assert.deepStrictEqual(point(winIcon), [winIcon], "a window icon, not its chip");
@@ -563,7 +563,7 @@ assert.deepStrictEqual(point(chip.children[0]), [chip], "the chip's name");
 sent.length = 0;
 ids["title-text"].rect = { left: 150, right: 250, top: 10, bottom: 26, width: 100, height: 16 };
 assert.deepStrictEqual(point(ids["title-text"]), [ids.title]);
-// The page can't draw past its strip, so tilemo draws the uncut title's tip,
+// The page can't draw past its strip, so tide draws the uncut title's tip,
 // centered on the title; once, however often the pointer moves.
 point(ids["title-text"]);
 assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip)), JSON.stringify([{ uuid: "B", tip: { text: "Notes", x: 200 } }]));
@@ -574,22 +574,22 @@ assert.deepStrictEqual(point(ids.logo), [ids.logo], "tide's logo");
 assert.deepStrictEqual(point(ids.apple), [ids.apple], "the Apple logo");
 assert.deepStrictEqual(point(ids.bar), [], "the bar itself is no target");
 point(chip);
-sandbox.tilemo.pointer(null);
+sandbox.tide.pointer(null);
 assert.deepStrictEqual(hoverOf(), [], "gone once the pointer leaves");
 // A title changing under the pointer changes the tip: it's always uncut.
 point(ids["title-text"]);
 const long = "x".repeat(500);
-sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: long, icons: {} });
+sandbox.tide.update({ uuid: "B", workspaces: [{ n: "in" }], title: long, icons: {} });
 assert.strictEqual(sent.filter((m) => m.tip).pop().tip.text, long);
 // An empty title is no target, and has no tip.
-sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: "in" }], title: "", icons: {} });
+sandbox.tide.update({ uuid: "B", workspaces: [{ n: "in" }], title: "", icons: {} });
 assert.strictEqual(JSON.stringify(sent.filter((m) => m.tip).pop().tip), JSON.stringify({ text: "" }));
 assert.deepStrictEqual(point(ids.title), []);
-sandbox.tilemo.pointer(null);
+sandbox.tide.pointer(null);
 // A status item's tip, a cut chip's whole name and the camera's tip take
 // the title's path, centered on the item; a window icon and a whole name
 // have none.
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B",
   workspaces: [{ n: "in", apps: ["com.a"], wins: [7] }, { n: "ABC-123 fix the login page" }],
   title: "",
@@ -615,27 +615,27 @@ camera.rect = { left: 1770, right: 1786, top: 10, bottom: 26, width: 16, height:
 assert.deepStrictEqual(point(camera).length, 0, "the camera is no target");
 assert.ok(!camera.classList.contains("hover"));
 assert.strictEqual(tipOf(), JSON.stringify({ text: "Camera in use", x: 1778 }), "but has a tip");
-sandbox.tilemo.pointer(null);
+sandbox.tide.pointer(null);
 assert.strictEqual(tipOf(), JSON.stringify({ text: "" }), "gone once the pointer leaves");
 under = null;
 
 // Off, Wi-Fi shows its bars dimmed and no name.
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { wifi: { on: false, bars: 0 } } });
 assert.strictEqual(state(ids.icons.children[0]), "off");
 assert.strictEqual(ids.icons.children[0].attrs["data-tip"], "Wi-Fi off");
 // Lua's JSON leaves out a field that's nil: a chip that's only occupied
 // mustn't come out current or urgent.
-sandbox.tilemo.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: "", icons: {} });
+sandbox.tide.update({ uuid: "B", workspaces: [{ n: 4, occupied: true }], title: "", icons: {} });
 const only = ids.workspaces.children[0];
 assert.ok(only.classList.contains("occupied"));
 for (const k of ["current", "urgent"]) assert.ok(!only.classList.contains(k), `not ${k}`);
 // Nor a microphone that's only said not to be muted come out muted.
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { mic: { muted: false } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { mic: { muted: false } } });
 const mic = ids.icons.children[0];
 assert.strictEqual(mic.className, "icon mic");
 assert.strictEqual(state(mic), "on", "not muted");
 // Muted, the microphone is struck through; charging, the battery has its bolt.
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B",
   workspaces: ws,
   title: "",
@@ -649,7 +649,7 @@ assert.strictEqual(charging.innerHTML.split("<svg ").length - 1, 2, "the bolt an
 // Presenting, keep awake says so in words, and a click ends presenter mode
 // rather than turning keep awake off alone.
 sent.length = 0;
-sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { on: true, presenting: true } } });
+sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { on: true, presenting: true } } });
 const presenting = ids.icons.children[0];
 assert.strictEqual(presenting.className, "icon awake");
 assert.strictEqual(state(presenting), "presenting");
@@ -660,7 +660,7 @@ assert.strictEqual(JSON.stringify(sent.filter((m) => !m.goodClocks)), JSON.strin
 
 // A clock set bar: false stays in the dashboard's panel and out of the bar
 // (tide SPEC.md §7.3); every other one is in it, then local time.
-sandbox.tilemo.update({
+sandbox.tide.update({
   uuid: "B", workspaces: ws, title: "", icons: {},
   clockFiles: { local: JSON.stringify([{ zone: "Asia/Tokyo", label: "TYO" }, { zone: "America/Denver", label: "DEN", bar: false }]) },
 });
@@ -671,10 +671,10 @@ sandbox.tilemo.update({
   assert.ok(!labels.includes("DEN"), "Denver is out of the bar");
 }
 // A right-click on an item opens its settings page, by tide's map with
-// tilemo's page ids (tide SPEC.md §7.1), and keeps WebKit's menu away;
+// tide's page ids (tide SPEC.md §7.1), and keeps WebKit's menu away;
 // off every item it does nothing.
 {
-  sandbox.tilemo.update({
+  sandbox.tide.update({
     uuid: "B", workspaces: ws, title: "Doc", icons: {
       source: { name: "U.S.", label: "US" }, awake: { on: false }, mic: { muted: false }, bluetooth: { on: true },
       headphones: { devices: [{ name: "Buds" }] }, volume: { level: "high", text: "50%" }, wifi: { on: true, bars: 3, name: "home" },
@@ -706,7 +706,7 @@ sandbox.tilemo.update({
   assert.strictEqual(pages(named.sysmon), "");
   assert.strictEqual(pages(named.session), "idle");
   assert.strictEqual(pages(ids.bar), null);
-  sandbox.tilemo.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { on: true, presenting: true } } });
-  assert.strictEqual(pages(ids.icons.children[0]), "muted", "Presenting opens Notifications, tilemo's muted page");
+  sandbox.tide.update({ uuid: "B", workspaces: ws, title: "", icons: { awake: { on: true, presenting: true } } });
+  assert.strictEqual(pages(ids.icons.children[0]), "muted", "Presenting opens Notifications, tide's muted page");
 }
 console.log("bar page: ok");

@@ -26,7 +26,7 @@ local function definitions(path)
 end
 
 t.test("the adapter defines each of its functions once", function()
-    local seen, twice = definitions("hammerspoon/tilemo/hs_adapter.lua")
+    local seen, twice = definitions("hammerspoon/tide/hs_adapter.lua")
     t.eq(next(seen) ~= nil, true, "found the adapter's functions")
     t.eq(twice, {})
 end)
@@ -60,8 +60,8 @@ local function watched()
         },
         screen = { watcher = { new = function() return { start = function() end } end } },
     }
-    package.loaded["tilemo.hs_adapter"] = nil
-    require("tilemo.hs_adapter").watch(function()
+    package.loaded["tide.hs_adapter"] = nil
+    require("tide.hs_adapter").watch(function()
         s.changes = s.changes + 1
     end, function(id)
         s.focused[#s.focused + 1] = id
@@ -76,7 +76,7 @@ local function watched()
     return s
 end
 
-t.test("tilemo's own windows showing, hiding and taking focus are no news to the window manager", function()
+t.test("tide's own windows showing, hiding and taking focus are no news to the window manager", function()
     local s = watched()
     s.fire("created", 42, "tide launcher", 1)
     s.fire("destroyed", 42, "tide launcher", 1)
@@ -156,8 +156,8 @@ local function stood(ids, stacked, docked)
             end,
         },
     }
-    package.loaded["tilemo.hs_adapter"] = nil
-    local a = require("tilemo.hs_adapter").new()
+    package.loaded["tide.hs_adapter"] = nil
+    local a = require("tide.hs_adapter").new()
     a.windows()
     return a
 end
@@ -179,7 +179,7 @@ end)
 -- of the tile.
 local function over_tile(above)
     local fake = require("fake")
-    local wm_mod = require("tilemo.wm")
+    local wm_mod = require("tide.wm")
     local a = fake.new()
     a.add(5, {})
     local wm = wm_mod.new(a, {})
@@ -215,11 +215,11 @@ t.test("Hammerspoon's console over a tile stops a Super+drag from grabbing the t
     t.eq(wm:window_at(tile.x + 10, tile.y + 10), 5, "the tile's uncovered part is still the tile")
 end)
 
--- tilemo's own drawing is click-through: the dim over the inactive
+-- tide's own drawing is click-through: the dim over the inactive
 -- windows (a canvas the size of the display, with a hole where the focused
 -- window is), the drag outline, the bar's tips. None of it is a window
 -- over the tiles.
-t.test("the dim and tilemo's other drawing don't stop a Super+drag from grabbing a tile", function()
+t.test("the dim and tide's other drawing don't stop a Super+drag from grabbing a tile", function()
     local a, wm, tile = over_tile(function(tile)
         return {
             { id = 80, layer = 1, pid = 42, frame = { x = 0, y = 0, w = 1920, h = 1080 } }, -- the dim
@@ -240,10 +240,10 @@ t.test("Hammerspoon's Preferences counts as over a tile, as the console does", f
     t.eq(a.ordered(), { 78, 5 })
 end)
 
--- tilemo's settings window, launcher and other windows of its own say
+-- tide's settings window, launcher and other windows of its own say
 -- where they are (wm.own_window); a Super+drag over one leaves the tile
 -- behind it alone.
-t.test("a Super+drag over one of tilemo's own windows grabs nothing", function()
+t.test("a Super+drag over one of tide's own windows grabs nothing", function()
     local _, wm, tile = over_tile(function()
         return {}
     end)

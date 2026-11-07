@@ -58,8 +58,8 @@ local function stub(front_pid, front_id)
         logger = { new = function() return { i = function() end } end },
         task = { new = function() end },
     }
-    package.loaded["tilemo.hs_adapter"] = nil
-    s.adapter = require("tilemo.hs_adapter").new()
+    package.loaded["tide.hs_adapter"] = nil
+    s.adapter = require("tide.hs_adapter").new()
     return s
 end
 

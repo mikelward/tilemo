@@ -1,9 +1,9 @@
 -- Who sent a notification, from its banner (SPEC.md §14.2).
 
 local t = require("t")
-local notices = require("tilemo.notices")
+local notices = require("tide.notices")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 t.test("a banner or alert is a notification; their stack isn't", function()
     t.eq(notices.is_banner("AXNotificationCenterBanner"), true)
@@ -80,7 +80,7 @@ t.test("a bell marks its window until you focus it", function()
     wm:rang(3)
     wm:rang(99)
     t.eq(wm:attention_windows(), { 3 }, "an unknown window is ignored")
-    t.eq(require("tilemo.bar").state(wm, "A", "", {}).workspaces[1].urgent, true)
+    t.eq(require("tide.bar").state(wm, "A", "", {}).workspaces[1].urgent, true)
     wm:focus_window(3)
     wm:focused(3)
     t.eq(wm:attention_windows(), {})

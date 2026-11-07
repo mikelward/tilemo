@@ -3,12 +3,12 @@
 
 local t = require("t")
 local json = require("json")
-local karabiner = require("tilemo.karabiner")
+local karabiner = require("tide.karabiner")
 
 local function node_runner()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to switch Karabiner's rules")
         end
         return nil
@@ -39,7 +39,7 @@ local function read_file(path)
     return s
 end
 
-local SOURCE = read_file("hammerspoon/tilemo/dashboard/karabiner.js")
+local SOURCE = read_file("hammerspoon/tide/dashboard/karabiner.js")
 local HOME = "/Users/me"
 local CONFIG = HOME .. karabiner.CONFIG
 local ASSETS = HOME .. karabiner.ASSETS
@@ -53,14 +53,14 @@ end
 local TAB = "Ctrl+Tab goes to the next tab, not the application switcher (PC muscle memory)"
 local ARROWS = "Ctrl+Left/Right moves by word, Win+Left/Right switches Spaces (PC muscle memory)"
 local TERMINAL = "Ctrl is Control and Alt is Meta in kitty and Ghostty (PC muscle memory)"
-local TILEMO = "tilemo: Win+key sends Ctrl+Option+Command"
+local TIDE = "tide: Win+key sends Ctrl+Option+Command"
 
 local function conf_assets()
     return {
         ["pc-alt-tab.json"] = rule_file("PC keyboard Ctrl+Tab", TAB, "tab"),
         ["pc-arrows.json"] = rule_file("PC keyboard arrows", ARROWS, "left_arrow"),
         ["pc-terminal.json"] = rule_file("PC keyboard terminals", TERMINAL, "u"),
-        ["tilemo.json"] = rule_file("tilemo", TILEMO, "left_command"),
+        ["tide.json"] = rule_file("tide", TIDE, "left_command"),
     }
 end
 
@@ -152,17 +152,17 @@ local function on_of(state)
     return out
 end
 
-t.test("the first check turns conf's rules on, tilemo's and the terminal's above the arrow rule", function()
+t.test("the first check turns conf's rules on, tide's and the terminal's above the arrow rule", function()
     local m = machine(with_assets(EMPTY_CONFIG))
     local s = m.k.check()
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB, ARROWS })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB, ARROWS })
     t.eq(#m.writes, 1)
     t.eq(s.problem, "")
     t.eq(on_of(s), {
         ["Ctrl+Tab goes to the next tab, not the application switcher"] = true,
         ["Ctrl+Left/Right moves by word, Win+Left/Right switches Spaces"] = true,
         ["Ctrl is Control and Alt is Meta in kitty and Ghostty"] = true,
-        ["tilemo: Win+key sends Ctrl+Option+Command"] = true,
+        ["tide: Win+key sends Ctrl+Option+Command"] = true,
     })
     t.eq(#m.notices, 1)
     t.eq(m.notices[1]:find("tide turned on conf's Karabiner rules", 1, true) ~= nil, true, m.notices[1])
@@ -184,7 +184,7 @@ t.test("a rule you turn off stays off", function()
     local m = machine(with_assets(EMPTY_CONFIG))
     m.k.check()
     t.eq(m.k.set(TAB, false), true)
-    t.eq(enabled(m), { TILEMO, TERMINAL, ARROWS })
+    t.eq(enabled(m), { TIDE, TERMINAL, ARROWS })
     local writes = #m.writes
     local s = m.k.check(true)
     t.eq(#m.writes, writes, "nothing turned on again")
@@ -196,7 +196,7 @@ t.test("a rule turned back on goes in its place", function()
     m.k.check()
     m.k.set(TERMINAL, false)
     t.eq(m.k.set(TERMINAL, true), true)
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB, ARROWS })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB, ARROWS })
 end)
 
 t.test("a rule already on stays where you put it", function()
@@ -206,14 +206,14 @@ t.test("a rule already on stays where you put it", function()
     local m = machine(with_assets(config))
     m.k.check()
     -- The new ones go above the arrow rule; your own rule stays below it.
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB, ARROWS, "my own rule" })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB, ARROWS, "my own rule" })
 end)
 
 t.test("a copy that differs from conf's file is brought up to date in its place", function()
     local config = '{"profiles": [{"selected": true, "complex_modifications": {"rules": ['
         .. '{"description": "' .. TAB .. '", "enabled": false, "manipulators": [{"type": "basic", "from": {"key_code": "q"}}]}]}}]}'
     local m = machine(with_assets(config))
-    m.settings[karabiner.SEEN_KEY] = { TAB, ARROWS, TERMINAL, TILEMO }
+    m.settings[karabiner.SEEN_KEY] = { TAB, ARROWS, TERMINAL, TIDE }
     local s = m.k.check()
     local rule = json.decode(m.files[CONFIG]).profiles[1].complex_modifications.rules[1]
     t.eq(rule.description, TAB)
@@ -229,7 +229,7 @@ t.test("a copy whose keys Karabiner sorted is the same rule", function()
     local config = '{"profiles": [{"selected": true, "complex_modifications": {"rules": ['
         .. '{"description": "' .. TAB .. '", "manipulators": [{"from": {"key_code": "tab"}, "type": "basic"}]}]}}]}'
     local m = machine(with_assets(config))
-    m.settings[karabiner.SEEN_KEY] = { TAB, ARROWS, TERMINAL, TILEMO }
+    m.settings[karabiner.SEEN_KEY] = { TAB, ARROWS, TERMINAL, TIDE }
     local s = m.k.check()
     t.eq(#m.writes, 0)
     t.eq(#m.notices, 0)
@@ -255,7 +255,7 @@ t.test("without karabiner.json, nothing's written and the rules wait to be turne
     t.eq(m.settings[karabiner.SEEN_KEY], nil)
     m.files[CONFIG] = EMPTY_CONFIG
     m.k.check()
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB, ARROWS })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB, ARROWS })
 end)
 
 t.test("a karabiner.json that isn't JSON is left alone and named", function()
@@ -279,7 +279,7 @@ t.test("a rule file that isn't JSON is named, and the rest still switch", functi
     local m = machine(with_assets(EMPTY_CONFIG, assets))
     local s = m.k.check()
     t.eq(s.problem:find("pc-arrows.json isn't JSON", 1, true) ~= nil, true, s.problem)
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB })
 end)
 
 t.test("Karabiner not running is said, and the rules still switch", function()
@@ -309,7 +309,7 @@ t.test("a failed save is said, shows what's in the file, and is tried again at t
     -- The timer's check, unforced, with no file changed since.
     m.fail_write = false
     m.k.check()
-    t.eq(enabled(m), { TILEMO, TERMINAL, TAB, ARROWS })
+    t.eq(enabled(m), { TIDE, TERMINAL, TAB, ARROWS })
 end)
 
 t.test("the doctor names conf's rules that are off, not other rules", function()
@@ -326,19 +326,19 @@ t.test("the doctor names conf's rules that are off, not other rules", function()
 end)
 
 -- conf's lock screen rule (pc-lock.json): turned on at the top, above
--- tilemo's, which would take a Mac keyboard's Command+U there as Super+U,
+-- tide's, which would take a Mac keyboard's Command+U there as Super+U,
 -- and named in the doctor when it's off, as conf's others are.
 local LOCK = "Ctrl+U clears the password at the lock screen, as on Linux (PC muscle memory)"
 
-t.test("conf's lock screen rule goes on above tilemo's, and the doctor names it when it's off", function()
+t.test("conf's lock screen rule goes on above tide's, and the doctor names it when it's off", function()
     local assets = conf_assets()
     assets["pc-lock.json"] = rule_file("PC keyboard lock screen", LOCK, "u")
     local m = machine(with_assets(EMPTY_CONFIG, assets))
     m.k.check()
-    t.eq(enabled(m), { LOCK, TILEMO, TERMINAL, TAB, ARROWS })
+    t.eq(enabled(m), { LOCK, TIDE, TERMINAL, TAB, ARROWS })
     m.k.set(LOCK, false)
     m.k.set(LOCK, true)
-    t.eq(enabled(m), { LOCK, TILEMO, TERMINAL, TAB, ARROWS }, "turned back on in its place")
+    t.eq(enabled(m), { LOCK, TIDE, TERMINAL, TAB, ARROWS }, "turned back on in its place")
     m.k.set(LOCK, false)
     local lines = m.k.doctor()
     t.eq(#lines, 1)

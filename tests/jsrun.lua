@@ -1,14 +1,14 @@
 -- JavaScript run in node, standing in for JavaScriptCore, as
 -- hs.osascript.javascript gives its last value: ok, and the result as a
 -- string: a whole script's completion value as JavaScriptCore gives it.
--- Nil without node, unless TILEMO_NEED_NODE says it's needed. The
+-- Nil without node, unless TIDE_NEED_NODE says it's needed. The
 -- clock is UTC's, so a test's times read the same anywhere.
-local names = require("tilemo.names")
+local names = require("tide.names")
 
 return function(what)
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to run " .. what)
         end
         return nil

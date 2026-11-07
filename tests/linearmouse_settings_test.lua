@@ -3,12 +3,12 @@
 
 local t = require("t")
 local json = require("json")
-local linearmouse = require("tilemo.linearmouse")
+local linearmouse = require("tide.linearmouse")
 
 local function node_runner()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to set LinearMouse's scrolling")
         end
         return nil
@@ -94,7 +94,7 @@ end
 
 local SOURCES = {}
 for _, name in ipairs(linearmouse.MODULES) do
-    SOURCES[name] = read_file("hammerspoon/tilemo/dashboard/" .. name)
+    SOURCES[name] = read_file("hammerspoon/tide/dashboard/" .. name)
 end
 
 local HOME = "/Users/me"

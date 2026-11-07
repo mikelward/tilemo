@@ -1,8 +1,8 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local overview = require("tilemo.overview")
-local dashboard = require("tilemo.dashboard")
+local wm_mod = require("tide.wm")
+local overview = require("tide.overview")
+local dashboard = require("tide.dashboard")
 
 -- Windows 1-3 on "in", then 4 sent to "re" and 5 to "web", with "web"
 -- showing at the end.
@@ -73,7 +73,7 @@ t.test("a group's windows go in tile order on each display, then its floats", fu
     t.eq(ids(overview.groups(wm)[1]), { 3, 1, 6, 2 })
 end)
 
-t.test("a window you minimized is in its group, marked; one tilemo doesn't manage isn't", function()
+t.test("a window you minimized is in its group, marked; one tide doesn't manage isn't", function()
     local a, wm = setup()
     a.add(7, { title = "Picture in Picture", frame = { x = 5, y = 5, w = 300, h = 200 } })
     wm:sync()
@@ -154,7 +154,7 @@ end)
 
 -- The page --------------------------------------------------------------
 
-local DIR = "hammerspoon/tilemo/dashboard/"
+local DIR = "hammerspoon/tide/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -173,15 +173,15 @@ end
 
 t.test("the page carries tileco's stylesheet and the script", function()
     local html = dashboard.page(read("overview.html"), read("launcher.css"), sources(), overview.MODULES)
-    t.eq(html:find("TILEMO_", 1, true), nil)
-    t.eq(html:find("window.tilemo = {", 1, true) ~= nil, true)
+    t.eq(html:find("TIDE_", 1, true), nil)
+    t.eq(html:find("window.tide = {", 1, true) ~= nil, true)
     t.eq(html:find('modules["./fuzzy.mjs"]', 1, true) ~= nil, true, "tide's matcher, by tide's name too")
 end)
 
 t.test("the page draws the groups, filters, and sends choices back", function()
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to check the overview page")
         end
         print("SKIP the overview page: no node")

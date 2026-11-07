@@ -1,7 +1,7 @@
 local t = require("t")
-local links = require("tilemo.links")
-local bar = require("tilemo.bar")
-local mute = require("tilemo.mute")
+local links = require("tide.links")
+local bar = require("tide.bar")
+local mute = require("tide.mute")
 
 local function read(path)
     local f = assert(io.open(path))
@@ -67,12 +67,12 @@ local TIDE_ORDER = {
     "displays", "sound", "network", "bluetooth", "mouse", "trackpad", "keyboard", "power",
     "layouts", "workspaces", "floating",
     "appearance", "muted", "clipboard", "clocks", "idle", "startup",
-    -- Then tilemo's own Setup checklist, which tide has no page for.
+    -- Then tide's own Setup checklist, which tide has no page for.
     "setup",
 }
 
 t.test("the settings window's sections are tide's pages, in tide's order, then the checklist", function()
-    local html = read("hammerspoon/tilemo/dashboard/settings.html")
+    local html = read("hammerspoon/tide/dashboard/settings.html")
     local ids = {}
     for id in html:gmatch('<h1 id="([%w_-]+)"') do
         ids[#ids + 1] = id
@@ -91,7 +91,7 @@ t.test("Privacy & Security's lists open the pane at the list", function()
 end)
 
 t.test("each section with buttons has a row for them", function()
-    local html = read("hammerspoon/tilemo/dashboard/settings.html")
+    local html = read("hammerspoon/tide/dashboard/settings.html")
     for _, s in ipairs(links.SECTIONS) do
         t.eq((html:find('<h1 id="' .. s.id .. '"', 1, true)) and true or false, true, "no section " .. s.id)
         t.eq((html:find('id="' .. s.id .. '-links"', 1, true)) and true or false, true, "no row for " .. s.id .. "'s buttons")
@@ -99,7 +99,7 @@ t.test("each section with buttons has a row for them", function()
 end)
 
 t.test("each section's buttons are at its foot, as tide's advanced row", function()
-    local html = read("hammerspoon/tilemo/dashboard/settings.html")
+    local html = read("hammerspoon/tide/dashboard/settings.html")
     for _, s in ipairs(links.SECTIONS) do
         local section = html:match('<section class="page" id="page%-' .. s.id .. '".-</section>')
         t.eq(section:find('<p class="row links" id="' .. s.id .. '%-links"></p>\n</section>$') ~= nil, true, s.id)

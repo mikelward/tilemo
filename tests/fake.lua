@@ -132,7 +132,7 @@ function M.new()
     function a.focused()
         return a.focus_
     end
-    -- Whether one of tilemo's own windows has the focus: focused() is nil.
+    -- Whether one of tide's own windows has the focus: focused() is nil.
     a.own = false
     function a.own_front()
         return a.own

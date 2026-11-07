@@ -1,9 +1,9 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local bar = require("tilemo.bar")
-local mute = require("tilemo.mute")
-local launcher = require("tilemo.launcher")
+local wm_mod = require("tide.wm")
+local bar = require("tide.bar")
+local mute = require("tide.mute")
+local launcher = require("tide.launcher")
 
 local DIR = "/home/user/.config/tide"
 local SHARED = DIR .. "/" .. mute.FILE
@@ -313,7 +313,7 @@ t.test("a muted site silences a browser window whose front tab is on it", functi
     local _, wm = setup()
     wm:set_muted(mute.parse({ "site:chat.example.com" }, "x"))
     wm.attention:activated(2, "com.google.Chrome")
-    t.eq(wm:attention_windows(), { 2 }, "tilemo hasn't seen the window's tabs yet")
+    t.eq(wm:attention_windows(), { 2 }, "tide hasn't seen the window's tabs yet")
     wm:note_tabs({
         { win = 2, active = false, url = "https://docs.example.com/" },
         { win = 2, active = true, url = "https://chat.example.com/room/1" },

@@ -1,5 +1,5 @@
 local t = require("t")
-local park = require("tilemo.park")
+local park = require("tide.park")
 
 local A = { x = 0, y = 0, w = 1920, h = 1080 }
 local size = { w = 800, h = 600 }

@@ -68,7 +68,7 @@ local function stub()
             interfaceStyle = function() end,
         },
     }
-    s.tilemo = {
+    s.tide = {
         adapter = {
             focused = function() end,
             log = function() end,
@@ -89,8 +89,8 @@ end
 
 local function launcher_with(s)
     _G.hs = s.hs
-    package.loaded["tilemo.launcher_hs"] = nil
-    local launcher_hs = require("tilemo.launcher_hs")
+    package.loaded["tide.launcher_hs"] = nil
+    local launcher_hs = require("tide.launcher_hs")
     launcher_hs.collector = function()
         return function()
             return {}
@@ -99,7 +99,7 @@ local function launcher_with(s)
     launcher_hs.fetch_tabs = function(_, done)
         s.tabs[#s.tabs + 1] = done
     end
-    return launcher_hs.new(s.tilemo)
+    return launcher_hs.new(s.tide)
 end
 
 t.test("a browser's tabs that answer after the switcher is deleted are dropped", function()
@@ -177,8 +177,8 @@ local function apps_stub(running)
             end,
         },
     }
-    package.loaded["tilemo.launcher_hs"] = nil
-    return s, require("tilemo.launcher_hs")
+    package.loaded["tide.launcher_hs"] = nil
+    return s, require("tide.launcher_hs")
 end
 
 t.test("asking for tabs doesn't walk every running app for a browser that isn't running", function()

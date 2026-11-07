@@ -1,7 +1,7 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local keys = require("tilemo.keys")
+local wm_mod = require("tide.wm")
+local keys = require("tide.keys")
 
 local function setup(n)
     local a = fake.new()
@@ -366,7 +366,7 @@ t.test("after a close, a minimized window is passed over for a visible one", fun
     t.eq(a.focus_, 1)
 end)
 
-t.test("after a close, a window not focused since tilemo started still gets focus", function()
+t.test("after a close, a window not focused since tide started still gets focus", function()
     local a, wm = setup(2)
     a.focus_ = 2
     a.drop(2)
@@ -393,7 +393,7 @@ end)
 
 t.test("a new window that took focus first still goes after the one you were in", function()
     local cfg = {}
-    for k, v in pairs(require("tilemo.layout").defaults) do
+    for k, v in pairs(require("tide.layout").defaults) do
         cfg[k] = v
     end
     cfg.new_window = "next"
@@ -434,7 +434,7 @@ t.test("a float you focus stays in front when a tile's floats are raised again",
     t.eq(a.calls[#a.calls], "raise 2")
 end)
 
-t.test("tilemo's own moves aren't read as drags", function()
+t.test("tide's own moves aren't read as drags", function()
     local a, wm = setup(2)
     a.calls = {}
     wm:moved(1)
@@ -488,7 +488,7 @@ t.test("a lone window narrows on both sides as its edge is dragged, staying cent
     t.eq(a.wins[1].frame, { x = 576, y = 25, w = 768, h = 1055 }, "the drop keeps it")
 end)
 
-t.test("a lone window's left edge keeps hold of its width as tilemo mirrors the right", function()
+t.test("a lone window's left edge keeps hold of its width as tide mirrors the right", function()
     local a, wm = setup(1)
     a.buttons = true
     a.wins[1].frame = { x = 384, y = 25, w = 1536, h = 1055 } -- the left edge in to 384
@@ -865,7 +865,7 @@ t.test("the settings action opens the window on the section it names", function(
 end)
 
 t.test("new layout settings retile every display at once, and the same ones change nothing", function()
-    local layout = require("tilemo.layout")
+    local layout = require("tide.layout")
     local a, wm = setup(3)
     wm:act("mfact", 1)
     local c = layout.copy(layout.defaults)
@@ -880,7 +880,7 @@ end)
 
 -- Parking (SPEC.md §6): the default way a hidden workspace hides. -----------
 
-local park = require("tilemo.park")
+local park = require("tide.park")
 
 -- Whether the adapter was asked to minimize anything.
 local function minimizes(a)
@@ -1040,7 +1040,7 @@ t.test("Super+Z in park mode still minimizes, to the tray, and the window stays 
     t.eq(a.calls[1], "minimize 2")
     t.eq(wm.windows[2].mine, true)
     t.eq(wm:minimized_windows("in", "A"), { 2 }, "in the tray")
-    wm:minimized(2) -- macOS's report of tilemo's own minimize
+    wm:minimized(2) -- macOS's report of tide's own minimize
     wm:show("2", nil, true)
     t.eq(wm.parked[2], nil, "a window you minimized isn't parked")
     t.eq(wm.parked[1], true)
@@ -1071,7 +1071,7 @@ t.test("minimize mode hides by minimizing, as before, and moves nothing off scre
     t.eq(a.wins[1].minimized, false)
 end)
 
-t.test("a window tilemo minimized under the old scheme comes back in park mode", function()
+t.test("a window tide minimized under the old scheme comes back in park mode", function()
     local a = fake.new()
     a.add(1, { minimized = true, title = "Shown" })
     a.add(2, { minimized = true, title = "Hidden" })
@@ -1093,7 +1093,7 @@ t.test("a window tilemo minimized under the old scheme comes back in park mode",
     t.eq(frame(a, 2), spot_on_a(800, 600))
     wm:unminimized(1)
     wm:unminimized(2)
-    t.eq(wm.windows[2].mine, false, "macOS's reports are tilemo's, not yours")
+    t.eq(wm.windows[2].mine, false, "macOS's reports are tide's, not yours")
 end)
 
 t.test("a native full-screen window hides by minimizing, since it can't be parked", function()
@@ -1107,7 +1107,7 @@ t.test("a native full-screen window hides by minimizing, since it can't be parke
     t.eq(wm.parked[2], nil)
     t.eq(wm.parked[1], true, "the other window parks")
     wm:minimized(2)
-    t.eq(wm.windows[2].mine, false, "tilemo's own minimize")
+    t.eq(wm.windows[2].mine, false, "tide's own minimize")
     -- macOS takes it out of full screen as it minimizes.
     a.wins[2].fullscreen = false
     wm:reconcile()

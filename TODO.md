@@ -19,8 +19,8 @@ The Hammerspoon version, in the order SPEC.md §18 sets:
    The menu bar item stays as the fallback (`bar = false`), and a large
    number shows briefly on each switch.
 8. **Done:** conf's Karabiner rule turns Win+key into
-   Ctrl+Option+Command+key (description starting `tilemo:`), and
-   `setup-macos --wm tilemo` in scripts installs Hammerspoon and tide, frees
+   Ctrl+Option+Command+key (description starting `tide:`), and
+   `setup-macos --wm tide` in scripts installs Hammerspoon and tide, frees
    the keys in SPEC.md §7.3, and stops the menu bar hiding, for tide's bar to cover.
 
 ## Settings pages, for parity with tide for Linux
@@ -37,8 +37,8 @@ on macOS 26 too; a Workspaces change moves home and the bar's order at
 once, and at login the files' `inApps` opens only the entries that are Mac
 apps, Chrome's installed web apps included; Keyboard's Shortcuts list
 every key, and a key macOS won't register shows there in red and in
-`tilemo doctor`; the Setup checklist shows Accessibility On, and Off (in
-red, and in `tilemo doctor`) once it's turned off in Privacy & Security,
+`tide doctor`; the Setup checklist shows Accessibility On, and Off (in
+red, and in `tide doctor`) once it's turned off in Privacy & Security,
 updating on coming back to the window; each Open lands on its list in
 Privacy & Security or its pane in Desktop & Dock, Lock Screen and
 Notifications, on macOS 26 too; the settings each item names are worded
@@ -132,7 +132,7 @@ launch's window going to the workspace it was launched for, and the keys:
 - **conf:** Karabiner sends physical Alt+Tab as tide's
   `Ctrl+Option+Shift+Tab` instead of Cmd+Tab, and the lone Super tap as
   `Super+F20` (conf's PR for this goes with tide's keys PR); `kitty.conf` allows remote control on a socket; the shell reads
-  `~/Library/Caches/tilemo/workspace` on a Mac when `TIDE_WORKSPACE` is
+  `~/Library/Caches/tide/workspace` on a Mac when `TIDE_WORKSPACE` is
   missing (SPEC.md §6.3, §17).
 - **Check on a Mac:** `open --env` on macOS 26, kitty's socket path, and
   how slow a pattern run through `hs.osascript.javascript` is (SPEC.md
@@ -270,7 +270,7 @@ page's test, against a fake DOM, cover it.
 **Built** (SPEC.md §7.2, §8, §10): `Super+S` and `Super+P`, the launcher's
 Presenter mode, the bar's Presenting pill, and Do Not Disturb through
 `/usr/bin/shortcuts`, with missing shortcuts named at load (console,
-`tilemo doctor`) and in a notification on first use. Only the plain-Lua
+`tide doctor`) and in a notification on first use. Only the plain-Lua
 tests and the bar page's test cover it. **Check on a Mac:**
 
 - `Super+S` and `Super+P` reach tide through Karabiner as
@@ -552,7 +552,7 @@ tide. INFEASIBLE.md lists what can't be fixed.
   Reversible: `keys.DOES`.
 - **A chord left out for another binding counts as a key that didn't
   register** (2026-11-01): without Karabiner, Super+Print is listed in red
-  and named by `tilemo doctor`, beside its fallback notice. The
+  and named by `tide doctor`, beside its fallback notice. The
   alternative is listing only the keys macOS refused. Reversible: where
   `bind_all` in `init.lua` adds `skipped` to `failed`.
 - **Keys show as a PC keyboard prints them** (2026-11-01), as tide for Linux's do:
@@ -663,17 +663,25 @@ tide. INFEASIBLE.md lists what can't be fixed.
   (SPEC.md §15), not while minimized, which Accessibility may refuse
   *(unverified)*. The alternative is placing it at once, minimized.
   Reversible: `wm:set_float_rules` and `follow_floats`.
-- **tide on screen, tilemo in the code** (SPEC.md §17). Each of these is a
-  one-line change to undo or redo:
-  - The Karabiner notices say "tide's Karabiner rule" but still tell you to
-    remove the `"tilemo:"` rule, since that's its name in conf; when conf
-    renames it, add `"tide:"` to `keys.RULE_PREFIXES`, first.
+- **tide on screen and in the code** (SPEC.md §17), since tilemo became
+  tide (2026-11-07). Each of these is a one-line change to undo or redo:
+  - What tilemo saved is copied, not moved, to tide's `hs.settings` keys,
+    so a downgrade still finds it. Reversible: `saved.move_prefix` in
+    `start()`.
+  - `~/Library/Caches/tilemo` becomes a link to `~/Library/Caches/tide`,
+    for conf's shells until they read the new path. Reversible:
+    `current.move_old`.
+  - Karabiner rules described `tilemo:` and `timo:` still count, and conf's
+    `tilemo.json` is still conf's, until conf's rule says `tide:`.
+    Reversible: `keys.RULE_PREFIXES` and `karabiner.CONF_FILES`.
   - "Reload tide" and "Check tide (doctor)" keep "Reload tilemo" and "Check
-    tide (doctor)" as the key their use is remembered by, so they don't
-    drop down the switcher. Typing "tilemo" no longer finds them.
-  - Console errors and the log say `tide:`; `require("timo")`'s note still
-    names `require("tilemo")`, which is what to write. `setup-macos --wm
-    tilemo` in the blueutil hint is that script's flag, so it stays.
+    tilemo (doctor)" as the key their use is remembered by, so they don't
+    drop down the switcher.
+  - `make install` leaves the rest of an old `~/.hammerspoon/tilemo` in
+    place, unused, rather than delete a folder in your home.
+  - Comments in the code still say tide for the Linux desktop as well as
+    for this. The docs say tide for Linux; the comments follow as they're
+    next touched.
   - The logo is a PNG pair, not drawn with `hs.canvas`, so it's tide for Linux's SVG
     as rendered, and one file to swap: a 16 pt template (64 px) for the menu
     bar, and a 64 pt one (256 px) in the light accent blue, `#3584e4`, for
@@ -768,7 +776,7 @@ tide. INFEASIBLE.md lists what can't be fixed.
   one-action shortcut is the easiest to make. Reversible: the names in
   `presenter.lua`.
 - **A missing shortcut is a notification on first use, and only a
-  console line and a `tilemo doctor` line at load,** so a Mac that never
+  console line and a `tide doctor` line at load,** so a Mac that never
   uses Do Not Disturb isn't told at every reload. Reversible:
   `presenter_hs.check`.
 - **Presenter mode shows on the keep-awake item, not as an item of its
@@ -831,9 +839,9 @@ tide. INFEASIBLE.md lists what can't be fixed.
 - **An out-of-date tide rule in Karabiner is flagged, not worked
   around:** tide reads the enabled copy in `karabiner.json`, and if
   Alt+Tab's or the tap's Super+F20 manipulator is missing it says which,
-  and how to re-add the rule, in a notification and in `tilemo.doctor()`.
+  and how to re-add the rule, in a notification and in `tide.doctor()`.
   It doesn't bind Super+Space's old tap or anything else in their place.
-  `tilemo doctor` is so far just this and the Karabiner check, from the
+  `tide doctor` is so far just this and the Karabiner check, from the
   console or the switcher. Reversible: `keys.rule_gaps` and `init.lua`'s
   `check_rule`.
 
@@ -854,7 +862,7 @@ tide. INFEASIBLE.md lists what can't be fixed.
   can't pass one. kitty's remote control is tried at `/tmp/kitty-<pid>`
   then `/tmp/kitty` *(unverified which kitty uses)*, falling back to Cmd+N.
   Reversible: `hs_adapter.lua`'s `launch`.
-- **Scripts read the workspace from `~/Library/Caches/tilemo/workspace`,**
+- **Scripts read the workspace from `~/Library/Caches/tide/workspace`,**
   not `hs -c`, since `hs.ipc`'s port runs any Lua a local process sends,
   with tide's Accessibility grant. Lua has no chmod, so each write runs
   `/bin/chmod` three times; that's only when the workspace changes. Reversible:
@@ -865,10 +873,10 @@ tide. INFEASIBLE.md lists what can't be fixed.
   taken for it. Reversible: `wm.launch_to`.
 - **Alt+Tab is `Ctrl+Option+Shift+Tab`** as Karabiner sends it: without
   Command, so physical Win+anything can't make it. Reversible:
-  `keys.karabiner_only` and conf's `tilemo.json`.
+  `keys.karabiner_only` and conf's `tide.json`.
 - **The lone Super tap is `Super+F20`** as Karabiner sends it, told apart
   from `Super+Space`. Reversible: one line in `keys.map` and conf's
-  `tilemo.json`.
+  `tide.json`.
 - **The switcher's tabs are scopes of one `hs.chooser`,** as the launcher's
   were: Launch, Workspaces, Windows and Attention. The Workspaces tab
   lists each workspace's apps by name, without icons. Reversible:
@@ -923,7 +931,7 @@ tide. INFEASIBLE.md lists what can't be fixed.
   a click, as the dashboard does on closing.
 
 - **tide for Linux's geometry, direction and clocks modules are copied, not shared.**
-  `hammerspoon/tilemo/geometry.lua`, `direction.lua` and
+  `hammerspoon/tide/geometry.lua`, `direction.lua` and
   `dashboard/tide-clocks.js` are tide for Linux's files unchanged, and CI fails if
   they drift (`make check-tide`).
   The alternative is a git submodule of tide. Reversible: swap the copies
@@ -935,7 +943,7 @@ tide. INFEASIBLE.md lists what can't be fixed.
 - **The master count never drops below one,** in every mode. tide for Linux's tile
   can go to none. Reversible: one line in `layout.nmaster`.
 - **How tide tells Karabiner is ready:** its config has a rule whose
-  description starts `tilemo:` (or `timo:`, from before the rename), and
+  description starts `tide:` (or `timo:`, from before the rename), and
   `Karabiner-Core-Service` or `karabiner_grabber` is running, checked every
   30 s. Unverified on a Mac.
   Reversible: `keys.karabiner_ready`.

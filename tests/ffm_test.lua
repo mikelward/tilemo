@@ -1,7 +1,7 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local ffm_mod = require("tilemo.ffm")
+local wm_mod = require("tide.wm")
+local ffm_mod = require("tide.ffm")
 
 -- Two tiles: 1 on the left (x 0..1056), 2 on the right.
 local function setup(opts)
@@ -91,7 +91,7 @@ t.test("the screenshot picker keeps focus", function()
     t.eq(focuses(a), {})
 end)
 
-t.test("tilemo's launcher keeps the keyboard", function()
+t.test("tide's launcher keeps the keyboard", function()
     local a, wm, ffm = setup()
     wm.holding_keyboard = true
     ffm:move(1500, 500)
@@ -292,7 +292,7 @@ t.test("an open menu holds focus even after the pointer leaves it", function()
     t.eq(focuses(a), { "focus 2" })
 end)
 
-t.test("focusing an older float brings it to the top of tilemo's float order", function()
+t.test("focusing an older float brings it to the top of tide's float order", function()
     local a, wm, ffm = setup()
     a.add(3, { subrole = "AXDialog", pid = 300, frame = { x = 0, y = 0, w = 600, h = 400 } })
     a.add(4, { subrole = "AXDialog", pid = 400, frame = { x = 0, y = 0, w = 200, h = 100 } })
@@ -428,7 +428,7 @@ t.test("a Chrome popup isn't moved, and entering its window focuses the window",
 end)
 
 -- Three tiles of three apps, 1 focused long enough ago that only what
--- tilemo asks for since counts for the focus guard (SPEC.md §14.1). Returns
+-- tide asks for since counts for the focus guard (SPEC.md §14.1). Returns
 -- a point inside each window too.
 local function three_apps()
     local a = fake.new()
@@ -693,7 +693,7 @@ t.test("closing a window passes over the one under the pointer if it would bury 
 end)
 
 -- The report's layout with B, the tile under the float, the window you
--- were in: focused by a click, then the float went back over it, as tilemo
+-- were in: focused by a click, then the float went back over it, as tide
 -- raises the floats after any focus.
 local function b_was_yours(config)
     local a, wm, ffm, onb, onf = rule_float("later", nil, config)
@@ -776,7 +776,7 @@ t.test("focus handed back from a thief passes over a tile under another app's fl
 end)
 
 -- The thief is on the same workspace, next in its last-used list after
--- the tile under the float: focus mustn't go to it, or tilemo's own ask
+-- the tile under the float: focus mustn't go to it, or tide's own ask
 -- would let its next grab through the guard.
 t.test("focus handed back past a tile under a float never goes to the thief", function()
     local a, wm = b_was_yours()
@@ -821,7 +821,7 @@ local function counting(a)
     end
 end
 
-t.test("over one of tilemo's own windows, nothing asks what's under the pointer", function()
+t.test("over one of tide's own windows, nothing asks what's under the pointer", function()
     local a, wm, ffm = setup()
     counting(a)
     -- The settings window, over window 2.
@@ -836,7 +836,7 @@ t.test("over one of tilemo's own windows, nothing asks what's under the pointer"
     t.eq(a.asked, 0, "nor a resync after a raise")
 end)
 
-t.test("a window of tilemo's that just went still counts a moment, while macOS takes it away", function()
+t.test("a window of tide's that just went still counts a moment, while macOS takes it away", function()
     local a, wm, ffm = setup()
     counting(a)
     wm:own_window("launcher", { x = 0, y = 0, w = 3000, h = 2000 })

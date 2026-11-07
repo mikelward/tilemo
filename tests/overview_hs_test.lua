@@ -5,7 +5,7 @@
 
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 local function stub()
     local s = { views = {}, scripts = {}, icons = {} }
@@ -87,7 +87,7 @@ local function stub()
     wm:act("send", "re")
     a.focus_ = 1
     s.a, s.wm = a, wm
-    s.tilemo = {
+    s.tide = {
         wm = wm,
         adapter = {
             focused = a.focused,
@@ -100,8 +100,8 @@ local function stub()
         },
     }
     _G.hs = s.hs
-    package.loaded["tilemo.overview_hs"] = nil
-    s.overview = require("tilemo.overview_hs").new(s.tilemo)
+    package.loaded["tide.overview_hs"] = nil
+    s.overview = require("tide.overview_hs").new(s.tide)
     return s
 end
 

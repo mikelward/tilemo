@@ -1,6 +1,6 @@
 local t = require("t")
-local bluetooth = require("tilemo.bluetooth")
-local bar = require("tilemo.bar")
+local bluetooth = require("tide.bluetooth")
+local bar = require("tide.bar")
 
 t.test("blueutil -p's 1 is on and 0 is off", function()
     t.eq(bluetooth.parse(0, "1\n"), { on = true })
@@ -99,7 +99,7 @@ t.test("with no blueutil, nothing runs, the icon hides and the log says so once"
     p:poll()
     t.eq(#runs, 0)
     t.eq(p.state, nil)
-    t.eq(logs, { "bar: Bluetooth on/off hidden: blueutil isn't installed (brew install blueutil, or setup-macos --wm tilemo)" })
+    t.eq(logs, { "bar: Bluetooth on/off hidden: blueutil isn't installed (brew install blueutil, or setup-macos --wm tide)" })
 end)
 
 t.test("a blueutil that can't start is an error, and the next poll tries again", function()

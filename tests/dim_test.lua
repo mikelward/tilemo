@@ -3,10 +3,10 @@
 -- display's layer draws.
 
 local t = require("t")
-local dim = require("tilemo.dim")
+local dim = require("tide.dim")
 local json = require("json")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 local function setup(n)
     local a = fake.new()
@@ -65,7 +65,7 @@ t.test("a window full screen on its own Space doesn't count as showing", functio
     t.eq(wm:dim_scene(), nil)
 end)
 
-t.test("with tilemo's own window focused, over the layer, every window is dimmed", function()
+t.test("with tide's own window focused, over the layer, every window is dimmed", function()
     local a, wm = setup(1)
     a.focus(1)
     wm:focused(1)

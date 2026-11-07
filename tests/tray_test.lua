@@ -1,9 +1,9 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
-local ffm_mod = require("tilemo.ffm")
-local tray = require("tilemo.tray")
-local launcher = require("tilemo.launcher")
+local wm_mod = require("tide.wm")
+local ffm_mod = require("tide.ffm")
+local tray = require("tide.tray")
+local launcher = require("tide.launcher")
 
 -- Minimize mode (`hide = "minimize"`), for the tests about hiding a
 -- workspace by minimizing: they read macOS's minimized flag as hidden, or
@@ -32,7 +32,7 @@ local function setup(n, _, config)
     return a, wm
 end
 
--- macOS reporting back what tilemo asked it to do.
+-- macOS reporting back what tide asked it to do.
 local function settle(a, wm)
     for id, w in pairs(a.wins) do
         if w.minimized and not w.reported then
@@ -67,7 +67,7 @@ t.test("Super+Z minimizes the focused window, frees its tile, and focuses the la
     t.eq(a.focus_, 2)
     t.eq(wm:tiled("in", "A"), { 1, 2 })
     settle(a, wm)
-    t.eq(wm.windows[3].mine, true, "macOS's report of tilemo's own minimize leaves it yours")
+    t.eq(wm.windows[3].mine, true, "macOS's report of tide's own minimize leaves it yours")
 end)
 
 t.test("Super+Z on no managed window does nothing", function()
@@ -90,18 +90,18 @@ t.test("a window you minimized stays down when its workspace comes back", functi
     t.eq(a.wins[2].minimized, true)
 end)
 
-t.test("the tray lists the windows you minimized there, in order, and not the ones tilemo hid", function()
+t.test("the tray lists the windows you minimized there, in order, and not the ones tide hid", function()
     local a, wm = setup(4, nil, minimizing())
     focus(wm, 3)
     wm:act("minimize")
-    -- Cmd+M, which macOS reports without tilemo asking.
+    -- Cmd+M, which macOS reports without tide asking.
     a.wins[1].minimized = true
     a.wins[1].reported = true
     wm:minimized(1)
     a.tick()
     t.eq(ids(tray.state(wm, "A")), { 3, 1 }, "newest at the right")
     t.eq(tray.state(wm, "A").items[1], { id = 3, app = "app3", title = "Window 3" })
-    -- Window 4 goes to "web", which isn't showing: tilemo hides it.
+    -- Window 4 goes to "web", which isn't showing: tide hides it.
     wm:send(4, "web")
     settle(a, wm)
     t.eq(a.wins[4].minimized, true)

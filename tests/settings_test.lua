@@ -1,7 +1,7 @@
 local t = require("t")
-local dashboard = require("tilemo.dashboard")
+local dashboard = require("tide.dashboard")
 
-local DIR = "hammerspoon/tilemo/dashboard/"
+local DIR = "hammerspoon/tide/dashboard/"
 
 local function read(name)
     local f = assert(io.open(DIR .. name))
@@ -109,7 +109,7 @@ t.test("every page in the sidebar, and every icon button, has its icon drawn", f
         t.eq(drawn[name], nil, "a second icon named " .. name)
         drawn[name] = true
     end
-    for _, sec in ipairs(require("tilemo.launcher").SETTINGS_SECTIONS) do
+    for _, sec in ipairs(require("tide.launcher").SETTINGS_SECTIONS) do
         if not sec.page then
             t.eq(drawn[sec.id], true, "the sidebar's " .. sec.id)
         end
@@ -133,7 +133,7 @@ t.test("the settings page builds, and changes the clocks as tide's page does", f
         sources[name] = read(name)
     end
     local html = dashboard.page(read("settings.html"), read("launcher.css"), sources, dashboard.SETTINGS_MODULES)
-    t.eq(html:find("TILEMO_", 1, true), nil)
+    t.eq(html:find("/*TIDE_", 1, true), nil)
     t.eq(html:find('id="add-zone"', 1, true) ~= nil, true)
     t.eq(html:find('id="add-command"', 1, true) ~= nil, true)
     t.eq(html:find('id="clipboard-history"', 1, true) ~= nil, true)
@@ -142,7 +142,7 @@ t.test("the settings page builds, and changes the clocks as tide's page does", f
     end
     local node = io.popen("command -v node"):read("l")
     if not node then
-        if os.getenv("TILEMO_NEED_NODE") then
+        if os.getenv("TIDE_NEED_NODE") then
             error("node is needed to check the settings page")
         end
         print("SKIP the settings page's changes: no node")
@@ -162,9 +162,9 @@ t.test("the settings page builds, and changes the clocks as tide's page does", f
 end)
 
 t.test("a launcher switch that fails says why, and the log keeps it", function()
-    local settings_hs = require("tilemo.settings_hs")
+    local settings_hs = require("tide.settings_hs")
     local logged = {}
-    local tilemo = {
+    local tide = {
         adapter = {
             log = function(line)
                 logged[#logged + 1] = line
@@ -174,17 +174,17 @@ t.test("a launcher switch that fails says why, and the log keeps it", function()
             return nil, "can't read the dashboard launcher's launcherpage.html"
         end,
     }
-    local ok, why = settings_hs.switch_launcher(tilemo, "dashboard")
+    local ok, why = settings_hs.switch_launcher(tide, "dashboard")
     t.eq(ok, nil)
     t.eq(why, "can't read the dashboard launcher's launcherpage.html")
     t.eq(logged, { "settings: couldn't switch the launcher to dashboard: can't read the dashboard launcher's launcherpage.html" })
-    tilemo.set_launcher = nil
-    ok, why = settings_hs.switch_launcher(tilemo, "dashboard")
+    tide.set_launcher = nil
+    ok, why = settings_hs.switch_launcher(tide, "dashboard")
     t.eq(why, "this tide can't switch launchers")
-    tilemo.set_launcher = function()
+    tide.set_launcher = function()
         return true
     end
-    t.eq(settings_hs.switch_launcher(tilemo, "chooser"), true)
+    t.eq(settings_hs.switch_launcher(tide, "chooser"), true)
     t.eq(#logged, 2)
 end)
 

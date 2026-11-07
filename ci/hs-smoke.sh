@@ -1,15 +1,15 @@
 #!/bin/sh
 #
-# hs-smoke.sh: install tilemo into a fresh Hammerspoon and run ci/hs_smoke.lua
+# hs-smoke.sh: install tide into a fresh Hammerspoon and run ci/hs_smoke.lua
 # inside it (macOS only; CI's macOS job). Prints the results and exits 1 if
 # any check failed or Hammerspoon never reported.
 #
-#   $TILEMO_SMOKE_WAIT  seconds to wait for Hammerspoon to report (default 120)
+#   $TIDE_SMOKE_WAIT  seconds to wait for Hammerspoon to report (default 120)
 
 set -eu
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
-wait_for=${TILEMO_SMOKE_WAIT:-120}
+wait_for=${TIDE_SMOKE_WAIT:-120}
 out=$(mktemp -d)/smoke.txt
 : >"$out"
 hs_dir=$HOME/.hammerspoon
@@ -31,21 +31,21 @@ if test -e "$HOME/scripts"; then
 fi
 mkdir -p "$HOME/scripts"
 printf '#!/bin/sh\nPATH="$HOME/scripts:$PATH" exec "$@"\n' >"$HOME/scripts/runenv"
-mkfifo "$HOME/scripts/tilemo-smoke-go"
-printf '#!/bin/sh\nread -r _ <"$HOME/scripts/tilemo-smoke-go"\necho "no such app" >&2\nexit 3\n' >"$HOME/scripts/tilemo-smoke-fail"
-chmod +x "$HOME/scripts/runenv" "$HOME/scripts/tilemo-smoke-fail"
+mkfifo "$HOME/scripts/tide-smoke-go"
+printf '#!/bin/sh\nread -r _ <"$HOME/scripts/tide-smoke-go"\necho "no such app" >&2\nexit 3\n' >"$HOME/scripts/tide-smoke-fail"
+chmod +x "$HOME/scripts/runenv" "$HOME/scripts/tide-smoke-fail"
 
 # Screenshots go to a folder of their own, straight away rather than after
-# the floating thumbnail, so the smoke test can find tilemo's.
+# the floating thumbnail, so the smoke test can find tide's.
 shots=$(mktemp -d)
 defaults write com.apple.screencapture location "$shots"
 defaults write com.apple.screencapture show-thumbnail -bool false
 killall SystemUIServer 2>/dev/null || true
 cat >"$hs_dir/init.lua" <<LUA
-TILEMO_SMOKE_OUT = "$out"
+TIDE_SMOKE_OUT = "$out"
 local ok, err = xpcall(dofile, debug.traceback, "$repo/ci/hs_smoke.lua")
 if not ok then
-    local f = io.open(TILEMO_SMOKE_OUT, "a")
+    local f = io.open(TIDE_SMOKE_OUT, "a")
     if f then
         f:write("FAIL hs_smoke.lua: ", tostring(err), "\\nRESULT fail\\n")
         f:close()

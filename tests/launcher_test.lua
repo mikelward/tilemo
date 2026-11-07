@@ -1,5 +1,5 @@
 local t = require("t")
-local launcher = require("tilemo.launcher")
+local launcher = require("tide.launcher")
 
 t.test("every query character must appear, in order", function()
     t.eq(launcher.score("gc", "Google Calendar") ~= nil, true)
@@ -215,7 +215,7 @@ t.test("no command shows a workspace by number, now that they have names", funct
 end)
 
 t.test("every command names a window manager action or a quick action", function()
-    local wm = require("tilemo.wm")
+    local wm = require("tide.wm")
     for _, c in ipairs(launcher.COMMANDS) do
         t.eq(c.quick ~= nil or type(wm.actions[c.action]) == "function", true, c.title)
     end
@@ -238,7 +238,7 @@ end)
 local function wins()
     return {
         { id = 7, title = "Inbox - Mail", app_name = "Mail", ws = "in" },
-        { id = 3, title = "", app_name = "kitty", ws = "tilemo" },
+        { id = 3, title = "", app_name = "kitty", ws = "tide" },
         { id = 9, title = "Design doc - Google Chrome", app_name = "Google Chrome", ws = "web" },
     }
 end
@@ -250,7 +250,7 @@ t.test("the Windows tab lists every window, most recently used first, and the br
     local found = launcher.rank("", items, { scope = "windows" })
     t.eq(found[1].window, 7)
     t.eq(found[2].title, "kitty", "no title: the app's name")
-    t.eq(found[2].ws, "tilemo")
+    t.eq(found[2].ws, "tide")
     t.eq(found[3].window, 9)
     t.eq(found[4].kind, "tab")
     t.eq(found[4].ws, "web", "a tab carries its window's workspace")
@@ -297,7 +297,7 @@ t.test("each browser's tab list is read line by line, with its window's name", f
     t.eq(launcher.parse_tabs("Safari", nil), {})
 end)
 
-t.test("a tab finds its tilemo window by its browser and its window's name, if just one has it", function()
+t.test("a tab finds its tide window by its browser and its window's name, if just one has it", function()
     local windows = {
         { id = 1, app = "com.google.Chrome", title = "Docs - Google Chrome", ws = "web" },
         { id = 2, app = "com.google.Chrome", title = "Mail - Google Chrome", ws = "in" },
@@ -589,7 +589,7 @@ t.test("each settings section has its own row, found by its name or what it cove
 end)
 
 t.test("each settings section is one the settings window has", function()
-    local f = assert(io.open("hammerspoon/tilemo/dashboard/settings.html"))
+    local f = assert(io.open("hammerspoon/tide/dashboard/settings.html"))
     local html = f:read("a")
     f:close()
     -- Each page's markup, from its section to the next.
@@ -701,7 +701,7 @@ end)
 
 t.test("the switcher's mute key is Cmd+M, physical Ctrl+M as tide's", function()
     _G.hs = _G.hs or {}
-    local hs_launcher = require("tilemo.launcher_hs")
+    local hs_launcher = require("tide.launcher_hs")
     t.eq(hs_launcher.MUTE_KEY.key, "m")
     t.eq(table.concat(hs_launcher.MUTE_KEY.mods, "+"), "cmd")
 end)

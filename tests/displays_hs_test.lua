@@ -47,7 +47,7 @@ local function stub(installed, deferred)
             },
         },
     }
-    local tilemo = {
+    local tide = {
         adapter = {
             log = function(line)
                 s.logged[#s.logged + 1] = line
@@ -91,8 +91,8 @@ local function stub(installed, deferred)
         end
         error("no run waiting for " .. text)
     end
-    package.loaded["tilemo.displays_hs"] = nil
-    s.d = require("tilemo.displays_hs").new(tilemo, function()
+    package.loaded["tide.displays_hs"] = nil
+    s.d = require("tide.displays_hs").new(tide, function()
         s.changes = s.changes + 1
     end)
     return s

@@ -1,6 +1,6 @@
 local t = require("t")
 local fake = require("fake")
-local wm_mod = require("tilemo.wm")
+local wm_mod = require("tide.wm")
 
 -- Minimize mode (`hide = "minimize"`), for the tests about hiding a
 -- workspace by minimizing: they read macOS's minimized flag as hidden, or
@@ -279,7 +279,7 @@ t.test("a window you minimize stays minimized when its workspace comes back", fu
     t.eq(a.wins[1].minimized, false)
 end)
 
-t.test("tilemo's own minimizes aren't read as yours", function()
+t.test("tide's own minimizes aren't read as yours", function()
     local a, wm = setup(1, nil, minimizing())
     a.focus_ = 1
     wm:show("2", nil, true)
@@ -291,7 +291,7 @@ t.test("restoring a hidden window from the Dock brings its workspace along", fun
     local a, wm = setup(1)
     a.focus_ = 1
     wm:act("send", "5")
-    a.tick() -- tilemo's expectation lapses
+    a.tick() -- tide's expectation lapses
     a.wins[1].minimized = false
     wm:unminimized(1)
     t.eq(wm.current, "5")
@@ -371,7 +371,7 @@ t.test("a window handed off by a display that went away goes back to it after a 
     a.screens_[2] = nil
     wm:schedule()
     a.tick()
-    -- tilemo restarts with B still away, then B comes back.
+    -- tide restarts with B still away, then B comes back.
     local wm2 = wm_mod.new(a, { saved = a.saved })
     wm2:sync()
     t.eq(wm2.windows[2].screen, "A")
@@ -386,7 +386,7 @@ t.test("a restart puts windows back on their workspaces", function()
     a.focus_ = 2
     wm:act("send", "3")
     local snap = a.saved
-    -- tilemo restarts: window 2 is still minimized, on workspace 3.
+    -- tide restarts: window 2 is still minimized, on workspace 3.
     local wm2 = wm_mod.new(a, minimizing({ saved = snap }))
     wm2:sync()
     wm2:reconcile()
@@ -416,7 +416,7 @@ t.test("quitting restores every hidden window except yours", function()
     t.eq(a.wins[1].minimized, true)
 end)
 
-t.test("a window minimized before tilemo started counts as yours", function()
+t.test("a window minimized before tide started counts as yours", function()
     local a = fake.new()
     a.add(1, { minimized = true })
     local wm = wm_mod.new(a, {})
@@ -542,7 +542,7 @@ t.test("a minimize that finishes after its workspace came back is undone", funct
     t.eq(a.wins[1].minimized, false)
 end)
 
-t.test("a minimize report that lands after the switch back is still tilemo's", function()
+t.test("a minimize report that lands after the switch back is still tide's", function()
     local a, wm = setup(1, nil, minimizing())
     a.focus_ = 1
     wm:show("2", nil, true) -- minimize asked; the window reads minimized, no report yet
@@ -556,7 +556,7 @@ t.test("a minimize report that lands after the switch back is still tilemo's", f
     t.eq(a.wins[1].minimized, false, "still comes back with its workspace")
 end)
 
-t.test("two minimizes still waiting on their reports are both tilemo's", function()
+t.test("two minimizes still waiting on their reports are both tide's", function()
     local a, wm = setup(1, nil, minimizing())
     a.focus_ = 1
     wm:show("2", nil, true) -- minimize #1; the window reads minimized, no report yet
@@ -735,7 +735,7 @@ end)
 
 t.test("a window you send joins the end of the stack, even when new windows go to master", function()
     local cfg = {}
-    for k, v in pairs(require("tilemo.layout").defaults) do
+    for k, v in pairs(require("tide.layout").defaults) do
         cfg[k] = v
     end
     cfg.new_window = "master"
@@ -1506,7 +1506,7 @@ t.test("a standing workspace other than home keeps its spelling too", function()
 end)
 
 -- Win+T with the pointer on one display while the terminal's last window
--- was on the other: macOS opens the new one over there, and tilemo brings
+-- was on the other: macOS opens the new one over there, and tide brings
 -- it to the display you're on (SPEC.md §6.1).
 local TERM = { bundle = "net.kovidgoyal.kitty", new = true }
 
@@ -1577,7 +1577,7 @@ t.test("with nothing moved since, a launch goes to the focused window's display"
     t.eq(wm.windows[2].screen, "B")
 end)
 
-t.test("the app moving a launch's new window before tilemo places it doesn't take it back", function()
+t.test("the app moving a launch's new window before tide places it doesn't take it back", function()
     local a, wm = launch_setup()
     wm:keep_keys_on("A")
     wm:act("app", TERM)

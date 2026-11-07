@@ -1,7 +1,7 @@
 // Runs the overview's bundled script (tests/overview_test.lua writes it to
 // the file named on the command line) against a small fake DOM, and checks
-// tilemo.update() draws the groups and cards, typing filters them, and the
-// choices go back to tilemo.
+// tide.update() draws the groups and cards, typing filters them, and the
+// choices go back to tide.
 
 const fs = require("fs");
 const vm = require("vm");
@@ -51,7 +51,7 @@ const sandbox = {
   Set,
 };
 sandbox.window = sandbox;
-sandbox.webkit = { messageHandlers: { tilemo: { postMessage: (m) => sent.push(m) } } };
+sandbox.webkit = { messageHandlers: { tide: { postMessage: (m) => sent.push(m) } } };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
 
@@ -91,9 +91,9 @@ const state = {
     },
   ],
 };
-sandbox.tilemo.update(state);
+sandbox.tide.update(state);
 
-// Each group headed by its name, the current one marked, in tilemo's order.
+// Each group headed by its name, the current one marked, in tide's order.
 assert.deepStrictEqual(groups().map((g) => g.children[0].textContent), ["web", "in"]);
 assert.ok(groups()[0].classList.contains("current"));
 assert.ok(!groups()[1].classList.contains("current"));
@@ -156,9 +156,9 @@ assert.strictEqual(ids.filter.textContent, "mailq");
 // An update in the same scope keeps the filter; the other scope starts
 // afresh, on the focused window. The current workspace with no windows
 // still shows, saying so.
-sandbox.tilemo.update(state);
+sandbox.tide.update(state);
 assert.strictEqual(ids.filter.textContent, "mailq");
-sandbox.tilemo.update({ scope: "current", focused: null, icons: [], groups: [{ name: "oc", current: true, windows: [] }] });
+sandbox.tide.update({ scope: "current", focused: null, icons: [], groups: [{ name: "oc", current: true, windows: [] }] });
 assert.strictEqual(ids.filter.textContent, "");
 assert.deepStrictEqual(groups().map((g) => g.children[0].textContent), ["oc"]);
 assert.strictEqual(groups()[0].children[1].textContent, "No windows on this workspace");
@@ -167,8 +167,8 @@ assert.strictEqual(took(), "[]");
 
 // Lua's JSON can send an empty list as an object: an empty workspace's
 // windows, or no groups at all.
-sandbox.tilemo.update({ scope: "all", focused: null, icons: {}, groups: [{ name: "oc", current: true, windows: {} }] });
+sandbox.tide.update({ scope: "all", focused: null, icons: {}, groups: [{ name: "oc", current: true, windows: {} }] });
 assert.strictEqual(groups()[0].children[1].textContent, "No windows on this workspace");
-sandbox.tilemo.update({ scope: "current", focused: null, icons: {}, groups: {} });
+sandbox.tide.update({ scope: "current", focused: null, icons: {}, groups: {} });
 assert.deepStrictEqual(groups(), []);
 console.log("overview page: ok");

@@ -5,9 +5,9 @@
 local t = require("t")
 local fake = require("fake")
 local json = require("json")
-local floating = require("tilemo.floating")
-local wm_mod = require("tilemo.wm")
-local keys = require("tilemo.keys")
+local floating = require("tide.floating")
+local wm_mod = require("tide.wm")
+local keys = require("tide.keys")
 
 local DIR = "/home/user/.config/tide"
 local SHARED = DIR .. "/" .. floating.FILE

@@ -1,0 +1,199 @@
+-- The dashboard (SPEC.md §8): tileco's bar and clock panel, full screen on a
+-- key, in an hs.webview. The page is tileco's own modules, copied unchanged
+-- into dashboard/, tide's clocks module (tide-clocks.js, its
+-- shell/lib/clocks.mjs, also unchanged), plus tide's settings and page
+-- script. A webview can't load ES modules from files, so bundle() joins them
+-- into one script, each module in its own scope. Pure Lua; dashboard_hs.lua
+-- shows it.
+
+local M = {}
+
+-- In the order they're needed: each module only imports ones before it.
+M.MODULES = { "clocks.js", "calendar.js", "tide-clocks.js", "settings.js", "clockview.js", "dashboard.js" }
+-- The bar's page (bar_hs.lua) is built the same way, from the same files.
+M.BAR_MODULES = { "clocks.js", "calendar.js", "tide-clocks.js", "settings.js", "clockview.js", "tide-barsettings.js", "bar.js" }
+-- And the settings page (settings_hs.lua).
+M.SETTINGS_MODULES = { "clocks.js", "tide-clocks.js", "tide-startup.js", "tide-clipboard.js", "tide-steps.js", "tide-layouts.js", "tide-input.js", "tide-palette.js", "tide-appearance.js", "tide-idle.js", "tide-dnd.js", "linearmouse.js", "tide-fuzzy.js", "tide-span.js", "tide-workspacenames.js", "tide-workspacepage.js", "settings.js", "settings-page.js" }
+
+-- tide's modules, copied unchanged, import each other by tide's names: a
+-- module registered here is also found by the name in `ALIASES`.
+M.ALIASES = {
+    ["tide-clocks.js"] = "clocks.mjs",
+    ["tide-steps.js"] = "steps.mjs",
+    ["tide-fuzzy.js"] = "fuzzy.mjs",
+    ["tide-workspacenames.js"] = "workspacenames.mjs",
+    ["tide-span.js"] = "span.mjs",
+    ["tide-palette.js"] = "palette.mjs",
+    ["tide-appearance.js"] = "appearance.mjs",
+    -- The dashboard launcher's stand-ins for tileco's modules of these
+    -- names (launcherpage.lua), registered after them.
+    ["launcher-settings.js"] = "settings.js",
+    ["launcher-lists.js"] = "launcher.js",
+}
+
+-- tide's settings folder (tide SPEC.md §16.1), where the clocks are, from
+-- `getenv`, as os.getenv.
+function M.clock_dir(getenv)
+    local base = getenv("XDG_CONFIG_HOME")
+    if not base or base == "" then
+        base = (getenv("HOME") or "") .. "/.config"
+    end
+    return base .. "/tide"
+end
+
+-- The two clocks files' texts, for the pages: `read(path)` gives a file's
+-- text, or nil when there's none, which leaves it out.
+function M.clock_files(dir, read)
+    return { shared = read(dir .. "/clocks.json"), ["local"] = read(dir .. "/clocks.local.json") }
+end
+
+M.LOCAL_FILE = "clocks.local.json"
+
+-- The two Start at login files' texts, as clock_files() gives the clocks'.
+function M.startup_files(dir, read)
+    return { shared = read(dir .. "/startup.json"), ["local"] = read(dir .. "/startup.local.json") }
+end
+
+M.STARTUP_LOCAL_FILE = "startup.local.json"
+
+-- And the Clipboard settings' (picker.lua).
+function M.clipboard_files(dir, read)
+    return { shared = read(dir .. "/clipboard.json"), ["local"] = read(dir .. "/clipboard.local.json") }
+end
+
+M.CLIPBOARD_LOCAL_FILE = "clipboard.local.json"
+
+-- And the Appearance settings' (wallpaper.lua).
+function M.appearance_files(dir, read)
+    return { shared = read(dir .. "/appearance.json"), ["local"] = read(dir .. "/appearance.local.json") }
+end
+
+M.APPEARANCE_LOCAL_FILE = "appearance.local.json"
+
+-- And the Idle settings' (idle.lua).
+function M.idle_files(dir, read)
+    return { shared = read(dir .. "/idle.json"), ["local"] = read(dir .. "/idle.local.json") }
+end
+
+M.IDLE_LOCAL_FILE = "idle.local.json"
+
+-- And the Notifications settings' (dndsched.lua).
+function M.notification_files(dir, read)
+    return { shared = read(dir .. "/notifications.json"), ["local"] = read(dir .. "/notifications.local.json") }
+end
+
+M.NOTIFICATIONS_LOCAL_FILE = "notifications.local.json"
+
+-- And the Layouts settings' (layout.lua).
+function M.layout_files(dir, read)
+    return { shared = read(dir .. "/layouts.json"), ["local"] = read(dir .. "/layouts.local.json") }
+end
+
+M.LAYOUTS_LOCAL_FILE = "layouts.local.json"
+
+-- And the Mouse settings' (linearmouse.lua).
+function M.input_files(dir, read)
+    return { shared = read(dir .. "/input.json"), ["local"] = read(dir .. "/input.local.json") }
+end
+
+M.INPUT_LOCAL_FILE = "input.local.json"
+
+-- And the Workspaces settings' (standing.lua, names.lua, mute.lua).
+function M.workspace_files(dir, read)
+    return { shared = read(dir .. "/workspaces.json"), ["local"] = read(dir .. "/workspaces.local.json") }
+end
+
+M.WORKSPACES_LOCAL_FILE = "workspaces.local.json"
+
+-- One module's source as a function that registers what it exports.
+local function wrap(name, src)
+    local exports = {}
+    -- import { a, b as c } from "./x.js";  ->  const { a, b: c } = modules["./x.js"];
+    src = src:gsub('import%s*(%b{})%s*from%s*"([^"]+)";?', function(names, from)
+        return "const " .. names:gsub("%s+as%s+", ": ") .. ' = modules["' .. from .. '"];'
+    end)
+    if src:find("%f[%w]import%s") then
+        error("tide: dashboard/" .. name .. " has an import bundle() can't read")
+    end
+    src = src:gsub("export%s+(async%s+function%s+)([%w_$]+)", function(kw, n)
+        exports[#exports + 1] = n
+        return kw .. n
+    end)
+    src = src:gsub("export%s+(function%s*%*?%s*)([%w_$]+)", function(kw, n)
+        exports[#exports + 1] = n
+        return kw .. n
+    end)
+    src = src:gsub("export%s+const%s+([%w_$]+)", function(n)
+        exports[#exports + 1] = n
+        return "const " .. n
+    end)
+    src = src:gsub("export%s+let%s+([%w_$]+)", function(n)
+        exports[#exports + 1] = n
+        return "let " .. n
+    end)
+    -- At the start of a line, where a statement is: "Import and export" in
+    -- a string is just words.
+    if ("\n" .. src):find("\n[ \t]*export%f[%W]") then
+        error("tide: dashboard/" .. name .. " has an export bundle() can't read")
+    end
+    return string.format('modules["./%s"] = (() => {\n%s\nreturn { %s };\n})();\n',
+        name, src, table.concat(exports, ", "))
+end
+
+-- `sources` maps a module's file name to its text; `modules` lists them in
+-- order, the dashboard's by default.
+function M.bundle(sources, modules)
+    local out = { '"use strict";\nconst modules = {};\n' }
+    for _, name in ipairs(modules or M.MODULES) do
+        local src = sources[name]
+        if not src then
+            error("tide: dashboard/" .. name .. " is missing")
+        end
+        out[#out + 1] = wrap(name, src)
+        if M.ALIASES[name] then
+            out[#out + 1] = string.format('modules["./%s"] = modules["./%s"];\n', M.ALIASES[name], name)
+        end
+    end
+    return table.concat(out)
+end
+
+-- The page: the template with tileco's stylesheet and the bundled script in
+-- place of its two markers.
+-- Whether hs.webview:evaluateJavaScript's error says a page's script
+-- failed. It passes a table even on success, made from no error at all:
+-- { code = 0 }.
+function M.js_failed(err)
+    return type(err) == "table" and ((err.code or 0) ~= 0 or err.localizedDescription ~= nil)
+end
+
+function M.page(template, css, sources, modules)
+    local script = M.bundle(sources, modules)
+    local html = template:gsub("/%*TIDE_CSS%*/", function()
+        return css
+    end)
+    html = html:gsub("/%*TIDE_SCRIPT%*/", function()
+        return script
+    end)
+    return html
+end
+
+-- What the page shows, as plain data for tide.update(): every workspace's
+-- state as seen from display `uuid`, the one the dashboard is on, the
+-- focused window's title, tide's clocks files (clock_files()), and the last
+-- good clocks the pages reported, kept while a file is wrong.
+function M.state(wm, adapter, uuid, clock_files, good_clocks)
+    local ws = {}
+    for i, s in ipairs(wm:bar_state()) do
+        ws[i] = {
+            n = s.name,
+            current = s.here or false,
+            occupied = s.occupied or false,
+            urgent = s.urgent or false,
+        }
+    end
+    local f = adapter.focused()
+    local title = f and wm.windows[f] and adapter.title(f) or ""
+    return { workspaces = ws, title = title, clockFiles = clock_files or {}, goodClocks = good_clocks }
+end
+
+return M
